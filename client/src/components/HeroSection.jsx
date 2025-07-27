@@ -9,7 +9,7 @@ const fadeUp = {
     y: 0,
     transition: {
       duration: 0.8,
-      ease: [0.6, -0.05, 0.01, 0.99],
+      ease: [0.25, 0.1, 0.25, 1],
     },
   },
 };
@@ -33,7 +33,7 @@ const HeroSection = () => {
         <motion.div
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true, margin: "-100px" }}
+          viewport={{ once: true, margin: "-50px", amount: 0.3 }}
           variants={staggerContainer}
           className="text-start mb-16"
         >
@@ -57,17 +57,21 @@ const HeroSection = () => {
               className="h-300px w-full object-cover rounded-lg shadow-xl"
               initial={{ opacity: 0, scale: 0.98 }}
               whileInView={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 1.2, ease: [0.6, -0.05, 0.01, 0.99] }}
-              viewport={{ once: true }}
+              transition={{ duration: 1.2, ease: [0.25, 0.1, 0.25, 1] }}
+              viewport={{ once: true, margin: "-50px" }}
             />
 
             {/* Explore Our Offerings Button */}
             <motion.div
-              className="absolute bottom-0 right-0 transform translate-y-4"
+              className="absolute -bottom-8 right-0 transform"
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4, duration: 0.8 }}
-              viewport={{ once: true }}
+              transition={{
+                delay: 0.4,
+                duration: 0.8,
+                ease: [0.25, 0.1, 0.25, 1],
+              }}
+              viewport={{ once: true, margin: "-50px" }}
             >
               <motion.button
                 className="bg-orange-500 text-white px-6 py-3 font-semibold hover:bg-orange-600 transition-colors duration-300 shadow-lg rounded-md"
@@ -82,32 +86,51 @@ const HeroSection = () => {
       </div>
 
       {/* Core Values Section */}
-      <div className={`bg-primary-green h-py-16 -mt-60 z-0 relative h-`}>
+      <div className={`bg-primary-green py-16 -mt-64 z-0 relative pt-72`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.h2
             className="text-3xl md:text-4xl font-bold text-center mb-12 text-white"
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 0.8, ease: [0.25, 0.1, 0.25, 1] }}
+            viewport={{ once: true, margin: "-50px" }}
           >
             OUR CORE VALUES
           </motion.h2>
 
           <motion.div
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 relative"
             initial="hidden"
             whileInView="visible"
             variants={staggerContainer}
-            viewport={{ once: true, margin: "-100px" }}
+            viewport={{ once: true, margin: "-50px" }}
           >
+            {/* Vertical separators for larger screens */}
+            <div className="hidden lg:block absolute inset-0 pointer-events-none">
+              {[1, 2, 3].map((_, index) => (
+                <motion.div
+                  key={index}
+                  className="absolute top-0 bottom-0 w-px bg-white/30"
+                  style={{ left: `${25 * (index + 1)}%` }}
+                  initial={{ scaleY: 0, opacity: 0 }}
+                  whileInView={{ scaleY: 1, opacity: 1 }}
+                  transition={{
+                    delay: 0.5 + index * 0.1,
+                    duration: 0.8,
+                    ease: [0.25, 0.1, 0.25, 1],
+                  }}
+                  viewport={{ once: true }}
+                />
+              ))}
+            </div>
+
             {/* Core Value Items */}
             {["Excellence", "Innovation", "Quality", "Sustainability"].map(
               (value, index) => (
                 <motion.div
                   key={value}
                   variants={fadeUp}
-                  className="text-center group"
+                  className="text-center group relative"
                   whileHover={{ y: -5 }}
                 >
                   <div className="mb-6 flex justify-center">
@@ -123,7 +146,7 @@ const HeroSection = () => {
                     </motion.div>
                   </div>
                   <h3 className="text-xl font-bold text-white mb-3">{value}</h3>
-                  <p className="text-gray-300 text-sm leading-relaxed">
+                  <p className="text-white/90 text-sm leading-relaxed whitespace-pre-line">
                     {value === "Excellence" &&
                       "Unforgettable Culinary\nExperiences"}
                     {value === "Innovation" &&
@@ -133,6 +156,17 @@ const HeroSection = () => {
                     {value === "Sustainability" &&
                       "Eco-friendly Dining\nPractices"}
                   </p>
+
+                  {/* Mobile separator */}
+                  {index < 3 && (
+                    <motion.div
+                      className="lg:hidden w-16 h-px bg-white/30 mx-auto mt-8"
+                      initial={{ scaleX: 0, opacity: 0 }}
+                      whileInView={{ scaleX: 1, opacity: 1 }}
+                      transition={{ delay: 0.3, duration: 0.6 }}
+                      viewport={{ once: true }}
+                    />
+                  )}
                 </motion.div>
               )
             )}

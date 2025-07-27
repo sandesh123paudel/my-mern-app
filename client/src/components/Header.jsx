@@ -46,10 +46,10 @@ const Header = () => {
                 Menu
               </Link>
               <Link
-                to="#"
+                to="inquiry"
                 className="text-gray-700 hover:text-primary-brown transition-colors duration-300 font-medium"
               >
-                Blog
+                Inquiry
               </Link>
             </nav>
 
@@ -123,11 +123,11 @@ const Header = () => {
               Menu
             </Link>
             <Link
-              to="#"
+              to="/inquiry"
               className="font-semibold text-gray-700 hover:text-primary-brown transition-colors duration-300"
               onClick={toggleMenu}
             >
-              Blog
+              Inquiry
             </Link>
 
             {/* Mobile Login Button */}
