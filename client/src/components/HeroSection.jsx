@@ -52,7 +52,7 @@ const HeroSection = () => {
           {/* Food Grid Display */}
           <motion.div variants={fadeUp} className="relative mb-16 z-10">
             <motion.img
-              src="/herosection.svg"
+              src="/herosection.png"
               alt=""
               className="h-300px w-full object-cover rounded-lg shadow-xl"
               initial={{ opacity: 0, scale: 0.98 }}
