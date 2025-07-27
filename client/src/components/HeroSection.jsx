@@ -1,39 +1,145 @@
 import React from "react";
+import { motion } from "framer-motion";
+
+// Animation variants
+const fadeUp = {
+  hidden: { opacity: 0, y: 40 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.8,
+      ease: [0.6, -0.05, 0.01, 0.99],
+    },
+  },
+};
+
+const staggerContainer = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.15,
+      delayChildren: 0.3,
+    },
+  },
+};
 
 const HeroSection = () => {
   return (
-    <>
-      <section className="relative bg-gradient-to-br from-orange-50 to-white py-12 lg:py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-            {/* Hero Text */}
-            <div className="space-y-6">
-              <div className="space-y-4">
-                <h1 className="text-4xl lg:text-6xl font-bold text-gray-900 leading-tight">
-                  DISCOVER CULINARY
-                </h1>
-                <h1 className="text-4xl lg:text-6xl font-bold text-gray-900 leading-tight">
-                  EXCELLENCE{" "}
-                  <em className="text-orange-500 font-serif">with Feastar</em>
-                </h1>
-              </div>
-              <button className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 rounded-md font-semibold  shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200">
-                EXPLORE OUR OFFERINGS
-              </button>
-            </div>
+    <section className="relative py-10 lg:py-18">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Hero Content */}
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+          variants={staggerContainer}
+          className="text-start mb-16"
+        >
+          <motion.h1
+            variants={fadeUp}
+            className="text-4xl md:text-5xl lg:text-6xl font-bold text-primary-brown mb-6 leading-tight"
+          >
+            DISCOVER CULINARY
+            <br />
+            EXCELLENCE{" "}
+            <span className="italic font-light text-primary-brown/80">
+              with Us
+            </span>
+          </motion.h1>
 
-            {/* Orange Circle Accent */}
-            <div className="relative flex justify-center lg:justify-end">
-              <div className="w-32 h-32 lg:w-48 lg:h-48 bg-orange-500 rounded-full flex items-center justify-center shadow-2xl">
-                <div className="text-white text-2xl lg:text-4xl font-bold">
-                  ★
-                </div>
-              </div>
-            </div>
-          </div>
+          {/* Food Grid Display */}
+          <motion.div variants={fadeUp} className="relative mb-16 z-10">
+            <motion.img
+              src="/herosection.svg"
+              alt=""
+              className="h-300px w-full object-cover rounded-lg shadow-xl"
+              initial={{ opacity: 0, scale: 0.98 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 1.2, ease: [0.6, -0.05, 0.01, 0.99] }}
+              viewport={{ once: true }}
+            />
+
+            {/* Explore Our Offerings Button */}
+            <motion.div
+              className="absolute bottom-0 right-0 transform translate-y-4"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4, duration: 0.8 }}
+              viewport={{ once: true }}
+            >
+              <motion.button
+                className="bg-orange-500 text-white px-6 py-3 font-semibold hover:bg-orange-600 transition-colors duration-300 shadow-lg rounded-md"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                EXPLORE OUR OFFERINGS
+              </motion.button>
+            </motion.div>
+          </motion.div>
+        </motion.div>
+      </div>
+
+      {/* Core Values Section */}
+      <div className={`bg-primary-green h-py-16 -mt-60 z-0 relative h-`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.h2
+            className="text-3xl md:text-4xl font-bold text-center mb-12 text-white"
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            viewport={{ once: true, margin: "-100px" }}
+          >
+            OUR CORE VALUES
+          </motion.h2>
+
+          <motion.div
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8"
+            initial="hidden"
+            whileInView="visible"
+            variants={staggerContainer}
+            viewport={{ once: true, margin: "-100px" }}
+          >
+            {/* Core Value Items */}
+            {["Excellence", "Innovation", "Quality", "Sustainability"].map(
+              (value, index) => (
+                <motion.div
+                  key={value}
+                  variants={fadeUp}
+                  className="text-center group"
+                  whileHover={{ y: -5 }}
+                >
+                  <div className="mb-6 flex justify-center">
+                    <motion.div
+                      className="w-16 h-16 bg-white rounded-full flex items-center justify-center group-hover:bg-primary-brown/10 transition-colors duration-300"
+                      whileHover={{ scale: 1.1 }}
+                    >
+                      <div className="w-8 h-8 bg-primary-brown rounded-full relative">
+                        <div className="absolute inset-1 bg-white rounded-full"></div>
+                        <div className="absolute top-2 left-1/2 transform -translate-x-1/2 w-1 h-3 bg-primary-brown rounded-full"></div>
+                        <div className="absolute top-1 left-1/2 transform -translate-x-1/2 w-2 h-1 bg-primary-brown rounded-full"></div>
+                      </div>
+                    </motion.div>
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-3">{value}</h3>
+                  <p className="text-gray-300 text-sm leading-relaxed">
+                    {value === "Excellence" &&
+                      "Unforgettable Culinary\nExperiences"}
+                    {value === "Innovation" &&
+                      "Dynamic, Fresh,\nExciting Flavors"}
+                    {value === "Quality" &&
+                      "Source to Plate Culinary\nDelights"}
+                    {value === "Sustainability" &&
+                      "Eco-friendly Dining\nPractices"}
+                  </p>
+                </motion.div>
+              )
+            )}
+          </motion.div>
         </div>
-      </section>
-    </>
+      </div>
+    </section>
   );
 };
 

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Menu, X, User } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -15,39 +16,41 @@ const Header = () => {
           <div className="flex justify-between items-center">
             {/* Logo */}
             <div className="flex items-center space-x-1">
-              <img
-                src="/Logo-full.svg"
-                alt="Catering Logo"
-                className="h-auto w-32 sm:w-40 lg:w-50"
-              />
+              <Link to="/">
+                <img
+                  src="/Logo-full.svg"
+                  alt="Catering Logo"
+                  className="h-auto w-32 sm:w-40 lg:w-50"
+                />
+              </Link>
             </div>
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex space-x-8">
-              <a
-                href="#"
+              <Link
+                to="/"
                 className="text-gray-700 hover:text-primary-brown transition-colors duration-300 font-medium"
               >
                 Home
-              </a>
-              <a
-                href="#"
+              </Link>
+              <Link
+                to="/about"
                 className="text-gray-700 hover:text-primary-brown transition-colors duration-300 font-medium"
               >
                 About
-              </a>
-              <a
-                href="#"
+              </Link>
+              <Link
+                to="/menu"
                 className="text-gray-700 hover:text-primary-brown transition-colors duration-300 font-medium"
               >
                 Menu
-              </a>
-              <a
-                href="#"
+              </Link>
+              <Link
+                to="#"
                 className="text-gray-700 hover:text-primary-brown transition-colors duration-300 font-medium"
               >
                 Blog
-              </a>
+              </Link>
             </nav>
 
             {/* Desktop Login Button */}
@@ -88,13 +91,6 @@ const Header = () => {
         <div className="flex flex-col h-full">
           {/* Mobile Header */}
           <div className="flex justify-end items-center p-6 border-gray-200">
-            {/* <div className="flex items-center">
-              <img
-                src="/Logo-full.svg"
-                alt="Catering Logo"
-                className="h-auto w-32"
-              />
-            </div> */}
             <button
               onClick={toggleMenu}
               className="text-gray-700 hover:text-primary-brown transition-colors duration-300 p-2"
@@ -105,34 +101,34 @@ const Header = () => {
 
           {/* Mobile Navigation Links */}
           <div className="text-xl flex flex-col items-center justify-center flex-1 space-y-8 px-6">
-            <a
-              href="#"
-              className=" font-semibold text-gray-700 hover:text-primary-brown transition-colors duration-300"
+            <Link
+              to="/"
+              className="font-semibold text-gray-700 hover:text-primary-brown transition-colors duration-300"
               onClick={toggleMenu}
             >
               Home
-            </a>
-            <a
-              href="#"
+            </Link>
+            <Link
+              to="/about"
               className="font-semibold text-gray-700 hover:text-primary-brown transition-colors duration-300"
               onClick={toggleMenu}
             >
               About
-            </a>
-            <a
-              href="#"
+            </Link>
+            <Link
+              to="/menu"
               className="font-semibold text-gray-700 hover:text-primary-brown transition-colors duration-300"
               onClick={toggleMenu}
             >
               Menu
-            </a>
-            <a
-              href="#"
+            </Link>
+            <Link
+              to="#"
               className="font-semibold text-gray-700 hover:text-primary-brown transition-colors duration-300"
               onClick={toggleMenu}
             >
               Blog
-            </a>
+            </Link>
 
             {/* Mobile Login Button */}
             <button
@@ -140,7 +136,6 @@ const Header = () => {
               onClick={toggleMenu}
             >
               <img src="/catering.svg" alt="" className="h-5" />
-
               <span>Login</span>
             </button>
           </div>
