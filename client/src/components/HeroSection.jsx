@@ -37,15 +37,24 @@ const HeroSection = () => {
           variants={staggerContainer}
           className="text-start mb-16"
         >
+          <motion.p className="text-sm md:text-md lg:text-lg font-bold text-primary-green mb-1 leading-tight hover:text-primary-brown transition duration-500 ">
+            <a
+              href="https://mulchowkkitchen.com.au/"
+              target="_blank"
+              alt="Mul Chowk Kitchen - Nepalese Restaurant and Bar"
+            >
+              A Joint Venture of Mul Chowk Kitchen
+            </a>
+          </motion.p>
           <motion.h1
             variants={fadeUp}
             className="text-4xl md:text-5xl lg:text-6xl font-bold text-primary-brown mb-6 leading-tight"
           >
-            DISCOVER CULINARY
+            NEPALESE CATERING
             <br />
-            EXCELLENCE{" "}
+            in{" "}
             <span className="italic font-light text-primary-brown/80">
-              with Us
+              Sydney & Canberra
             </span>
           </motion.h1>
 
@@ -63,7 +72,7 @@ const HeroSection = () => {
 
             {/* Explore Our Offerings Button */}
             <motion.div
-              className="absolute -bottom-8 right-0 transform"
+              className="absolute -bottom-4 right-0 transform"
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{
@@ -74,7 +83,7 @@ const HeroSection = () => {
               viewport={{ once: true, margin: "-50px" }}
             >
               <motion.button
-                className="bg-orange-500 text-white px-6 py-3 font-semibold hover:bg-orange-600 transition-colors duration-300 shadow-lg rounded-md"
+                className="bg-orange-500 text-white px-6 py-3 font-semibold hover:bg-orange-600 rounded-md transition-colors duration-300 shadow-lg"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >

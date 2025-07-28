@@ -1,14 +1,28 @@
 import React, { useState } from "react";
 import { Menu, X, User } from "lucide-react";
-// import { Link } from "react-router-dom"; // Replace with your routing solution
 import { motion, AnimatePresence } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const location = useLocation();
+
+  const navItems = [
+    { to: "/", label: "Home" },
+    { to: "/about", label: "About" },
+    { to: "/menu", label: "Menu" },
+    { to: "/inquiry", label: "Inquiry" },
+  ];
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
+  };
+
+  // Check if current path matches the nav item
+  const isActive = (path) => {
+    if (path === "/" && location.pathname === "/") return true;
+    if (path !== "/" && location.pathname.startsWith(path)) return true;
+    return false;
   };
 
   // Animation variants
@@ -84,7 +98,7 @@ const Header = () => {
   return (
     <>
       <motion.header
-        className="shadow-sm relative z-50 bg-white"
+        className="shadow-sm relative z-50 bg-white border-b border-gray"
         initial="hidden"
         animate="visible"
         variants={headerVariants}
@@ -112,21 +126,36 @@ const Header = () => {
               className="hidden md:flex space-x-8"
               variants={itemVariants}
             >
-              {["Home", "About", "Menu", "Inquiry"].map((item, index) => (
+              {navItems.map((navItem, index) => (
                 <motion.div
-                  key={item}
+                  key={navItem.label}
                   variants={itemVariants}
                   whileHover={{ y: -2 }}
                   transition={{ duration: 0.2 }}
+                  className="relative"
                 >
                   <Link
-                    to={item === "Home" ? "/" : `/${item.toLowerCase()}`}
-                    className="text-gray-700 hover:text-primary-brown transition-colors duration-300 font-medium relative group"
+                    to={navItem.to}
+                    className={`transition-colors duration-300 font-medium relative group pb-1 ${
+                      isActive(navItem.to)
+                        ? "text-primary-green"
+                        : "text-primary-brown hover:text-primary-green"
+                    }`}
                   >
-                    {item}
+                    {navItem.label}
+                    {/* Active indicator bar */}
                     <motion.div
-                      className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary-brown group-hover:w-full transition-all duration-300"
+                      className={`absolute -bottom-1 left-0 h-0.5 bg-primary-green transition-all duration-300 ${
+                        isActive(navItem.to)
+                          ? "w-full"
+                          : "w-0 group-hover:w-full"
+                      }`}
+                      initial={false}
+                      animate={{
+                        width: isActive(navItem.to) ? "100%" : "0%",
+                      }}
                       whileHover={{ width: "100%" }}
+                      transition={{ duration: 0.3 }}
                     />
                   </Link>
                 </motion.div>
@@ -136,7 +165,7 @@ const Header = () => {
             {/* Desktop Login Button */}
             <motion.div className="hidden md:flex" variants={itemVariants}>
               <motion.button
-                className="flex items-center space-x-2 px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:text-primary-brown hover:border-primary-brown transition-all duration-300 font-medium"
+                className="flex items-center space-x-2 px-6 py-2 border border-primary-brown rounded-lg text-primary-brown hover:text-primary-green hover:border-primary-green transition-all duration-300 font-medium"
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
                 transition={{ duration: 0.2 }}
@@ -144,7 +173,8 @@ const Header = () => {
                 <motion.img
                   src="/catering.svg"
                   alt=""
-                  className="h-5"
+                  style={{ fill: "white" }}
+                  className="h-5 hover:fill-primary-brown/80 transition-colors duration-300"
                   whileHover={{ rotate: 10 }}
                   transition={{ duration: 0.2 }}
                 />
@@ -156,7 +186,7 @@ const Header = () => {
             <motion.div className="md:hidden" variants={itemVariants}>
               <motion.button
                 onClick={toggleMenu}
-                className="text-gray-700 hover:text-primary-brown transition-colors duration-300 p-2"
+                className="text-primary-brown hover:text-primary-green transition-colors duration-300 p-2"
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 transition={{ duration: 0.2 }}
@@ -217,12 +247,12 @@ const Header = () => {
             <div className="flex flex-col h-full">
               {/* Mobile Header */}
               <motion.div
-                className="flex justify-end items-center p-6 border-gray-200"
+                className="flex justify-end items-center p-6"
                 variants={mobileItemVariants}
               >
                 <motion.button
                   onClick={toggleMenu}
-                  className="text-gray-700 hover:text-primary-brown transition-colors duration-300 p-2"
+                  className="text-primary-brown hover:text-primary-green transition-colors duration-300 p-2"
                   whileHover={{ scale: 1.1, rotate: 90 }}
                   whileTap={{ scale: 0.9 }}
                   transition={{ duration: 0.2 }}
@@ -233,21 +263,33 @@ const Header = () => {
 
               {/* Mobile Navigation Links */}
               <div className="text-xl flex flex-col items-center justify-center flex-1 space-y-8 px-6">
-                {["Home", "About", "Menu", "Inquiry"].map((item, index) => (
+                {navItems.map((navItem, index) => (
                   <motion.div
-                    key={item}
+                    key={navItem.label}
                     variants={mobileItemVariants}
                     whileHover={{ scale: 1.05, x: 10 }}
                     transition={{ duration: 0.2 }}
+                    className="relative"
                   >
                     <Link
-                      to={item === "Home" ? "/" : `/${item.toLowerCase()}`}
-                      className="font-semibold text-gray-700 hover:text-primary-brown transition-colors duration-300 relative group"
+                      to={navItem.to}
+                      className={`font-semibold transition-colors duration-300 relative group ${
+                        isActive(navItem.to)
+                          ? "text-primary-green"
+                          : "text-primary-brown hover:text-primary-green"
+                      }`}
                       onClick={toggleMenu}
                     >
-                      {item}
+                      {navItem.label}
+                      {/* Mobile active indicator */}
                       <motion.div
-                        className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary-brown"
+                        className={`absolute -bottom-1 left-0 h-0.5 bg-primary-green transition-all duration-300 ${
+                          isActive(navItem.to) ? "w-full" : "w-0"
+                        }`}
+                        initial={false}
+                        animate={{
+                          width: isActive(navItem.to) ? "100%" : "0%",
+                        }}
                         whileHover={{ width: "100%" }}
                         transition={{ duration: 0.3 }}
                       />
@@ -257,7 +299,7 @@ const Header = () => {
 
                 {/* Mobile Login Button */}
                 <motion.button
-                  className="flex items-center space-x-3 px-8 py-3 border-2 border-gray-300 rounded-lg text-gray-700 hover:text-primary-brown hover:border-primary-brown transition-all duration-300 font-semibold text-lg mt-8"
+                  className="flex items-center space-x-3 px-8 py-3 border-2 border-primary-brown rounded-lg text-primary-brown hover:text-primary-green hover:border-primary-green transition-all duration-300 font-semibold text-lg mt-8"
                   onClick={toggleMenu}
                   variants={mobileItemVariants}
                   whileHover={{ scale: 1.05, y: -3 }}
