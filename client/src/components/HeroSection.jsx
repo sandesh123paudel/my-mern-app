@@ -108,7 +108,7 @@ const HeroSection = () => {
           </motion.h2>
 
           <motion.div
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 relative"
+            className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-8 relative"
             initial="hidden"
             whileInView="visible"
             variants={staggerContainer}
@@ -147,17 +147,38 @@ const HeroSection = () => {
                       className="w-16 h-16 bg-white rounded-full flex items-center justify-center group-hover:bg-primary-brown/10 transition-colors duration-300"
                       whileHover={{ scale: 1.1 }}
                     >
-                      <div className="w-8 h-8 bg-primary-brown rounded-full relative">
-                        <div className="absolute inset-1 bg-white rounded-full"></div>
-                        <div className="absolute top-2 left-1/2 transform -translate-x-1/2 w-1 h-3 bg-primary-brown rounded-full"></div>
-                        <div className="absolute top-1 left-1/2 transform -translate-x-1/2 w-2 h-1 bg-primary-brown rounded-full"></div>
+                      <div className="w-8 h-8 rounded-full relative">
+                        {value === "Excellence" && (
+                          <img
+                            src="/excellence.svg"
+                            alt="Excellence"
+                            className=""
+                          />
+                        )}
+                        {value === "Innovation" && (
+                          <img
+                            src="/innovate.svg"
+                            alt="Innovation"
+                            className=""
+                          />
+                        )}
+                        {value === "Quality" && (
+                          <img src="/quality.svg" alt="Quality" className="" />
+                        )}
+                        {value === "Sustainability" && (
+                          <img
+                            src="/sustain.svg"
+                            alt="Sustainability"
+                            className=""
+                          />
+                        )}
                       </div>
                     </motion.div>
                   </div>
                   <h3 className="text-xl font-bold text-white mb-3">{value}</h3>
                   <p className="text-white/90 text-sm leading-relaxed whitespace-pre-line">
                     {value === "Excellence" &&
-                      "Unforgettable Culinary\nExperiences"}
+                      "Unforgettable Nepali\nExperiences"}
                     {value === "Innovation" &&
                       "Dynamic, Fresh,\nExciting Flavors"}
                     {value === "Quality" &&

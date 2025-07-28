@@ -4,6 +4,7 @@ import InquiryForm from "./pages/InquiryForm";
 import Home from "./pages/Home";
 import About from "./pages/About";
 import Menu from "./pages/Menu";
+import Footer from "./components/Footer";
 
 const App = () => {
   return (
@@ -15,6 +16,7 @@ const App = () => {
         <Route path="/menu" element={<Menu />} />
         <Route path="/inquiry" element={<InquiryForm />} />
       </Routes>
+      <Footer />
     </div>
   );
 };
