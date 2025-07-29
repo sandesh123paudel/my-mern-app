@@ -175,7 +175,7 @@ const InquiryForm = () => {
               <label className="text-black/70">Contact Number *</label>
               <input
                 className="h-12 p-3 mt-2 w-full border border-gray-300 rounded-md outline-none focus:border-primary-green transition-colors duration-200"
-                type="tel"
+                type="phone"
                 name="contact"
                 value={formData.contact}
                 onChange={handleChange}
