@@ -1,24 +1,30 @@
-const express = require("express");
-const mongoose = require("mongoose");
-const dotenv = require("dotenv");
-const cors = require("cors");
+import express from "express";
+import cors from "cors";
+import mongoose from "mongoose";
+import "dotenv/config";
+import inquiryRouter from "./routes/inquiryRoutes.js";
 
-const inquiryRoutes = require("./routes/inquiryRoutes");
-
-dotenv.config();
 const app = express();
+const port = process.env.PORT || 4000;
 
-app.use(cors());
+const allowedOrigins = ["http://localhost:5173"];
 app.use(express.json());
+app.use(cors({ credentials: true, origin: allowedOrigins }));
 
-app.use("/api", inquiryRoutes);
+app.get("/", (req, res) => {
+  res.send("API is working");
+});
 
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-}).then(() => {
-  console.log("MongoDB connected");
-  app.listen(process.env.PORT, () =>
-    console.log(`Server running on port ${process.env.PORT}`)
-  );
-}).catch(err => console.error("MongoDB connection error:", err));
+app.use("/api/inquiry", inquiryRouter);
+
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => {
+    console.log("DB Connected");
+    app.listen(port, () => {
+      console.log(`Server running on http://localhost:${port}`);
+    });
+  })
+  .catch((error) => {
+    console.log(error);
+  });
