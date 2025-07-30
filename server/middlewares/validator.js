@@ -66,3 +66,20 @@ export const inquiryFormValidation = () => {
       .withMessage("Message cannot exceed 1000 characters"),
   ];
 };
+
+export const loginValidator = () => {
+  return [
+    body("email")
+      .trim()
+      .notEmpty()
+      .withMessage("Email is required")
+      .isEmail()
+      .withMessage("Invalid email format"),
+
+    body("password")
+      .notEmpty()
+      .withMessage("Password is required")
+      .isLength({ min: 6 })
+      .withMessage("Password must be at least 6 characters long"),
+  ];
+};

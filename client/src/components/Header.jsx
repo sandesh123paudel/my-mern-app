@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import { Menu, X, User } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const navigate = useNavigate();
   const location = useLocation();
 
   const navItems = [
@@ -165,6 +166,7 @@ const Header = () => {
             {/* Desktop Login Button */}
             <motion.div className="hidden md:flex" variants={itemVariants}>
               <motion.button
+                onClick={() => navigate("/login", scrollTo(0, 0))}
                 className="flex items-center space-x-2 px-6 py-2 border border-primary-brown rounded-lg text-primary-brown hover:text-primary-green hover:border-primary-green transition-all duration-300 font-medium"
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
@@ -300,7 +302,11 @@ const Header = () => {
                 {/* Mobile Login Button */}
                 <motion.button
                   className="flex items-center space-x-3 px-8 py-3 border-2 border-primary-brown rounded-lg text-primary-brown hover:text-primary-green hover:border-primary-green transition-all duration-300 font-semibold text-lg mt-8"
-                  onClick={toggleMenu}
+                  onClick={() => {
+                    toggleMenu();
+                    scrollTo(0, 0);
+                    navigate("/login");
+                  }}
                   variants={mobileItemVariants}
                   whileHover={{ scale: 1.05, y: -3 }}
                   whileTap={{ scale: 0.95 }}
