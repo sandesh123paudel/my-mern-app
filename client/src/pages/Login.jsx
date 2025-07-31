@@ -1,7 +1,17 @@
-import React, { useState } from "react";
+// Updated Login.jsx - Complete login functionality
+import React, { useState, useContext, useEffect } from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import toast from "react-hot-toast";
+import { AppContext } from "../context/AppContext";
 
 const Login = () => {
+  axios.defaults.withCredentials = true;
+  const { backendUrl, setIsLoggedIn, getUserData, isLoggedIn } =
+    useContext(AppContext);
+  const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -9,6 +19,7 @@ const Login = () => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -18,21 +29,41 @@ const Login = () => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Add your login logic here
-    console.log("Login data:", formData);
+    try {
+      const { data } = await axios.post(backendUrl + "/api/auth/login", {
+        ...formData,
+        rememberMe,
+      });
 
-    // Simulate API call
-    setTimeout(() => {
+      if (data.success) {
+        toast.success("Login successful! Welcome back.");
+        setIsLoggedIn(true);
+        await getUserData(); // Fetch user data after successful login
+        navigate("/", { scrollToTop: true }); // Redirect to home page
+      } else {
+        toast.error(data.message || "Login failed. Please try again.");
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      toast.error(
+        error.response?.data?.message ||
+          "An error occurred during login. Please try again."
+      );
+    } finally {
       setIsSubmitting(false);
-    }, 2000);
+    }
   };
 
+  useEffect(() => {
+    isLoggedIn && navigate("/");
+  }, [isLoggedIn, navigate]);
+
   return (
-    <div className="flex justify-center items-center py-20">
+    <div className="flex justify-center items-center min-h-screen py-20">
       <motion.form
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
@@ -51,9 +82,11 @@ const Login = () => {
 
         {/* Email */}
         <div className="mb-6">
-          <label className="text-black/70 font-medium">Email Address *</label>
+          <label className="block text-black/70 font-medium mb-2">
+            Email Address *
+          </label>
           <input
-            className="h-12 p-3 mt-2 w-full border border-gray-300 rounded-md outline-none focus:border-primary-green transition-colors"
+            className="h-12 p-3 w-full border border-gray-300 rounded-md outline-none focus:border-primary-green focus:ring-1 focus:ring-primary-green transition-all"
             type="email"
             name="email"
             value={formData.email}
@@ -65,18 +98,87 @@ const Login = () => {
         </div>
 
         {/* Password */}
-        <div className="mb-6">
-          <label className="text-black/70 font-medium">Password *</label>
-          <input
-            className="h-12 p-3 mt-2 w-full border border-gray-300 rounded-md outline-none focus:border-primary-green transition-colors"
-            type="password"
-            name="password"
-            value={formData.password}
-            onChange={handleChange}
-            placeholder="Enter your password"
-            required
-            disabled={isSubmitting}
-          />
+        <div className="mb-4">
+          <label className="block text-black/70 font-medium mb-2">
+            Password *
+          </label>
+          <div className="relative">
+            <input
+              className="h-12 p-3 pr-12 w-full border border-gray-300 rounded-md outline-none focus:border-primary-green focus:ring-1 focus:ring-primary-green transition-all"
+              type={showPassword ? "text" : "password"}
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              placeholder="Enter your password"
+              required
+              disabled={isSubmitting}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+              disabled={isSubmitting}
+            >
+              {showPassword ? (
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"
+                  />
+                </svg>
+              ) : (
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                  />
+                </svg>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Remember Me */}
+        <div className="flex items-center justify-between mb-6">
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="mr-2 accent-primary-green"
+              disabled={isSubmitting}
+            />
+            <span className="text-sm text-gray-600">Remember me</span>
+          </label>
+          <button
+            type="button"
+            className="text-sm text-primary-green hover:text-primary-brown transition-colors"
+            onClick={() =>
+              toast.info("Please contact admin for password reset")
+            }
+          >
+            Forgot password?
+          </button>
         </div>
 
         {/* Submit Button */}
@@ -119,6 +221,24 @@ const Login = () => {
             "Sign In"
           )}
         </motion.button>
+
+        {/* Admin Contact */}
+        <div className="text-center mt-6">
+          <p className="text-sm text-gray-600">
+            Need an account?{" "}
+            <button
+              type="button"
+              onClick={() =>
+                toast.info(
+                  "Please contact the administrator for account creation"
+                )
+              }
+              className="text-primary-green hover:text-primary-brown font-medium transition-colors"
+            >
+              Contact Admin
+            </button>
+          </p>
+        </div>
       </motion.form>
     </div>
   );

@@ -1,10 +1,13 @@
-import React, { useState } from "react";
-import { Menu, X, User } from "lucide-react";
+import React, { useState, useContext } from "react";
+import { Menu, X, User, Shield, Settings } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { AppContext } from "../context/AppContext";
 
 const Header = () => {
+  const { isLoggedIn, userData, logout } = useContext(AppContext);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -19,12 +22,20 @@ const Header = () => {
     setIsMenuOpen(!isMenuOpen);
   };
 
+  const handleLogout = () => {
+    logout();
+    setShowUserMenu(false);
+  };
+
   // Check if current path matches the nav item
   const isActive = (path) => {
     if (path === "/" && location.pathname === "/") return true;
     if (path !== "/" && location.pathname.startsWith(path)) return true;
     return false;
   };
+
+  // Check if user is admin
+  const isAdmin = userData?.role === "superadmin" || userData?.isAdmin;
 
   // Animation variants
   const headerVariants = {
@@ -163,25 +174,135 @@ const Header = () => {
               ))}
             </motion.nav>
 
-            {/* Desktop Login Button */}
+            {/* Desktop Login/Admin Menu */}
             <motion.div className="hidden md:flex" variants={itemVariants}>
-              <motion.button
-                onClick={() => navigate("/login", scrollTo(0, 0))}
-                className="flex items-center space-x-2 px-6 py-2 border border-primary-brown rounded-lg text-primary-brown hover:text-primary-green hover:border-primary-green transition-all duration-300 font-medium"
-                whileHover={{ scale: 1.05, y: -2 }}
-                whileTap={{ scale: 0.95 }}
-                transition={{ duration: 0.2 }}
-              >
-                <motion.img
-                  src="/catering.svg"
-                  alt=""
-                  style={{ fill: "white" }}
-                  className="h-5 hover:fill-primary-brown/80 transition-colors duration-300"
-                  whileHover={{ rotate: 10 }}
+              {isLoggedIn ? (
+                <div className="relative">
+                  <motion.button
+                    onClick={() => setShowUserMenu(!showUserMenu)}
+                    className={`flex items-center space-x-2 px-4 py-2 border rounded-lg transition-all duration-300 font-medium ${
+                      isAdmin
+                        ? "border-purple-500 text-purple-600 hover:text-purple-700 hover:border-purple-600 bg-purple-50"
+                        : "border-primary-brown text-primary-brown hover:text-primary-green hover:border-primary-green"
+                    }`}
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <div
+                      className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-semibold ${
+                        isAdmin
+                          ? "bg-purple-600 text-white"
+                          : "bg-primary-green text-white"
+                      }`}
+                    >
+                      {isAdmin ? (
+                        <Shield size={14} />
+                      ) : (
+                        userData?.firstName?.charAt(0) || "U"
+                      )}
+                    </div>
+                    <span>
+                      {isAdmin ? "Admin" : userData?.firstName || "User"}
+                    </span>
+                    <motion.div
+                      animate={{ rotate: showUserMenu ? 180 : 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </motion.div>
+                  </motion.button>
+
+                  <AnimatePresence>
+                    {showUserMenu && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                        transition={{ duration: 0.2 }}
+                        className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg py-2 z-50 border"
+                      >
+                        <div className="px-4 py-2 border-b border-gray-100">
+                          <div className="font-medium text-gray-900">
+                            {userData?.firstName} {userData?.lastName}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {userData?.email}
+                          </div>
+                          {isAdmin && (
+                            <div className="text-xs text-purple-600 font-medium mt-1">
+                              Administrator
+                            </div>
+                          )}
+                        </div>
+
+                        {isAdmin && (
+                          <motion.button
+                            onClick={() => {
+                              navigate("/dashboard");
+                              setShowUserMenu(false);
+                            }}
+                            className="flex items-center w-full text-left px-4 py-2 text-purple-600 hover:bg-purple-50 transition-colors"
+                            whileHover={{ x: 4 }}
+                          >
+                            <Settings size={16} className="mr-2" />
+                            Dashboard
+                          </motion.button>
+                        )}
+
+                        <motion.button
+                          onClick={handleLogout}
+                          className="flex items-center w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 transition-colors"
+                          whileHover={{ x: 4 }}
+                        >
+                          <svg
+                            className="w-4 h-4 mr-2"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                            />
+                          </svg>
+                          Sign Out
+                        </motion.button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              ) : (
+                <motion.button
+                  onClick={() => navigate("/login", scrollTo(0, 0))}
+                  className="flex items-center space-x-2 px-6 py-2 border border-primary-brown rounded-lg text-primary-brown hover:text-primary-green hover:border-primary-green transition-all duration-300 font-medium"
+                  whileHover={{ scale: 1.05, y: -2 }}
+                  whileTap={{ scale: 0.95 }}
                   transition={{ duration: 0.2 }}
-                />
-                <span>Login</span>
-              </motion.button>
+                >
+                  <motion.img
+                    src="/catering.svg"
+                    alt=""
+                    className="h-5"
+                    whileHover={{ rotate: 10 }}
+                    transition={{ duration: 0.2 }}
+                  />
+                  <span>Login</span>
+                </motion.button>
+              )}
             </motion.div>
 
             {/* Mobile menu button */}
@@ -299,28 +420,107 @@ const Header = () => {
                   </motion.div>
                 ))}
 
-                {/* Mobile Login Button */}
-                <motion.button
-                  className="flex items-center space-x-3 px-8 py-3 border-2 border-primary-brown rounded-lg text-primary-brown hover:text-primary-green hover:border-primary-green transition-all duration-300 font-semibold text-lg mt-8"
-                  onClick={() => {
-                    toggleMenu();
-                    scrollTo(0, 0);
-                    navigate("/login");
-                  }}
-                  variants={mobileItemVariants}
-                  whileHover={{ scale: 1.05, y: -3 }}
-                  whileTap={{ scale: 0.95 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <motion.img
-                    src="/catering.svg"
-                    alt=""
-                    className="h-5"
-                    whileHover={{ rotate: 15 }}
+                {/* Mobile Login/Admin Buttons */}
+                {isLoggedIn ? (
+                  <div className="flex flex-col space-y-4 mt-8">
+                    {/* User Info */}
+                    <motion.div
+                      className="text-center"
+                      variants={mobileItemVariants}
+                    >
+                      <div
+                        className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center text-xl font-bold mb-2 ${
+                          isAdmin
+                            ? "bg-purple-600 text-white"
+                            : "bg-primary-green text-white"
+                        }`}
+                      >
+                        {isAdmin ? (
+                          <Shield size={24} />
+                        ) : (
+                          userData?.firstName?.charAt(0) || "U"
+                        )}
+                      </div>
+                      <div className="font-semibold text-gray-900">
+                        {userData?.firstName} {userData?.lastName}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {userData?.email}
+                      </div>
+                      {isAdmin && (
+                        <div className="text-sm text-purple-600 font-medium mt-1">
+                          Administrator
+                        </div>
+                      )}
+                    </motion.div>
+
+                    {/* Dashboard Button for Admin */}
+                    {isAdmin && (
+                      <motion.button
+                        className="flex items-center justify-center space-x-3 px-8 py-3 border-2 border-purple-500 rounded-lg text-purple-600 hover:bg-purple-50 transition-all duration-300 font-semibold text-lg"
+                        onClick={() => {
+                          navigate("/dashboard");
+                          toggleMenu();
+                        }}
+                        variants={mobileItemVariants}
+                        whileHover={{ scale: 1.05, y: -3 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <Settings size={20} />
+                        <span>Dashboard</span>
+                      </motion.button>
+                    )}
+
+                    {/* Logout Button */}
+                    <motion.button
+                      className="flex items-center justify-center space-x-3 px-8 py-3 border-2 border-red-500 rounded-lg text-red-600 hover:bg-red-50 transition-all duration-300 font-semibold text-lg"
+                      onClick={() => {
+                        handleLogout();
+                        toggleMenu();
+                      }}
+                      variants={mobileItemVariants}
+                      whileHover={{ scale: 1.05, y: -3 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                        />
+                      </svg>
+                      <span>Sign Out</span>
+                    </motion.button>
+                  </div>
+                ) : (
+                  <motion.button
+                    className="flex items-center space-x-3 px-8 py-3 border-2 border-primary-brown rounded-lg text-primary-brown hover:text-primary-green hover:border-primary-green transition-all duration-300 font-semibold text-lg mt-8"
+                    onClick={() => {
+                      toggleMenu();
+                      scrollTo(0, 0);
+                      navigate("/login");
+                    }}
+                    variants={mobileItemVariants}
+                    whileHover={{ scale: 1.05, y: -3 }}
+                    whileTap={{ scale: 0.95 }}
                     transition={{ duration: 0.2 }}
-                  />
-                  <span>Login</span>
-                </motion.button>
+                  >
+                    <motion.img
+                      src="/catering.svg"
+                      alt=""
+                      className="h-5"
+                      whileHover={{ rotate: 15 }}
+                      transition={{ duration: 0.2 }}
+                    />
+                    <span>Login</span>
+                  </motion.button>
+                )}
               </div>
             </div>
           </motion.div>

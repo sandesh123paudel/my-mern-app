@@ -2,6 +2,7 @@ import express from "express";
 import { loginValidator } from "../middlewares/validator.js";
 import {
   createSuperAdmin,
+  getUserData,
   isAuthenticated,
   loginUser,
   logout,
@@ -17,5 +18,6 @@ authRouter.post("/create-superadmin", createSuperAdmin);
 authRouter.post("/login", loginValidator(), handleValidationErrors, loginUser);
 authRouter.post("/logout", userAuth, logout);
 authRouter.get("/is-auth", userAuth, isAuthenticated);
+authRouter.get("/user/data", userAuth, getUserData);
 
 export default authRouter;
