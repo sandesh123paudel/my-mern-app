@@ -1,15 +1,25 @@
-import React, { useState, useContext } from "react";
-import { Menu, X, User, Shield, Settings } from "lucide-react";
+import React, {
+  useState,
+  useContext,
+  useEffect,
+  useCallback,
+  useRef,
+} from "react";
+import { Menu, X, Shield, Settings, LogOut, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import axios from "axios";
+import { toast } from "react-hot-toast";
 import { AppContext } from "../context/AppContext";
 
 const Header = () => {
-  const { isLoggedIn, userData, logout } = useContext(AppContext);
+  const { userData, backendUrl, setUserData, setIsLoggedIn, isLoggedIn } =
+    useContext(AppContext);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const userMenuRef = useRef(null);
 
   const navItems = [
     { to: "/", label: "Home" },
@@ -18,24 +28,75 @@ const Header = () => {
     { to: "/inquiry", label: "Inquiry" },
   ];
 
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
-  };
+  // Memoized functions for better performance
+  const toggleMenu = useCallback(() => {
+    setIsMenuOpen((prev) => !prev);
+  }, []);
 
-  const handleLogout = () => {
-    logout();
-    setShowUserMenu(false);
-  };
+  const toggleUserMenu = useCallback(() => {
+    setShowUserMenu((prev) => !prev);
+  }, []);
+
+  const handleLogout = useCallback(async () => {
+    try {
+      axios.defaults.withCredentials = true;
+      const { data } = await axios.post(`${backendUrl}/api/auth/logout`);
+      if (data.success) {
+        setIsLoggedIn(false);
+        setUserData(null);
+        toast.success(data.message);
+        setShowUserMenu(false);
+        navigate("/");
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message || error.message || "Logout failed"
+      );
+    }
+  }, [backendUrl, setIsLoggedIn, setUserData, navigate]);
+
+  const handleLoginClick = useCallback(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    navigate("/login");
+  }, [navigate]);
 
   // Check if current path matches the nav item
-  const isActive = (path) => {
-    if (path === "/" && location.pathname === "/") return true;
-    if (path !== "/" && location.pathname.startsWith(path)) return true;
-    return false;
-  };
+  const isActive = useCallback(
+    (path) => {
+      if (path === "/" && location.pathname === "/") return true;
+      if (path !== "/" && location.pathname.startsWith(path)) return true;
+      return false;
+    },
+    [location.pathname]
+  );
 
   // Check if user is admin
-  const isAdmin = userData?.role === "superadmin" || userData?.isAdmin;
+  const isAdmin =
+    userData?.role === "admin" ||
+    userData?.role === "superadmin" ||
+    userData?.isAdmin;
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+        setShowUserMenu(false);
+      }
+    };
+
+    if (showUserMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [showUserMenu]);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setIsMenuOpen(false);
+  }, [location.pathname]);
 
   // Animation variants
   const headerVariants = {
@@ -44,10 +105,10 @@ const Header = () => {
       opacity: 1,
       y: 0,
       transition: {
-        duration: 0.8,
+        duration: 0.6,
         ease: [0.25, 0.1, 0.25, 1],
         staggerChildren: 0.1,
-        delayChildren: 0.2,
+        delayChildren: 0.1,
       },
     },
   };
@@ -58,7 +119,7 @@ const Header = () => {
       opacity: 1,
       y: 0,
       transition: {
-        duration: 0.5,
+        duration: 0.4,
         ease: [0.25, 0.1, 0.25, 1],
       },
     },
@@ -97,20 +158,14 @@ const Header = () => {
 
   const overlayVariants = {
     hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { duration: 0.3 },
-    },
-    exit: {
-      opacity: 0,
-      transition: { duration: 0.3 },
-    },
+    visible: { opacity: 1, transition: { duration: 0.3 } },
+    exit: { opacity: 0, transition: { duration: 0.3 } },
   };
 
   return (
     <>
       <motion.header
-        className="shadow-sm relative z-50 bg-white border-b border-gray"
+        className="shadow-sm relative z-50 bg-white border-b border-gray-200"
         initial="hidden"
         animate="visible"
         variants={headerVariants}
@@ -138,7 +193,7 @@ const Header = () => {
               className="hidden md:flex space-x-8"
               variants={itemVariants}
             >
-              {navItems.map((navItem, index) => (
+              {navItems.map((navItem) => (
                 <motion.div
                   key={navItem.label}
                   variants={itemVariants}
@@ -177,21 +232,21 @@ const Header = () => {
             {/* Desktop Login/Admin Menu */}
             <motion.div className="hidden md:flex" variants={itemVariants}>
               {isLoggedIn ? (
-                <div className="relative">
+                <div className="relative" ref={userMenuRef}>
                   <motion.button
-                    onClick={() => setShowUserMenu(!showUserMenu)}
+                    onClick={toggleUserMenu}
                     className={`flex items-center space-x-2 px-4 py-2 border rounded-lg transition-all duration-300 font-medium ${
                       isAdmin
-                        ? "border-purple-500 text-purple-600 hover:text-purple-700 hover:border-purple-600 bg-purple-50"
+                        ? "border-primary-green text-primary-green hover:bg-green-50 bg-green-50"
                         : "border-primary-brown text-primary-brown hover:text-primary-green hover:border-primary-green"
                     }`}
                     whileHover={{ scale: 1.05, y: -2 }}
                     whileTap={{ scale: 0.95 }}
                   >
                     <div
-                      className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-semibold ${
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
                         isAdmin
-                          ? "bg-purple-600 text-white"
+                          ? "bg-primary-green text-white"
                           : "bg-primary-green text-white"
                       }`}
                     >
@@ -201,26 +256,14 @@ const Header = () => {
                         userData?.firstName?.charAt(0) || "U"
                       )}
                     </div>
-                    <span>
+                    <span className="font-semibold">
                       {isAdmin ? "Admin" : userData?.firstName || "User"}
                     </span>
                     <motion.div
                       animate={{ rotate: showUserMenu ? 180 : 0 }}
                       transition={{ duration: 0.2 }}
                     >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 9l-7 7-7-7"
-                        />
-                      </svg>
+                      <ChevronDown size={16} />
                     </motion.div>
                   </motion.button>
 
@@ -231,63 +274,70 @@ const Header = () => {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -10, scale: 0.95 }}
                         transition={{ duration: 0.2 }}
-                        className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg py-2 z-50 border"
+                        className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-2xl py-2 z-50 border border-gray-100 overflow-hidden"
                       >
-                        <div className="px-4 py-2 border-b border-gray-100">
-                          <div className="font-medium text-gray-900">
-                            {userData?.firstName} {userData?.lastName}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {userData?.email}
-                          </div>
-                          {isAdmin && (
-                            <div className="text-xs text-purple-600 font-medium mt-1">
-                              Administrator
+                        {/* User Info Header */}
+                        <div
+                          className={`px-4 py-3 ${
+                            isAdmin ? "bg-green-50" : "bg-gray-50"
+                          } border-b border-gray-100`}
+                        >
+                          <div className="flex items-center space-x-3">
+                            <div className="w-12 h-12 rounded-full flex items-center justify-center font-bold bg-primary-green text-white">
+                              {isAdmin ? (
+                                <Shield size={20} />
+                              ) : (
+                                userData?.firstName?.charAt(0) || "U"
+                              )}
                             </div>
-                          )}
+                            <div>
+                              <div className="font-semibold text-gray-900">
+                                {userData?.firstName} {userData?.lastName}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {userData?.email}
+                              </div>
+                              {isAdmin && (
+                                <div className="text-xs text-primary-green font-medium mt-1">
+                                  Administrator
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
 
-                        {isAdmin && (
+                        {/* Menu Items */}
+                        <div className="py-1">
+                          {isAdmin && (
+                            <motion.button
+                              onClick={() => {
+                                navigate("/dashboard");
+                                setShowUserMenu(false);
+                              }}
+                              className="flex items-center w-full text-left px-4 py-3 text-primary-green hover:bg-green-50 transition-all duration-200"
+                              whileHover={{ x: 4 }}
+                            >
+                              <Settings size={18} className="mr-3" />
+                              <span className="font-medium">Dashboard</span>
+                            </motion.button>
+                          )}
+
                           <motion.button
-                            onClick={() => {
-                              navigate("/dashboard");
-                              setShowUserMenu(false);
-                            }}
-                            className="flex items-center w-full text-left px-4 py-2 text-purple-600 hover:bg-purple-50 transition-colors"
+                            onClick={handleLogout}
+                            className="flex items-center w-full text-left px-4 py-3 text-red-600 hover:bg-red-50 transition-all duration-200"
                             whileHover={{ x: 4 }}
                           >
-                            <Settings size={16} className="mr-2" />
-                            Dashboard
+                            <LogOut size={18} className="mr-3" />
+                            <span className="font-medium">Sign Out</span>
                           </motion.button>
-                        )}
-
-                        <motion.button
-                          onClick={handleLogout}
-                          className="flex items-center w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 transition-colors"
-                          whileHover={{ x: 4 }}
-                        >
-                          <svg
-                            className="w-4 h-4 mr-2"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                            />
-                          </svg>
-                          Sign Out
-                        </motion.button>
+                        </div>
                       </motion.div>
                     )}
                   </AnimatePresence>
                 </div>
               ) : (
                 <motion.button
-                  onClick={() => navigate("/login", scrollTo(0, 0))}
+                  onClick={handleLoginClick}
                   className="flex items-center space-x-2 px-6 py-2 border border-primary-brown rounded-lg text-primary-brown hover:text-primary-green hover:border-primary-green transition-all duration-300 font-medium"
                   whileHover={{ scale: 1.05, y: -2 }}
                   whileTap={{ scale: 0.95 }}
@@ -386,7 +436,7 @@ const Header = () => {
 
               {/* Mobile Navigation Links */}
               <div className="text-xl flex flex-col items-center justify-center flex-1 space-y-8 px-6">
-                {navItems.map((navItem, index) => (
+                {navItems.map((navItem) => (
                   <motion.div
                     key={navItem.label}
                     variants={mobileItemVariants}
@@ -404,7 +454,6 @@ const Header = () => {
                       onClick={toggleMenu}
                     >
                       {navItem.label}
-                      {/* Mobile active indicator */}
                       <motion.div
                         className={`absolute -bottom-1 left-0 h-0.5 bg-primary-green transition-all duration-300 ${
                           isActive(navItem.to) ? "w-full" : "w-0"
@@ -422,33 +471,23 @@ const Header = () => {
 
                 {/* Mobile Login/Admin Buttons */}
                 {isLoggedIn ? (
-                  <div className="flex flex-col space-y-4 mt-8">
+                  <div className="flex flex-col space-y-6 mt-8">
                     {/* User Info */}
                     <motion.div
                       className="text-center"
                       variants={mobileItemVariants}
                     >
-                      <div
-                        className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center text-xl font-bold mb-2 ${
-                          isAdmin
-                            ? "bg-purple-600 text-white"
-                            : "bg-primary-green text-white"
-                        }`}
-                      >
-                        {isAdmin ? (
-                          <Shield size={24} />
-                        ) : (
-                          userData?.firstName?.charAt(0) || "U"
-                        )}
+                      <div className="w-20 h-20 mx-auto rounded-full flex items-center justify-center text-2xl font-bold mb-3 bg-primary-green text-white">
+                        {isAdmin ? <Shield size={28} /> : "A"}
                       </div>
-                      <div className="font-semibold text-gray-900">
+                      <div className="font-bold text-gray-900 text-lg">
                         {userData?.firstName} {userData?.lastName}
                       </div>
                       <div className="text-sm text-gray-500">
                         {userData?.email}
                       </div>
                       {isAdmin && (
-                        <div className="text-sm text-purple-600 font-medium mt-1">
+                        <div className="text-sm font-semibold mt-2 px-3 py-1 rounded-full inline-block bg-green-100 text-primary-green">
                           Administrator
                         </div>
                       )}
@@ -457,7 +496,7 @@ const Header = () => {
                     {/* Dashboard Button for Admin */}
                     {isAdmin && (
                       <motion.button
-                        className="flex items-center justify-center space-x-3 px-8 py-3 border-2 border-purple-500 rounded-lg text-purple-600 hover:bg-purple-50 transition-all duration-300 font-semibold text-lg"
+                        className="flex items-center justify-center space-x-3 px-8 py-4 border-2 border-primary-green rounded-xl text-primary-green hover:bg-green-50 font-semibold text-lg transition-all duration-300"
                         onClick={() => {
                           navigate("/dashboard");
                           toggleMenu();
@@ -466,14 +505,14 @@ const Header = () => {
                         whileHover={{ scale: 1.05, y: -3 }}
                         whileTap={{ scale: 0.95 }}
                       >
-                        <Settings size={20} />
+                        <Settings size={22} />
                         <span>Dashboard</span>
                       </motion.button>
                     )}
 
                     {/* Logout Button */}
                     <motion.button
-                      className="flex items-center justify-center space-x-3 px-8 py-3 border-2 border-red-500 rounded-lg text-red-600 hover:bg-red-50 transition-all duration-300 font-semibold text-lg"
+                      className="flex items-center justify-center space-x-3 px-8 py-4 border-2 border-red-500 rounded-xl text-red-600 hover:bg-red-50 transition-all duration-300 font-semibold text-lg"
                       onClick={() => {
                         handleLogout();
                         toggleMenu();
@@ -482,29 +521,16 @@ const Header = () => {
                       whileHover={{ scale: 1.05, y: -3 }}
                       whileTap={{ scale: 0.95 }}
                     >
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                        />
-                      </svg>
+                      <LogOut size={22} />
                       <span>Sign Out</span>
                     </motion.button>
                   </div>
                 ) : (
                   <motion.button
-                    className="flex items-center space-x-3 px-8 py-3 border-2 border-primary-brown rounded-lg text-primary-brown hover:text-primary-green hover:border-primary-green transition-all duration-300 font-semibold text-lg mt-8"
+                    className="flex items-center space-x-3 px-8 py-4 border-2 border-primary-brown rounded-xl text-primary-brown hover:text-primary-green hover:border-primary-green transition-all duration-300 font-semibold text-lg mt-8"
                     onClick={() => {
                       toggleMenu();
-                      scrollTo(0, 0);
-                      navigate("/login");
+                      handleLoginClick();
                     }}
                     variants={mobileItemVariants}
                     whileHover={{ scale: 1.05, y: -3 }}
@@ -514,7 +540,7 @@ const Header = () => {
                     <motion.img
                       src="/catering.svg"
                       alt=""
-                      className="h-5"
+                      className="h-6"
                       whileHover={{ rotate: 15 }}
                       transition={{ duration: 0.2 }}
                     />

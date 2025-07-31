@@ -28,7 +28,7 @@ const itemVariants = {
 const Footer = () => {
   return (
     <motion.footer
-      className="w-full bg-white border-t border-gray-200"
+      className="w-full absolute h-30 bg-white border-t border-gray-200"
       initial="hidden"
       whileInView="visible"
       viewport={{ once: true }}

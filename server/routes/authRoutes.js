@@ -18,6 +18,6 @@ authRouter.post("/create-superadmin", createSuperAdmin);
 authRouter.post("/login", loginValidator(), handleValidationErrors, loginUser);
 authRouter.post("/logout", userAuth, logout);
 authRouter.get("/is-auth", userAuth, isAuthenticated);
-authRouter.get("/user/data", userAuth, getUserData);
+authRouter.get("/data", userAuth, getUserData);
 
 export default authRouter;

@@ -8,12 +8,15 @@ export const AppContextProvider = ({ children }) => {
   axios.defaults.withCredentials = true;
 
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
+  console.log("Backend URL from env:", backendUrl); // Add this line
+
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userData, setUserData] = useState(null);
 
   const getUserData = async () => {
     try {
-      const { data } = await axios.get(backendUrl + "api/auth/user/data");
+      const { data } = await axios.get(backendUrl + "/api/auth/data");
+
       if (data.success) {
         setUserData(data.userData);
         setIsLoggedIn(true); // Crucial: Set isLoggedIn to true on successful data fetch
@@ -53,10 +56,7 @@ export const AppContextProvider = ({ children }) => {
     getAuthState();
   }, []); // Run once on component mount to check initial auth state
 
-  useEffect(() => {
-    getAuthState();
-  }, []); // Run once on component mount to check initial auth state
-
+  
   const value = {
     backendUrl,
     isLoggedIn,
