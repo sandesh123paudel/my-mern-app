@@ -8,6 +8,17 @@ import Footer from "./components/Footer";
 import { Toaster } from "react-hot-toast";
 import Login from "./pages/Login";
 
+// Admin Components
+import AdminDashboard from "./pages/admin/Dashboard";
+import AdminBookings from "./pages/admin/Bookings";
+import AdminInquiries from "./pages/admin/Inquiries";
+import AdminUsers from "./pages/admin/Users";
+import AdminMenu from "./pages/admin/Menu";
+
+// Route Protection Component
+import ProtectedRoute from "./components/ProtectedRoute";
+import AdminLayout from "./pages/admin/AdminLayout";
+
 const App = () => {
   return (
     <div className="min-h-screen bg-gray-50">
@@ -29,10 +40,10 @@ const App = () => {
             style: {
               background: "#f0fdf4",
               color: "#166534",
-              border: "1px solid #a4cd3d",
+              border: "1px solid #16a34a",
             },
             iconTheme: {
-              primary: "#a4cd3d",
+              primary: "#16a34a",
               secondary: "#ffffff",
             },
           },
@@ -51,26 +62,88 @@ const App = () => {
 
           loading: {
             style: {
-              background: "#fefbf3",
-              color: "#492a00",
-              border: "1px solid #492a00",
+              background: "#fffbeb",
+              color: "#92400e",
+              border: "1px solid #d97706",
             },
             iconTheme: {
-              primary: "#492a00",
+              primary: "#d97706",
               secondary: "#ffffff",
             },
           },
         }}
       />
-      <Header />
+
       <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/about" element={<About />} />
-        <Route path="/menu" element={<Menu />} />
-        <Route path="/inquiry" element={<InquiryForm />} />
-        <Route path="/login" element={<Login />} />
+        {/* Public Routes */}
+        <Route
+          path="/"
+          element={
+            <>
+              <Header />
+              <Home />
+              <Footer />
+            </>
+          }
+        />
+        <Route
+          path="/about"
+          element={
+            <>
+              <Header />
+              <About />
+              <Footer />
+            </>
+          }
+        />
+        <Route
+          path="/menu"
+          element={
+            <>
+              <Header />
+              <Menu />
+              <Footer />
+            </>
+          }
+        />
+        <Route
+          path="/inquiry"
+          element={
+            <>
+              <Header />
+              <InquiryForm />
+              <Footer />
+            </>
+          }
+        />
+        <Route
+          path="/login"
+          element={
+            <>
+              <Header />
+              <Login />
+              <Footer />
+            </>
+          }
+        />
+
+        {/* Protected Admin Routes */}
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute>
+              <AdminLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<AdminDashboard />} />
+          <Route path="dashboard" element={<AdminDashboard />} />
+          <Route path="bookings" element={<AdminBookings />} />
+          <Route path="inquiries" element={<AdminInquiries />} />
+          <Route path="users" element={<AdminUsers />} />
+          <Route path="menu" element={<AdminMenu />} />
+        </Route>
       </Routes>
-      <Footer />
     </div>
   );
 };

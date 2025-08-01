@@ -1,5 +1,4 @@
 import axios from "axios";
-
 import { createContext, useEffect, useState } from "react";
 
 export const AppContext = createContext();
@@ -8,10 +7,11 @@ export const AppContextProvider = ({ children }) => {
   axios.defaults.withCredentials = true;
 
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
-  console.log("Backend URL from env:", backendUrl); // Add this line
+  console.log("Backend URL from env:", backendUrl);
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userData, setUserData] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const getUserData = async () => {
     try {
@@ -19,44 +19,70 @@ export const AppContextProvider = ({ children }) => {
 
       if (data.success) {
         setUserData(data.userData);
-        setIsLoggedIn(true); // Crucial: Set isLoggedIn to true on successful data fetch
+        setIsLoggedIn(true);
+        // Check if user is admin
+        setIsAdmin(
+          data.userData?.role === "admin" ||
+            data.userData?.role === "superadmin"
+        );
       } else {
-        setUserData(null); // Clear user data on failure
-        setIsLoggedIn(false); // Crucial: Set isLoggedIn to false on failure
+        setUserData(null);
+        setIsLoggedIn(false);
+        setIsAdmin(false);
       }
     } catch (error) {
       console.error("Error fetching user data:", error);
-      setUserData(null); // Clear user data on error
-      setIsLoggedIn(false); // Crucial: Set isLoggedIn to false on error
+      setUserData(null);
+      setIsLoggedIn(false);
+      setIsAdmin(false);
     }
   };
+
   const getAuthState = async () => {
     try {
       const { data } = await axios.get(backendUrl + "/api/auth/is-auth");
       if (data.success) {
         setIsLoggedIn(true);
+        // Check if user is admin from the auth response
+        setIsAdmin(
+          data.user?.role === "admin" || data.user?.role === "superadmin"
+        );
         // Only fetch user data if successfully authenticated
-        // This prevents unnecessary calls if already logged in and data is fresh
         if (!userData || userData.email !== data.user?.email) {
-          // Simple check to avoid re-fetching if data is likely current
           getUserData();
         }
       } else {
         setIsLoggedIn(false);
-        setUserData(null); // Ensure userData is cleared if not authenticated
+        setUserData(null);
+        setIsAdmin(false);
       }
     } catch (error) {
       console.error("Error getting auth state:", error);
       setIsLoggedIn(false);
-      setUserData(null); // Ensure userData is cleared on auth state error
-      // toast.error(error.message); // Optionally show error
+      setUserData(null);
+      setIsAdmin(false);
     }
   };
+
+  const logout = async () => {
+    try {
+      await axios.post(backendUrl + "/api/auth/logout");
+      setIsLoggedIn(false);
+      setUserData(null);
+      setIsAdmin(false);
+    } catch (error) {
+      console.error("Error during logout:", error);
+      // Even if logout fails on server, clear local state
+      setIsLoggedIn(false);
+      setUserData(null);
+      setIsAdmin(false);
+    }
+  };
+
   useEffect(() => {
     getAuthState();
-  }, []); // Run once on component mount to check initial auth state
+  }, []);
 
-  
   const value = {
     backendUrl,
     isLoggedIn,
@@ -64,6 +90,10 @@ export const AppContextProvider = ({ children }) => {
     userData,
     setUserData,
     getUserData,
+    isAdmin,
+    setIsAdmin,
+    logout,
   };
+
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };

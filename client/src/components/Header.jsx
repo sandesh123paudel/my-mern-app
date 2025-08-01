@@ -311,10 +311,10 @@ const Header = () => {
                           {isAdmin && (
                             <motion.button
                               onClick={() => {
-                                navigate("/dashboard");
+                                navigate("/admin");
                                 setShowUserMenu(false);
                               }}
-                              className="flex items-center w-full text-left px-4 py-3 text-primary-green hover:bg-green-50 transition-all duration-200"
+                              className="flex items-center w-full text-left px-4 py-3 text-primary-green hover:bg-primary-green transition-all duration-200"
                               whileHover={{ x: 4 }}
                             >
                               <Settings size={18} className="mr-3" />
@@ -487,7 +487,7 @@ const Header = () => {
                         {userData?.email}
                       </div>
                       {isAdmin && (
-                        <div className="text-sm font-semibold mt-2 px-3 py-1 rounded-full inline-block bg-green-100 text-primary-green">
+                        <div className="text-sm font-semibold mt-2 px-3 py-1 rounded-full inline-block bg-primary-brown text-primary-green">
                           Administrator
                         </div>
                       )}
@@ -498,7 +498,7 @@ const Header = () => {
                       <motion.button
                         className="flex items-center justify-center space-x-3 px-8 py-4 border-2 border-primary-green rounded-xl text-primary-green hover:bg-green-50 font-semibold text-lg transition-all duration-300"
                         onClick={() => {
-                          navigate("/dashboard");
+                          navigate("/admin");
                           toggleMenu();
                         }}
                         variants={mobileItemVariants}
