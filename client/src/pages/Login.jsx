@@ -40,7 +40,7 @@ const Login = () => {
         // Update the loading toast to a success toast
         toast.success(data.message, { id: loginToastId });
         await getUserData(); // Ensure user data is fetched
-        navigate("/");
+        navigate("/admin");
       } else {
         // Update the loading toast to an error toast
         toast.error(data.message, { id: loginToastId });
