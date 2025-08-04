@@ -1,0 +1,29 @@
+import mongoose from "mongoose";
+
+const serviceSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+    },
+    locationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Location",
+      required: true,
+    },
+    description: String,
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+// Compound index to ensure unique service names per location
+serviceSchema.index({ name: 1, locationId: 1 }, { unique: true });
+
+const Service = mongoose.model("Service", serviceSchema);
+export default Service;

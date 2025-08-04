@@ -5,6 +5,7 @@ import "dotenv/config";
 import inquiryRouter from "./routes/inquiryRoutes.js";
 import authRouter from "./routes/authRoutes.js";
 import cookieParser from "cookie-parser";
+import locationRouter from "./routes/locationRoutes.js";
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -21,6 +22,7 @@ app.get("/", (req, res) => {
 
 app.use("/api/inquiry", inquiryRouter);
 app.use("/api/auth", authRouter);
+app.use("/api/location", locationRouter);
 
 mongoose
   .connect(process.env.MONGO_URI)

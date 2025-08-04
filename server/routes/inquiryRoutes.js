@@ -14,6 +14,6 @@ inquiryRouter.post(
   submitInquiry
 );
 
-inquiryRouter.get("/inquiries", getInquiries); // Assuming you have a function to get all inquiries
+inquiryRouter.get("/inquiries", getInquiries); 
 
 export default inquiryRouter;
