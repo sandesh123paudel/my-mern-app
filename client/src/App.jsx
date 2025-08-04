@@ -18,6 +18,8 @@ import AdminMenu from "./pages/admin/Menu";
 // Route Protection Component
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminLayout from "./pages/admin/AdminLayout";
+import LocationServices from "./pages/admin/LocationServices";
+import MenuItems from "./pages/admin/MenuItems";
 
 const App = () => {
   return (
@@ -138,6 +140,8 @@ const App = () => {
         >
           <Route index element={<AdminDashboard />} />
           <Route path="dashboard" element={<AdminDashboard />} />
+          <Route path="location-services" element={<LocationServices />} />
+          <Route path="menu-items" element={<MenuItems />} />
           <Route path="bookings" element={<AdminBookings />} />
           <Route path="inquiries" element={<AdminInquiries />} />
           <Route path="users" element={<AdminUsers />} />
