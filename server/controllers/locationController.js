@@ -76,27 +76,43 @@ export const createLocation = async (req, res) => {
     if (!name || !city) {
       return res.status(400).json({
         success: false,
-        message: "Name and city are required fields",
+        message: "Name and city are required fields.",
       });
     }
 
     const existingLocation = await Location.findOne({ name, city });
+
     if (existingLocation) {
-      return res.status(400).json({
-        success: false,
-        message: "A location with this name already exists in this city",
-      });
+      if (existingLocation.status === "inactive") {
+        // Reactivate the inactive location
+        existingLocation.status = "active";
+        const updatedLocation = await existingLocation.save();
+
+        return res.status(200).json({
+          success: true,
+          message: "Location reactivated successfully.",
+          data: updatedLocation,
+        });
+      } else {
+        // Location already exists and is active
+        return res.status(400).json({
+          success: false,
+          message: "A location with this name already exists in this city.",
+        });
+      }
     }
 
+    // No existing location found, create a new one
     const location = new Location(req.body);
     const savedLocation = await location.save();
 
     return res.status(201).json({
       success: true,
-      message: "Location created successfully",
+      message: "Location created successfully.",
       data: savedLocation,
     });
   } catch (error) {
+    // Handle specific Mongoose duplicate key error (if not already handled)
     if (error.code === 11000) {
       return res.status(400).json({
         success: false,
@@ -104,9 +120,11 @@ export const createLocation = async (req, res) => {
           "A location with this name and city combination already exists.",
       });
     }
-    return res.status(400).json({
+
+    // Generic server error
+    return res.status(500).json({
       success: false,
-      message: error.message || "Server Error",
+      message: error.message || "Server Error.",
     });
   }
 };

@@ -108,19 +108,38 @@ export const createService = async (req, res) => {
   }
 
   try {
+    // Check for any service with this name/location, active or not
+    const existingService = await Service.findOne({ name, locationId });
+
+    if (existingService) {
+      // If it's already active, it's a true duplicate
+      if (existingService.isActive) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "An active service with this name already exists at this location",
+        });
+      } else {
+        // If it's inactive, re-activate it and return
+        existingService.isActive = true;
+        // You might want to update other fields from req.body as well
+        Object.assign(existingService, req.body);
+        const reactivatedService = await existingService.save();
+        await reactivatedService.populate("locationId", "name city");
+        return res.status(200).json({
+          success: true,
+          message: "Existing inactive service has been reactivated.",
+          data: reactivatedService,
+        });
+      }
+    }
+
+    // If no service exists at all, create a new one
     const location = await Location.findById(locationId);
     if (!location || !location.isActive) {
       return res
         .status(400)
         .json({ success: false, message: "Invalid or inactive location" });
-    }
-
-    const existingService = await Service.findOne({ name, locationId });
-    if (existingService) {
-      return res.status(400).json({
-        success: false,
-        message: "A service with this name already exists at this location",
-      });
     }
 
     const service = new Service(req.body);
