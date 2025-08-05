@@ -1,7 +1,10 @@
+import mongoose from "mongoose";
 import Location from "../models/LocationModel.js";
 import Service from "../models/ServiceModel.js";
 
-// Get All Active Locations
+// @desc    Get all active locations
+// @route   GET /api/locations
+// @access  Public
 export const getLocations = async (req, res) => {
   try {
     const locations = await Location.find({ isActive: true }).sort({
@@ -15,19 +18,21 @@ export const getLocations = async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: error.message,
+      message: error.message || "Server error",
     });
   }
 };
 
-// Get Single Location with Active Services
+// @desc    Get a single location with its active services
+// @route   GET /api/locations/:id
+// @access  Public
 export const getLocationById = async (req, res) => {
   const { id } = req.params;
 
-  if (!id) {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
     return res.status(400).json({
       success: false,
-      message: "No ID provided",
+      message: "Invalid Location ID format",
     });
   }
 
@@ -56,12 +61,14 @@ export const getLocationById = async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: error.message,
+      message: error.message || "Server error",
     });
   }
 };
 
-//POST -- Create a new Location
+// @desc    Create a new location
+// @route   POST /api/locations
+// @access  Private/Admin
 export const createLocation = async (req, res) => {
   try {
     const { name, city } = req.body;
@@ -93,21 +100,32 @@ export const createLocation = async (req, res) => {
     if (error.code === 11000) {
       return res.status(400).json({
         success: false,
-        message: "Duplicate entry: location with this name already exists",
+        message:
+          "A location with this name and city combination already exists.",
       });
     }
-
-    return res.status(500).json({
+    return res.status(400).json({
       success: false,
       message: error.message || "Server Error",
     });
   }
 };
 
-//PUT -- Update the existing location
+// @desc    Update an existing location
+// @route   PUT /api/locations/:id
+// @access  Private/Admin
 export const updateLocation = async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid Location ID format",
+    });
+  }
+
   try {
-    const location = await Location.findByIdAndUpdate(req.params.id, req.body, {
+    const location = await Location.findByIdAndUpdate(id, req.body, {
       new: true,
       runValidators: true,
     });
@@ -125,6 +143,13 @@ export const updateLocation = async (req, res) => {
       data: location,
     });
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "A location with this name and city combination already exists.",
+      });
+    }
     return res.status(400).json({
       success: false,
       message: error.message || "Invalid update operation",
@@ -132,26 +157,34 @@ export const updateLocation = async (req, res) => {
   }
 };
 
-//DELETE location (soft delete - set isActive to false)
+// @desc    Deactivate a location (soft delete)
+// @route   DELETE /api/locations/:id
+// @access  Private/Admin
 export const deleteLocation = async (req, res) => {
-  try {
-    const { id } = req.params;
+  const { id } = req.params;
 
-    // Check if location has active services
-    const activeServices = await Service.find({
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid Location ID format",
+    });
+  }
+
+  try {
+    // More efficient check: stop after finding one active service
+    const hasActiveServices = await Service.findOne({
       locationId: id,
       isActive: true,
     });
 
-    if (activeServices.length > 0) {
+    if (hasActiveServices) {
       return res.status(400).json({
         success: false,
         message:
-          "Cannot delete location with active services. Please deactivate services first.",
+          "Cannot deactivate location with active services. Please deactivate services first.",
       });
     }
 
-    // Soft delete by setting isActive: false
     const location = await Location.findByIdAndUpdate(
       id,
       { isActive: false },
@@ -168,7 +201,6 @@ export const deleteLocation = async (req, res) => {
     return res.json({
       success: true,
       message: "Location deactivated successfully",
-      data: location,
     });
   } catch (error) {
     return res.status(500).json({
