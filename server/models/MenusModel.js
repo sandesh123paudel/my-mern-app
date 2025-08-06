@@ -162,5 +162,6 @@ const menuSchema = new mongoose.Schema(
 
 // Compound index for unique menu names per service
 menuSchema.index({ name: 1, serviceId: 1 }, { unique: true });
-const Menu = mongoose.model("Menu", menuSchema);
+const Menu = mongoose.models.Menu || mongoose.model("Menu", menuSchema);
+
 export default Menu;

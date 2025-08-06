@@ -1,465 +1,265 @@
-import React, { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, Save, X } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { InlineLoading } from "../../components/Loading";
+import toast from "react-hot-toast";
+import { getMenuItems, deleteMenuItem } from "../../services/menuItemService";
+import MenuItemCard from "../../components/admin/MenuItem/MenuItemCard";
+import MenuItemFormModal from "../../components/admin/MenuItem/MenuItemFormModal";
+import MenuItemFilters from "../../components/admin/MenuItem/MenuItemFilters";
+import { ChefHat, Plus } from "lucide-react";
 
 const MenuItems = () => {
   const [menuItems, setMenuItems] = useState([]);
-  const [showItemForm, setShowItemForm] = useState(false);
-  const [editingItem, setEditingItem] = useState(null);
-  const [filterCategory, setFilterCategory] = useState("all");
+  const [loading, setLoading] = useState(true);
+  const [selectedMenuItem, setSelectedMenuItem] = useState(null);
+  const [showFormModal, setShowFormModal] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
 
-  const [itemForm, setItemForm] = useState({
-    name: "",
-    description: "",
-    price: "",
-    category: "entree",
-    isVegetarian: false,
-    isVegan: false,
-    allergens: [],
-    image: "",
-    isActive: true,
+  // Filter state
+  const [filters, setFilters] = useState({
+    category: undefined,
+    isVegetarian: undefined,
+    isVegan: undefined,
   });
 
-  // Mock data - replace with actual API calls
-  useEffect(() => {
-    setMenuItems([
-      {
-        _id: "1",
-        name: "Furandana",
-        description: "Traditional Nepali appetizer",
-        category: "entree",
-        price: 12,
-        isVegetarian: true,
-        isVegan: false,
-        allergens: ["gluten"],
-        isActive: true,
-      },
-      {
-        _id: "2",
-        name: "Aaloo Mix Achar",
-        description: "Spicy potato pickle",
-        category: "entree",
-        price: 10,
-        isVegetarian: true,
-        isVegan: true,
-        allergens: [],
-        isActive: true,
-      },
-      {
-        _id: "3",
-        name: "Chicken Chhoila",
-        description: "Grilled chicken with spices",
-        category: "entree",
-        price: 14,
-        isVegetarian: false,
-        isVegan: false,
-        allergens: [],
-        isActive: true,
-      },
-      {
-        _id: "4",
-        name: "Roast",
-        description: "Marinated roasted chicken",
-        category: "entree",
-        price: 16,
-        isVegetarian: false,
-        isVegan: false,
-        allergens: [],
-        isActive: true,
-      },
-      {
-        _id: "5",
-        name: "Lollipop",
-        description: "Chicken drumettes",
-        category: "entree",
-        price: 15,
-        isVegetarian: false,
-        isVegan: false,
-        allergens: [],
-        isActive: true,
-      },
-    ]);
-  }, []);
-
-  const resetForm = () => {
-    setItemForm({
-      name: "",
-      description: "",
-      price: "",
-      category: "entree",
-      isVegetarian: false,
-      isVegan: false,
-      allergens: [],
-      image: "",
-      isActive: true,
-    });
-  };
-
-  const handleSaveItem = () => {
-    if (editingItem) {
-      setMenuItems((prev) =>
-        prev.map((item) =>
-          item._id === editingItem._id
-            ? { ...item, ...itemForm, _id: editingItem._id }
-            : item
-        )
+  // Fetch menu items with filters
+  const fetchMenuItems = useCallback(async () => {
+    setLoading(true);
+    try {
+      // Clean up undefined values from filters
+      const cleanFilters = Object.fromEntries(
+        Object.entries(filters).filter(([_, value]) => value !== undefined)
       );
-    } else {
-      const newItem = {
-        ...itemForm,
-        _id: Date.now().toString(),
-        price: parseFloat(itemForm.price),
-      };
-      setMenuItems((prev) => [...prev, newItem]);
+
+      const result = await getMenuItems(cleanFilters);
+
+      if (result.success) {
+        setMenuItems(result.data || []);
+        setTotalCount(result.count || 0);
+      } else {
+        toast.error(result.error || "Failed to load menu items");
+        setMenuItems([]);
+        setTotalCount(0);
+      }
+    } catch (error) {
+      console.error("Error fetching menu items:", error);
+      toast.error("Failed to load menu items");
+      setMenuItems([]);
+      setTotalCount(0);
+    } finally {
+      setLoading(false);
     }
-    setShowItemForm(false);
-    setEditingItem(null);
-    resetForm();
+  }, [filters]);
+
+  useEffect(() => {
+    fetchMenuItems();
+  }, [fetchMenuItems]);
+
+  const handleAddMenuItem = () => {
+    setSelectedMenuItem(null);
+    setShowFormModal(true);
   };
 
-  const handleEditItem = (item) => {
-    setEditingItem(item);
-    setItemForm({
-      ...item,
-      allergens: item.allergens.join(", "),
-    });
-    setShowItemForm(true);
+  const handleEditMenuItem = (menuItem) => {
+    setSelectedMenuItem(menuItem);
+    setShowFormModal(true);
   };
 
-  const handleDeleteItem = (itemId) => {
-    if (window.confirm("Are you sure you want to delete this menu item?")) {
-      setMenuItems((prev) => prev.filter((item) => item._id !== itemId));
+  const handleDeleteMenuItem = async (menuItemId) => {
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this menu item? This action cannot be undone."
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const result = await deleteMenuItem(menuItemId);
+      if (result.success) {
+        toast.success("Menu item deleted successfully");
+        fetchMenuItems(); // Reload the list
+      } else {
+        toast.error(result.error || "Failed to delete menu item");
+      }
+    } catch (error) {
+      toast.error("Failed to delete menu item");
     }
   };
 
-  const filteredItems =
-    filterCategory === "all"
-      ? menuItems
-      : menuItems.filter((item) => item.category === filterCategory);
+  const handleModalUpdate = () => {
+    fetchMenuItems();
+  };
+
+  const handleClearFilters = () => {
+    fetchMenuItems();
+  };
+
+  // Group menu items by category for display
+  const groupedMenuItems = menuItems.reduce((acc, item) => {
+    if (!acc[item.category]) {
+      acc[item.category] = [];
+    }
+    acc[item.category].push(item);
+    return acc;
+  }, {});
+
+  const getCategoryStats = () => {
+    const stats = {
+      entree: menuItems.filter((item) => item.category === "entree").length,
+      mains: menuItems.filter((item) => item.category === "mains").length,
+      desserts: menuItems.filter((item) => item.category === "desserts").length,
+      vegetarian: menuItems.filter((item) => item.isVegetarian).length,
+      vegan: menuItems.filter((item) => item.isVegan).length,
+    };
+    return stats;
+  };
+
+  const stats = getCategoryStats();
+
+  if (loading && menuItems.length === 0) {
+    return <InlineLoading message="Loading menu items..." size="large" />;
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center mb-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold ">Menu Items Management</h1>
-          <p className="mt-1">
-            Create and manage individual menu items that can be used in menus
+          <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
+            <ChefHat className="text-blue-600" />
+            Menu Items Management
+          </h1>
+          <p className="text-gray-600 mt-1">
+            Manage your restaurant menu items, pricing, and categories
           </p>
         </div>
-        <button
-          onClick={() => setShowItemForm(true)}
-          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md flex items-center gap-2"
-        >
-          <Plus size={20} />
-          Add Menu Item
-        </button>
-      </div>
-
-      {/* Filter */}
-      <div className="bg-white rounded-lg shadow-md p-4 mb-6">
         <div className="flex items-center gap-4">
-          <label className="text-sm font-medium text-gray-700">
-            Filter by Category:
-          </label>
-          <select
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-            className="px-3 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          <div className="text-sm text-gray-600">Total: {totalCount} items</div>
+          <button
+            onClick={handleAddMenuItem}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2"
           >
-            <option value="all">All Categories</option>
-            <option value="entree">Entree</option>
-            <option value="mains">Mains</option>
-            <option value="desserts">Desserts</option>
-          </select>
-          <span className="text-sm text-gray-500">
-            {filteredItems.length} item{filteredItems.length !== 1 ? "s" : ""}
-          </span>
+            <Plus size={20} />
+            Add Menu Item
+          </button>
         </div>
       </div>
 
-      {/* Items Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredItems.map((item) => (
-          <div
-            key={item._id}
-            className="bg-white rounded-lg shadow-md p-4 border"
-          >
-            <div className="flex justify-between items-start mb-3">
-              <div>
-                <h3 className="font-semibold text-lg">{item.name}</h3>
-                <span
-                  className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
-                    item.category === "entree"
-                      ? "bg-orange-100 text-orange-800"
-                      : item.category === "mains"
-                      ? "bg-blue-100 text-blue-800"
-                      : "bg-purple-100 text-purple-800"
-                  }`}
-                >
-                  {item.category}
-                </span>
-              </div>
-              <div className="flex gap-1">
-                {item.isVegetarian && (
-                  <span
-                    className="inline-block w-4 h-4 bg-green-500 rounded-full"
-                    title="Vegetarian"
-                  ></span>
-                )}
-                {item.isVegan && (
-                  <span
-                    className="inline-block w-4 h-4 bg-green-700 rounded-full"
-                    title="Vegan"
-                  ></span>
-                )}
-              </div>
-            </div>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="text-2xl font-bold text-green-700">
+            {stats.entree}
+          </div>
+          <div className="text-sm text-green-600">Entrees</div>
+        </div>
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="text-2xl font-bold text-blue-700">{stats.mains}</div>
+          <div className="text-sm text-blue-600">Mains</div>
+        </div>
+        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+          <div className="text-2xl font-bold text-purple-700">
+            {stats.desserts}
+          </div>
+          <div className="text-sm text-purple-600">Desserts</div>
+        </div>
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="text-2xl font-bold text-yellow-700">
+            {stats.vegetarian}
+          </div>
+          <div className="text-sm text-yellow-600">Vegetarian</div>
+        </div>
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+          <div className="text-2xl font-bold text-emerald-700">
+            {stats.vegan}
+          </div>
+          <div className="text-sm text-emerald-600">Vegan</div>
+        </div>
+      </div>
 
-            <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-              {item.description}
+      {/* Filters */}
+      <MenuItemFilters
+        filters={filters}
+        setFilters={setFilters}
+        onClearFilters={handleClearFilters}
+      />
+
+      {/* Menu Items Display */}
+      <div className="bg-white rounded-lg shadow-md border border-gray-200">
+        <div className="px-6 py-4 border-b border-gray-200 bg-blue-50">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-blue-800">
+              Menu Items ({totalCount})
+            </h2>
+            {loading && <div className="text-sm text-blue-600">Loading...</div>}
+          </div>
+        </div>
+
+        {menuItems.length === 0 && !loading ? (
+          <div className="p-8 text-center text-gray-600">
+            <ChefHat size={48} className="mx-auto mb-4 text-gray-300" />
+            <p className="text-lg">No menu items found</p>
+            <p className="text-sm mt-2">
+              {Object.values(filters).some((f) => f !== undefined)
+                ? "Try adjusting your filters"
+                : "Create your first menu item to get started"}
             </p>
+          </div>
+        ) : (
+          <div className="p-6">
+            {/* Display by category if no specific category filter is applied */}
+            {!filters.category ? (
+              <div className="space-y-8">
+                {["entree", "mains", "desserts"].map((category) => {
+                  const categoryItems = groupedMenuItems[category] || [];
+                  if (categoryItems.length === 0) return null;
 
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-xl font-bold text-green-600">
-                ${item.price}
-              </span>
-              <span
-                className={`px-2 py-1 rounded-full text-xs ${
-                  item.isActive
-                    ? "bg-green-100 text-green-800"
-                    : "bg-red-100 text-red-800"
-                }`}
-              >
-                {item.isActive ? "Active" : "Inactive"}
-              </span>
-            </div>
-
-            {item.allergens && item.allergens.length > 0 && (
-              <div className="mb-3">
-                <p className="text-xs text-gray-500">Allergens:</p>
-                <div className="flex flex-wrap gap-1">
-                  {item.allergens.map((allergen, index) => (
-                    <span
-                      key={index}
-                      className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs"
-                    >
-                      {allergen}
-                    </span>
-                  ))}
-                </div>
+                  return (
+                    <div key={category}>
+                      <h3 className="text-xl font-semibold text-gray-800 mb-4 capitalize flex items-center gap-2">
+                        {category}
+                        <span className="text-sm font-normal text-gray-500">
+                          ({categoryItems.length} items)
+                        </span>
+                      </h3>
+                      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                        {categoryItems.map((menuItem) => (
+                          <MenuItemCard
+                            key={menuItem._id}
+                            menuItem={menuItem}
+                            onEdit={handleEditMenuItem}
+                            onDelete={handleDeleteMenuItem}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              /* Display as grid when category filter is applied */
+              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                {menuItems.map((menuItem) => (
+                  <MenuItemCard
+                    key={menuItem._id}
+                    menuItem={menuItem}
+                    onEdit={handleEditMenuItem}
+                    onDelete={handleDeleteMenuItem}
+                  />
+                ))}
               </div>
             )}
-
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleEditItem(item)}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm flex items-center justify-center gap-1"
-              >
-                <Edit size={16} />
-                Edit
-              </button>
-              <button
-                onClick={() => handleDeleteItem(item._id)}
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm flex items-center justify-center gap-1"
-              >
-                <Trash2 size={16} />
-                Delete
-              </button>
-            </div>
           </div>
-        ))}
+        )}
       </div>
 
-      {/* Add/Edit Item Modal */}
-      {showItemForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-semibold">
-                {editingItem ? "Edit Menu Item" : "Add New Menu Item"}
-              </h2>
-              <button
-                onClick={() => {
-                  setShowItemForm(false);
-                  setEditingItem(null);
-                  resetForm();
-                }}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <X size={24} />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Item Name *
-                  </label>
-                  <input
-                    type="text"
-                    value={itemForm.name}
-                    onChange={(e) =>
-                      setItemForm((prev) => ({ ...prev, name: e.target.value }))
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="e.g., Chicken Momo"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Category *
-                  </label>
-                  <select
-                    value={itemForm.category}
-                    onChange={(e) =>
-                      setItemForm((prev) => ({
-                        ...prev,
-                        category: e.target.value,
-                      }))
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="entree">Entree</option>
-                    <option value="mains">Mains</option>
-                    <option value="desserts">Desserts</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Description
-                </label>
-                <textarea
-                  value={itemForm.description}
-                  onChange={(e) =>
-                    setItemForm((prev) => ({
-                      ...prev,
-                      description: e.target.value,
-                    }))
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows="3"
-                  placeholder="Brief description of the dish..."
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Price ($) *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={itemForm.price}
-                    onChange={(e) =>
-                      setItemForm((prev) => ({
-                        ...prev,
-                        price: e.target.value,
-                      }))
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="12.99"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Allergens
-                </label>
-                <input
-                  type="text"
-                  value={
-                    Array.isArray(itemForm.allergens)
-                      ? itemForm.allergens.join(", ")
-                      : itemForm.allergens
-                  }
-                  onChange={(e) =>
-                    setItemForm((prev) => ({
-                      ...prev,
-                      allergens: e.target.value,
-                    }))
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="gluten, dairy, nuts (comma separated)"
-                />
-              </div>
-
-              <div className="flex gap-6">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={itemForm.isVegetarian}
-                    onChange={(e) =>
-                      setItemForm((prev) => ({
-                        ...prev,
-                        isVegetarian: e.target.checked,
-                      }))
-                    }
-                    className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-                  />
-                  <span className="text-sm text-gray-700">Vegetarian</span>
-                </label>
-
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={itemForm.isVegan}
-                    onChange={(e) =>
-                      setItemForm((prev) => ({
-                        ...prev,
-                        isVegan: e.target.checked,
-                      }))
-                    }
-                    className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-                  />
-                  <span className="text-sm text-gray-700">Vegan</span>
-                </label>
-
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={itemForm.isActive}
-                    onChange={(e) =>
-                      setItemForm((prev) => ({
-                        ...prev,
-                        isActive: e.target.checked,
-                      }))
-                    }
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <span className="text-sm text-gray-700">Active</span>
-                </label>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-4 mt-6">
-              <button
-                onClick={() => {
-                  setShowItemForm(false);
-                  setEditingItem(null);
-                  resetForm();
-                }}
-                className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveItem}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md flex items-center gap-2"
-              >
-                <Save size={20} />
-                {editingItem ? "Update Item" : "Create Item"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Menu Item Form Modal */}
+      <MenuItemFormModal
+        isOpen={showFormModal}
+        onClose={() => setShowFormModal(false)}
+        menuItem={selectedMenuItem}
+        onSuccess={handleModalUpdate}
+      />
     </div>
   );
 };

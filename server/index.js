@@ -26,7 +26,7 @@ app.use("/api/inquiry", inquiryRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/locations", locationRouter);
 app.use("/api/services", serviceRouter);
-app.use("/api/menuItem", menuItemRouter);
+app.use("/api/menuItems", menuItemRouter);
 
 mongoose
   .connect(process.env.MONGO_URI)
