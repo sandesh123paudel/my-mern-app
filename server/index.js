@@ -7,6 +7,7 @@ import authRouter from "./routes/authRoutes.js";
 import cookieParser from "cookie-parser";
 import locationRouter from "./routes/locationRoutes.js";
 import serviceRouter from "./routes/serviceRoutes.js";
+import menuItemRouter from "./routes/menuItemRoutes.js";
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -25,6 +26,7 @@ app.use("/api/inquiry", inquiryRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/locations", locationRouter);
 app.use("/api/services", serviceRouter);
+app.use("/api/menuItem", menuItemRouter);
 
 mongoose
   .connect(process.env.MONGO_URI)
