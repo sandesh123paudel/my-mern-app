@@ -8,7 +8,7 @@ import Location from "../models/LocationModel.js";
 // @access  Public
 export const getServices = async (req, res) => {
   try {
-    const services = await Service.find({ isActive: true })
+    const services = await Service.find()
       .populate("locationId", "name city")
       .sort({ createdAt: -1 });
 
@@ -225,20 +225,18 @@ export const deleteService = async (req, res) => {
   }
 
   try {
+    // Check for active menus before attempting to delete
     const activeMenus = await Menu.findOne({ serviceId: id, isActive: true });
     if (activeMenus) {
       return res.status(400).json({
         success: false,
         message:
-          "Cannot deactivate service with active menus. Please deactivate menus first.",
+          "Cannot delete service with active menus. Please deactivate or delete menus first.",
       });
     }
 
-    const service = await Service.findByIdAndUpdate(
-      id,
-      { isActive: false },
-      { new: true }
-    );
+    // If no active menus exist, proceed with the hard delete
+    const service = await Service.findByIdAndDelete(id);
 
     if (!service) {
       return res
@@ -246,7 +244,7 @@ export const deleteService = async (req, res) => {
         .json({ success: false, message: "Service not found" });
     }
 
-    res.json({ success: true, message: "Service deactivated successfully" });
+    res.json({ success: true, message: "Service deleted successfully" });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

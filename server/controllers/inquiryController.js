@@ -50,7 +50,6 @@ export const submitInquiry = async (req, res) => {
   } catch (error) {
     console.error("Error submitting inquiry:", error);
 
-    // Handle mongoose validation errors
     if (error.name === "ValidationError") {
       return res.status(400).json({
         success: false,
@@ -72,16 +71,137 @@ export const submitInquiry = async (req, res) => {
 
 export const getInquiries = async (req, res) => {
   try {
-    const inquiries = await InquiryModel.find().sort({ createdAt: -1 });
+    const { page = 1, limit = 10, status, search } = req.query;
+
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    let query = {};
+
+    if (status && status !== "all") {
+      query.status = status;
+    }
+
+    if (search && search.trim()) {
+      const searchRegex = new RegExp(search.trim(), "i");
+      const searchNumber = parseInt(search.trim());
+
+      const searchConditions = [
+        { name: searchRegex },
+        { email: searchRegex },
+        { message: searchRegex },
+        { venue: searchRegex },
+        { serviceType: searchRegex },
+      ]; // Add a condition to search by contact number if the search term is a valid number.
+      if (!isNaN(searchNumber)) {
+        searchConditions.push({ contact: searchNumber });
+      }
+
+      query.$or = searchConditions;
+    }
+
+    const totalItems = await InquiryModel.countDocuments(query);
+    const totalPages = Math.ceil(totalItems / limitNum);
+
+    const inquiries = await InquiryModel.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum);
+
     res.status(200).json({
       success: true,
       data: inquiries,
+      pagination: {
+        currentPage: pageNum,
+        totalPages,
+        total: totalItems,
+        limit: limitNum,
+        hasNext: pageNum < totalPages,
+        hasPrev: pageNum > 1,
+      },
     });
   } catch (error) {
     console.error("Error fetching inquiries:", error);
     res.status(500).json({
       success: false,
       message: "Error fetching inquiries. Please try again.",
+      error:
+        process.env.NODE_ENV === "development"
+          ? error.message
+          : "Internal server error",
+    });
+  }
+};
+
+// Update inquiry status
+export const updateInquiryStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const validStatuses = ["pending", "responded", "archived"];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid status. Must be one of: pending, responded, archived",
+      });
+    }
+
+    const inquiry = await InquiryModel.findByIdAndUpdate(
+      id,
+      { status, updatedAt: new Date() },
+      { new: true, runValidators: true }
+    );
+
+    if (!inquiry) {
+      return res.status(404).json({
+        success: false,
+        message: "Inquiry not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Inquiry status updated successfully",
+      data: inquiry,
+    });
+  } catch (error) {
+    console.error("Error updating inquiry status:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error updating inquiry status",
+      error:
+        process.env.NODE_ENV === "development"
+          ? error.message
+          : "Internal server error",
+    });
+  }
+};
+
+// Delete inquiry
+export const deleteInquiry = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const inquiry = await InquiryModel.findByIdAndDelete(id);
+
+    if (!inquiry) {
+      return res.status(404).json({
+        success: false,
+        message: "Inquiry not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Inquiry deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting inquiry:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error deleting inquiry",
       error:
         process.env.NODE_ENV === "development"
           ? error.message

@@ -12,7 +12,7 @@ const inquirySchema = new mongoose.Schema({
   status: {
     type: String,
     default: "pending",
-    enum: ["pending", "confirmed", "cancelled"],
+    enum: ["pending", "responded", "archived"],
   },
   createdAt: { type: Date, default: Date.now },
 });

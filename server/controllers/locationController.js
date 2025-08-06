@@ -7,7 +7,7 @@ import Service from "../models/ServiceModel.js";
 // @access  Public
 export const getLocations = async (req, res) => {
   try {
-    const locations = await Location.find({ isActive: true }).sort({
+    const locations = await Location.find().sort({
       createdAt: -1,
     });
     return res.json({
@@ -189,7 +189,7 @@ export const deleteLocation = async (req, res) => {
   }
 
   try {
-    // More efficient check: stop after finding one active service
+    // Check for active services before attempting to delete
     const hasActiveServices = await Service.findOne({
       locationId: id,
       isActive: true,
@@ -199,15 +199,12 @@ export const deleteLocation = async (req, res) => {
       return res.status(400).json({
         success: false,
         message:
-          "Cannot deactivate location with active services. Please deactivate services first.",
+          "Cannot delete location with active services. Please deactivate or delete services first.",
       });
     }
 
-    const location = await Location.findByIdAndUpdate(
-      id,
-      { isActive: false },
-      { new: true }
-    );
+    // If no active services exist, proceed with the hard delete
+    const location = await Location.findByIdAndDelete(id);
 
     if (!location) {
       return res.status(404).json({
@@ -218,7 +215,7 @@ export const deleteLocation = async (req, res) => {
 
     return res.json({
       success: true,
-      message: "Location deactivated successfully",
+      message: "Location deleted successfully",
     });
   } catch (error) {
     return res.status(500).json({
