@@ -137,13 +137,11 @@ const MenuItems = () => {
       : menuItems.filter((item) => item.category === filterCategory);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">
-            Menu Items Management
-          </h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-3xl font-bold ">Menu Items Management</h1>
+          <p className="mt-1">
             Create and manage individual menu items that can be used in menus
           </p>
         </div>
