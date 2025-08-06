@@ -44,6 +44,7 @@ const MenuItemFilters = ({
             <option value="entree">Entree</option>
             <option value="mains">Mains</option>
             <option value="desserts">Desserts</option>
+            <option value="addons">Addons</option>
           </select>
         </div>
 

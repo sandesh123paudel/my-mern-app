@@ -8,6 +8,7 @@ import cookieParser from "cookie-parser";
 import locationRouter from "./routes/locationRoutes.js";
 import serviceRouter from "./routes/serviceRoutes.js";
 import menuItemRouter from "./routes/menuItemRoutes.js";
+import menuRouter from "./routes/menuRoutes.js";
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -27,6 +28,8 @@ app.use("/api/auth", authRouter);
 app.use("/api/locations", locationRouter);
 app.use("/api/services", serviceRouter);
 app.use("/api/menuItems", menuItemRouter);
+app.use("/api/menus", menuRouter);
+
 
 mongoose
   .connect(process.env.MONGO_URI)

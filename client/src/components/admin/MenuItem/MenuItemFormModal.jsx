@@ -4,7 +4,7 @@ import toast from "react-hot-toast";
 import {
   createMenuItem,
   updateMenuItem,
-} from "../../../services/menuItemService.js";
+} from "../../../services/menuItemService";
 
 const MenuItemFormModal = ({ isOpen, onClose, menuItem, onSuccess }) => {
   const [formData, setFormData] = useState({
@@ -199,6 +199,7 @@ const MenuItemFormModal = ({ isOpen, onClose, menuItem, onSuccess }) => {
                 <option value="entree">Entree</option>
                 <option value="mains">Mains</option>
                 <option value="desserts">Desserts</option>
+                <option value="addons">Addons</option>
               </select>
             </div>
 

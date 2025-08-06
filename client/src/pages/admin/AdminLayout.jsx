@@ -35,7 +35,7 @@ const AdminLayout = () => {
     },
     { path: "/admin/bookings", name: "Bookings", icon: "📅" },
     { path: "/admin/inquiries", name: "Inquiries", icon: "📧" },
-    { path: "/admin/menu-items", name: "Menu Items", icon: "🍽️" },
+    { path: "/admin/menu-items", name: "Menu Items", icon: "🍕" },
     { path: "/admin/menu", name: "Menu Management", icon: "🍽️" },
     { path: "/admin/users", name: "Users", icon: "👥" },
   ];

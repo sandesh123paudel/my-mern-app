@@ -1,0 +1,38 @@
+import express from "express";
+import {
+  getMenus,
+  getMenuById,
+  createMenu,
+  updateMenu,
+  deleteMenu,
+  getMenusByService,
+  getMenusByLocation,
+} from "../controllers/menuController.js";
+import userAuth from "../middlewares/auth.js"; // Adjust path as needed
+
+const menuRouter = express.Router();
+
+// --- Public Routes ---
+// Get all menus with optional filtering
+menuRouter.get("/", getMenus);
+
+// Get single menu by ID
+menuRouter.get("/:id", getMenuById);
+
+// Get menus by service ID
+menuRouter.get("/service/:serviceId", getMenusByService);
+
+// Get menus by location ID
+menuRouter.get("/location/:locationId", getMenusByLocation);
+
+// --- Protected/Admin Routes ---
+// Create new menu
+menuRouter.post("/", userAuth, createMenu);
+
+// Update menu
+menuRouter.put("/:id", userAuth, updateMenu);
+
+// Delete menu (soft delete)
+menuRouter.delete("/:id", userAuth, deleteMenu);
+
+export default menuRouter;

@@ -149,6 +149,47 @@ const menuSchema = new mongoose.Schema(
           },
         ],
       },
+      // NEW: Addons category - works just like other categories
+      addons: {
+        enabled: {
+          type: Boolean,
+          default: false,
+        },
+        includedItems: [
+          {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "MenuItem", // References MenuItem with category: "addons"
+          },
+        ],
+        selectionGroups: [
+          {
+            name: String, // e.g., "Extra Services", "Beverage Upgrades"
+            items: [
+              {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "MenuItem", // References MenuItem with category: "addons"
+              },
+            ],
+            selectionType: {
+              type: String,
+              enum: ["single", "multiple"],
+              default: "multiple", // Addons typically allow multiple selections
+            },
+            minSelections: {
+              type: Number,
+              default: 0, // Addons are usually optional
+            },
+            maxSelections: {
+              type: Number,
+              default: 10, // Allow multiple addon selections
+            },
+            isRequired: {
+              type: Boolean,
+              default: false, // Addons are typically optional
+            },
+          },
+        ],
+      },
     },
     isActive: {
       type: Boolean,

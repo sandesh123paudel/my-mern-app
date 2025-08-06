@@ -91,6 +91,11 @@ const MenuItems = () => {
   };
 
   const handleClearFilters = () => {
+    setFilters({
+      category: undefined,
+      isVegetarian: undefined,
+      isVegan: undefined,
+    });
     fetchMenuItems();
   };
 
@@ -108,6 +113,7 @@ const MenuItems = () => {
       entree: menuItems.filter((item) => item.category === "entree").length,
       mains: menuItems.filter((item) => item.category === "mains").length,
       desserts: menuItems.filter((item) => item.category === "desserts").length,
+      addons: menuItems.filter((item) => item.category === "addons").length,
       vegetarian: menuItems.filter((item) => item.isVegetarian).length,
       vegan: menuItems.filter((item) => item.isVegan).length,
     };
@@ -125,11 +131,10 @@ const MenuItems = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
-            <ChefHat className="text-blue-600" />
+          <h1 className="text-3xl font-bold  flex items-center gap-3">
             Menu Items Management
           </h1>
-          <p className="text-gray-600 mt-1">
+          <p className=" mt-1">
             Manage your restaurant menu items, pricing, and categories
           </p>
         </div>
@@ -146,7 +151,7 @@ const MenuItems = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <div className="text-2xl font-bold text-green-700">
             {stats.entree}
@@ -162,6 +167,12 @@ const MenuItems = () => {
             {stats.desserts}
           </div>
           <div className="text-sm text-purple-600">Desserts</div>
+        </div>
+        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+          <div className="text-2xl font-bold text-orange-700">
+            {stats.addons}
+          </div>
+          <div className="text-sm text-orange-600">Addons</div>
         </div>
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
           <div className="text-2xl font-bold text-yellow-700">
@@ -210,7 +221,7 @@ const MenuItems = () => {
             {/* Display by category if no specific category filter is applied */}
             {!filters.category ? (
               <div className="space-y-8">
-                {["entree", "mains", "desserts"].map((category) => {
+                {["entree", "mains", "desserts", "addons"].map((category) => {
                   const categoryItems = groupedMenuItems[category] || [];
                   if (categoryItems.length === 0) return null;
 

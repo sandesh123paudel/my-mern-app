@@ -13,7 +13,7 @@ const menuItemSchema = new mongoose.Schema(
     },
     category: {
       type: String,
-      enum: ["entree", "mains", "desserts"],
+      enum: ["entree", "mains", "desserts", "addons"], // Added "addons" category
       required: true,
     },
     isVegetarian: {
