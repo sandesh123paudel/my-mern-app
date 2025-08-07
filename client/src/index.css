@@ -50,6 +50,10 @@ html {
   scroll-behavior: smooth;
 }
 
+.no-scroll {
+  overflow: hidden;
+}
+
 /* Custom backdrop blur for better mobile experience */
 .backdrop-blur-custom {
   backdrop-filter: blur(8px);

@@ -1,8 +1,8 @@
 import mongoose from "mongoose";
 import Menu from "../models/menusModel.js";
 import Service from "../models/ServiceModel.js";
-import Location from "../models/LocationModel.js";
 import MenuItem from "../models/menuItemModel.js";
+import Location from "../models/LocationModel.js";
 
 // @desc    Get all menus with optional filtering and population
 // @route   GET /api/menus
@@ -15,19 +15,31 @@ export const getMenus = async (req, res) => {
     const query = {};
     if (locationId) query.locationId = locationId;
     if (serviceId) query.serviceId = serviceId;
-    if (isActive !== undefined) query.isActive = isActive === 'true';
+    if (isActive !== undefined) query.isActive = isActive === "true";
 
     const menus = await Menu.find(query)
-      .populate('locationId', 'name city address')
-      .populate('serviceId', 'name description')
-      .populate('categories.entree.includedItems', 'name category price')
-      .populate('categories.entree.selectionGroups.items', 'name category price')
-      .populate('categories.mains.includedItems', 'name category price')
-      .populate('categories.mains.selectionGroups.items', 'name category price')
-      .populate('categories.desserts.includedItems', 'name category price')
-      .populate('categories.desserts.selectionGroups.items', 'name category price')
-      .populate('categories.addons.includedItems', 'name category price description') // Added addons
-      .populate('categories.addons.selectionGroups.items', 'name category price description') // Added addons
+      .populate("locationId", "name city address")
+      .populate("serviceId", "name description")
+      .populate("categories.entree.includedItems", "name category price")
+      .populate(
+        "categories.entree.selectionGroups.items",
+        "name category price"
+      )
+      .populate("categories.mains.includedItems", "name category price")
+      .populate("categories.mains.selectionGroups.items", "name category price")
+      .populate("categories.desserts.includedItems", "name category price")
+      .populate(
+        "categories.desserts.selectionGroups.items",
+        "name category price"
+      )
+      .populate(
+        "categories.addons.includedItems",
+        "name category price description"
+      ) // Added addons
+      .populate(
+        "categories.addons.selectionGroups.items",
+        "name category price description"
+      ) // Added addons
       .sort({ createdAt: -1 });
 
     res.json({
@@ -60,16 +72,40 @@ export const getMenuById = async (req, res) => {
 
   try {
     const menu = await Menu.findById(id)
-      .populate('locationId', 'name city address contactInfo')
-      .populate('serviceId', 'name description')
-      .populate('categories.entree.includedItems', 'name category price description isVegetarian isVegan allergens')
-      .populate('categories.entree.selectionGroups.items', 'name category price description isVegetarian isVegan allergens')
-      .populate('categories.mains.includedItems', 'name category price description isVegetarian isVegan allergens')
-      .populate('categories.mains.selectionGroups.items', 'name category price description isVegetarian isVegan allergens')
-      .populate('categories.desserts.includedItems', 'name category price description isVegetarian isVegan allergens')
-      .populate('categories.desserts.selectionGroups.items', 'name category price description isVegetarian isVegan allergens')
-      .populate('categories.addons.includedItems', 'name category price description isVegetarian isVegan allergens') // Added addons
-      .populate('categories.addons.selectionGroups.items', 'name category price description isVegetarian isVegan allergens'); // Added addons
+      .populate("locationId", "name city address contactInfo")
+      .populate("serviceId", "name description")
+      .populate(
+        "categories.entree.includedItems",
+        "name category price description isVegetarian isVegan allergens"
+      )
+      .populate(
+        "categories.entree.selectionGroups.items",
+        "name category price description isVegetarian isVegan allergens"
+      )
+      .populate(
+        "categories.mains.includedItems",
+        "name category price description isVegetarian isVegan allergens"
+      )
+      .populate(
+        "categories.mains.selectionGroups.items",
+        "name category price description isVegetarian isVegan allergens"
+      )
+      .populate(
+        "categories.desserts.includedItems",
+        "name category price description isVegetarian isVegan allergens"
+      )
+      .populate(
+        "categories.desserts.selectionGroups.items",
+        "name category price description isVegetarian isVegan allergens"
+      )
+      .populate(
+        "categories.addons.includedItems",
+        "name category price description isVegetarian isVegan allergens"
+      ) // Added addons
+      .populate(
+        "categories.addons.selectionGroups.items",
+        "name category price description isVegetarian isVegan allergens"
+      ); // Added addons
 
     if (!menu) {
       return res.status(404).json({
@@ -125,7 +161,7 @@ export const createMenu = async (req, res) => {
     // Check if location and service exist and are active
     const [location, service] = await Promise.all([
       Location.findById(locationId),
-      Service.findById(serviceId)
+      Service.findById(serviceId),
     ]);
 
     if (!location || !location.isActive) {
@@ -170,8 +206,8 @@ export const createMenu = async (req, res) => {
 
     // Populate the saved menu before returning
     const populatedMenu = await Menu.findById(savedMenu._id)
-      .populate('locationId', 'name city')
-      .populate('serviceId', 'name description');
+      .populate("locationId", "name city")
+      .populate("serviceId", "name description");
 
     res.status(201).json({
       success: true,
@@ -180,7 +216,7 @@ export const createMenu = async (req, res) => {
     });
   } catch (error) {
     console.error("Error creating menu:", error);
-    
+
     // Handle specific errors
     if (error.code === 11000) {
       return res.status(400).json({
@@ -224,7 +260,10 @@ export const updateMenu = async (req, res) => {
       const serviceId = req.body.serviceId || existingMenu.serviceId;
       const locationId = req.body.locationId || existingMenu.locationId;
 
-      if (!mongoose.Types.ObjectId.isValid(serviceId) || !mongoose.Types.ObjectId.isValid(locationId)) {
+      if (
+        !mongoose.Types.ObjectId.isValid(serviceId) ||
+        !mongoose.Types.ObjectId.isValid(locationId)
+      ) {
         return res.status(400).json({
           success: false,
           message: "Invalid Service ID or Location ID format",
@@ -233,7 +272,7 @@ export const updateMenu = async (req, res) => {
 
       const [location, service] = await Promise.all([
         Location.findById(locationId),
-        Service.findById(serviceId)
+        Service.findById(serviceId),
       ]);
 
       if (!location || !location.isActive) {
@@ -269,8 +308,8 @@ export const updateMenu = async (req, res) => {
       new: true,
       runValidators: true,
     })
-      .populate('locationId', 'name city')
-      .populate('serviceId', 'name description');
+      .populate("locationId", "name city")
+      .populate("serviceId", "name description");
 
     res.json({
       success: true,
@@ -279,7 +318,7 @@ export const updateMenu = async (req, res) => {
     });
   } catch (error) {
     console.error("Error updating menu:", error);
-    
+
     if (error.code === 11000) {
       return res.status(400).json({
         success: false,
@@ -349,8 +388,8 @@ export const getMenusByService = async (req, res) => {
 
   try {
     const menus = await Menu.find({ serviceId, isActive: true })
-      .populate('locationId', 'name city')
-      .populate('serviceId', 'name description')
+      .populate("locationId", "name city")
+      .populate("serviceId", "name description")
       .sort({ createdAt: -1 });
 
     res.json({
@@ -383,8 +422,8 @@ export const getMenusByLocation = async (req, res) => {
 
   try {
     const menus = await Menu.find({ locationId, isActive: true })
-      .populate('locationId', 'name city')
-      .populate('serviceId', 'name description')
+      .populate("locationId", "name city")
+      .populate("serviceId", "name description")
       .sort({ createdAt: -1 });
 
     res.json({
@@ -407,12 +446,12 @@ const validateMenuItems = async (categories) => {
   const allItemIds = [];
 
   // Collect all item IDs from all categories (including addons)
-  Object.values(categories).forEach(category => {
+  Object.values(categories).forEach((category) => {
     if (category.includedItems) {
       allItemIds.push(...category.includedItems);
     }
     if (category.selectionGroups) {
-      category.selectionGroups.forEach(group => {
+      category.selectionGroups.forEach((group) => {
         if (group.items) {
           allItemIds.push(...group.items);
         }
@@ -432,37 +471,45 @@ const validateMenuItems = async (categories) => {
 
   // Check if all menu items exist and are active
   if (uniqueItemIds.length > 0) {
-    const menuItems = await MenuItem.find({ 
-      _id: { $in: uniqueItemIds }, 
-      isActive: true 
+    const menuItems = await MenuItem.find({
+      _id: { $in: uniqueItemIds },
+      isActive: true,
     });
 
     if (menuItems.length !== uniqueItemIds.length) {
-      const foundIds = menuItems.map(item => item._id.toString());
-      const missingIds = uniqueItemIds.filter(id => !foundIds.includes(id.toString()));
-      throw new Error(`Menu items not found or inactive: ${missingIds.join(', ')}`);
+      const foundIds = menuItems.map((item) => item._id.toString());
+      const missingIds = uniqueItemIds.filter(
+        (id) => !foundIds.includes(id.toString())
+      );
+      throw new Error(
+        `Menu items not found or inactive: ${missingIds.join(", ")}`
+      );
     }
 
     // Validate category consistency (items should match their assigned category)
     Object.entries(categories).forEach(([categoryName, categoryData]) => {
       const categoryItems = [];
-      
+
       if (categoryData.includedItems) {
         categoryItems.push(...categoryData.includedItems);
       }
-      
+
       if (categoryData.selectionGroups) {
-        categoryData.selectionGroups.forEach(group => {
+        categoryData.selectionGroups.forEach((group) => {
           if (group.items) {
             categoryItems.push(...group.items);
           }
         });
       }
 
-      categoryItems.forEach(itemId => {
-        const menuItem = menuItems.find(item => item._id.toString() === itemId.toString());
+      categoryItems.forEach((itemId) => {
+        const menuItem = menuItems.find(
+          (item) => item._id.toString() === itemId.toString()
+        );
         if (menuItem && menuItem.category !== categoryName) {
-          throw new Error(`Menu item "${menuItem.name}" belongs to "${menuItem.category}" category, not "${categoryName}"`);
+          throw new Error(
+            `Menu item "${menuItem.name}" belongs to "${menuItem.category}" category, not "${categoryName}"`
+          );
         }
       });
     });
