@@ -339,6 +339,7 @@ export const updateMenu = async (req, res) => {
 export const deleteMenu = async (req, res) => {
   const { id } = req.params;
 
+  // Validate MongoDB ObjectId
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res.status(400).json({
       success: false,
@@ -347,13 +348,10 @@ export const deleteMenu = async (req, res) => {
   }
 
   try {
-    const menu = await Menu.findByIdAndUpdate(
-      id,
-      { isActive: false },
-      { new: true }
-    );
+    // Actually delete the menu
+    const deletedMenu = await Menu.findByIdAndDelete(id);
 
-    if (!menu) {
+    if (!deletedMenu) {
       return res.status(404).json({
         success: false,
         message: "Menu not found",
@@ -362,7 +360,7 @@ export const deleteMenu = async (req, res) => {
 
     res.json({
       success: true,
-      message: "Menu deactivated successfully",
+      message: "Menu deleted successfully",
     });
   } catch (error) {
     console.error("Error deleting menu:", error);

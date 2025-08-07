@@ -23,37 +23,43 @@ const getAllItems = (menus) => {
   const itemMap = new Map();
 
   menus.forEach((menu) => {
-    Object.entries(menu.categories || {}).forEach(([categoryName, categoryData]) => {
-      if (categoryData?.enabled) {
-        // Collect included items
-        (categoryData.includedItems || []).forEach((item) => {
-          if (!itemMap.has(item._id)) {
-            itemMap.set(item._id, { ...item, category: categoryName });
-            categories[categoryName].includedItems.push(item);
-          }
-        });
-
-        // Collect items from selection groups
-        (categoryData.selectionGroups || []).forEach((group) => {
-          (group.items || []).forEach((item) => {
+    Object.entries(menu.categories || {}).forEach(
+      ([categoryName, categoryData]) => {
+        if (categoryData?.enabled) {
+          // Collect included items
+          (categoryData.includedItems || []).forEach((item) => {
             if (!itemMap.has(item._id)) {
-              itemMap.set(item._id, { ...item, category: categoryName, groupName: group.name });
-              // For custom order, we can treat all selections as a single group per category
-              const singleGroup = categories[categoryName].selectionGroups[0];
-              if (!singleGroup) {
-                categories[categoryName].selectionGroups.push({
-                  name: `Available ${categoryName}`,
-                  selectionType: "multiple",
-                  items: [item],
-                });
-              } else {
-                singleGroup.items.push(item);
-              }
+              itemMap.set(item._id, { ...item, category: categoryName });
+              categories[categoryName].includedItems.push(item);
             }
           });
-        });
+
+          // Collect items from selection groups
+          (categoryData.selectionGroups || []).forEach((group) => {
+            (group.items || []).forEach((item) => {
+              if (!itemMap.has(item._id)) {
+                itemMap.set(item._id, {
+                  ...item,
+                  category: categoryName,
+                  groupName: group.name,
+                });
+                // For custom order, we can treat all selections as a single group per category
+                const singleGroup = categories[categoryName].selectionGroups[0];
+                if (!singleGroup) {
+                  categories[categoryName].selectionGroups.push({
+                    name: `Available ${categoryName}`,
+                    selectionType: "multiple",
+                    items: [item],
+                  });
+                } else {
+                  singleGroup.items.push(item);
+                }
+              }
+            });
+          });
+        }
       }
-    });
+    );
   });
 
   return categories;
@@ -121,7 +127,7 @@ const CustomOrderModal = ({ menus, onClose }) => {
 
       const allCategoryItems = [
         ...(categoryData.includedItems || []),
-        ...((categoryData.selectionGroups?.[0]?.items) || []),
+        ...(categoryData.selectionGroups?.[0]?.items || []),
       ];
 
       selectedIds.forEach((itemId) => {
@@ -171,14 +177,18 @@ const CustomOrderModal = ({ menus, onClose }) => {
   };
 
   const renderCategoryContent = (categoryName, categoryData) => {
-    if (!categoryData || (!categoryData.includedItems.length && !categoryData.selectionGroups.length)) {
+    if (
+      !categoryData ||
+      (!categoryData.includedItems.length &&
+        !categoryData.selectionGroups.length)
+    ) {
       return null;
     }
 
     // Combine all selectable items from the category for the custom menu
     const selectableItems = [
       ...categoryData.includedItems,
-      ...((categoryData.selectionGroups?.[0]?.items) || []),
+      ...(categoryData.selectionGroups?.[0]?.items || []),
     ];
 
     return (
@@ -258,7 +268,7 @@ const CustomOrderModal = ({ menus, onClose }) => {
         className="bg-white rounded-lg w-full max-w-7xl shadow-2xl flex flex-col min-h-[90vh] sm:min-h-0 sm:max-h-[95vh]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="bg-gradient-to-r from-primary-brown to-primary-brown/90 text-white p-3 sm:p-4 flex-shrink-0 sticky top-0 z-10">
+        <div className="bg-primary-green text-white p-3 sm:p-4 flex-shrink-0 sticky top-0 z-10">
           <div className="flex items-center justify-between mb-2">
             <motion.button
               whileHover={{ scale: 1.05 }}
@@ -279,7 +289,7 @@ const CustomOrderModal = ({ menus, onClose }) => {
           <h2 className="text-lg sm:text-xl font-bold mb-2">
             Create Your Custom Menu
           </h2>
-          <p className="text-sm text-white/90">
+          <p className="text-sm">
             Select from all available items to build your perfect meal.
           </p>
         </div>

@@ -15,7 +15,7 @@ import {
 // --- NEW: Import react-hot-toast ---
 import { toast } from "react-hot-toast";
 
-const MenuSelectionModal = ({ menu, onClose }) => {
+const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
   // State to track item selections within selection groups.
   const [selections, setSelections] = useState({});
   // State to track the number of people.
@@ -300,22 +300,23 @@ const MenuSelectionModal = ({ menu, onClose }) => {
       selections: selections,
     };
 
-    console.log("Order Details:", orderDetails);
-    console.log("Selected Items Details:");
-    getAllSelectedItems().forEach((item, index) => {
-      console.log(
-        `${index + 1}. ${item.name} (${item.type}) - Category: ${item.category}`
-      );
-    });
-    console.log("Selected Add-ons Details:");
-    getSelectedAddons().forEach((addon, index) => {
-      console.log(
-        `${index + 1}. ${addon.name} - ${formatPrice(
-          addon.pricePerPerson
-        )} per person (Total: ${formatPrice(addon.totalPrice)})`
-      );
-    });
-    onClose();
+    // console.log("Order Details:", orderDetails);
+    // console.log("Selected Items Details:");
+    // getAllSelectedItems().forEach((item, index) => {
+    //   console.log(
+    //     `${index + 1}. ${item.name} (${item.type}) - Category: ${item.category}`
+    //   );
+    // });
+    // console.log("Selected Add-ons Details:");
+    // getSelectedAddons().forEach((addon, index) => {
+    //   console.log(
+    //     `${index + 1}. ${addon.name} - ${formatPrice(
+    //       addon.pricePerPerson
+    //     )} per person (Total: ${formatPrice(addon.totalPrice)})`
+    //   );
+    // });
+    // onClose();
+    onProceedToConfirmation(orderDetails);
   };
 
   // Enhanced addon rendering with clearer messaging
@@ -877,7 +878,7 @@ const MenuSelectionModal = ({ menu, onClose }) => {
 
                 {/* Note */}
                 <div className="mb-4">
-                  <p className="text-xs text-gray-600 bg-yellow-50 p-2 rounded">
+                  <p className="text-xs text-red-500 bg-yellow-50 p-2 rounded">
                     * Deposits made are non-refundable when orders are cancelled
                   </p>
                 </div>
@@ -894,7 +895,7 @@ const MenuSelectionModal = ({ menu, onClose }) => {
                     }
                     className="w-full bg-red-600 disabled:bg-gray-400 text-white py-3 rounded-md font-semibold hover:bg-red-700 disabled:hover:bg-gray-400 transition-colors flex items-center justify-center gap-2"
                   >
-                    <ShoppingCart size={18} />
+                    <ShoppingCart size={18} color="white" />
                     Place an Order
                   </motion.button>
                 </div>
