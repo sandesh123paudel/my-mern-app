@@ -18,7 +18,7 @@ const Menu = () => {
   const [services, setServices] = useState([]);
   const [selectedMenu, setSelectedMenu] = useState(null);
   const [showCustomOrderModal, setShowCustomOrderModal] = useState(false);
-  const [orderForConfirmation, setOrderForConfirmation] = useState(null); 
+  const [orderForConfirmation, setOrderForConfirmation] = useState(null);
 
   const [selectedLocation, setSelectedLocation] = useState("");
   const [selectedService, setSelectedService] = useState("");

@@ -51,11 +51,11 @@ const MenuCard = ({ menu, onClick }) => (
     variants={cardVariants}
     whileHover="hover"
     onClick={onClick}
-    className="bg-white rounded-2xl shadow-lg overflow-hidden cursor-pointer border border-gray-100 hover:shadow-2xl transition-shadow duration-300"
+    className="bg-white rounded-lg shadow-lg overflow-hidden cursor-pointer border border-primary-brown hover:shadow-2xl transition-shadow duration-300"
   >
     {/* Card Header with Background Pattern */}
     <div className="h-48 bg-gradient-to-br from-primary-brown to-primary-brown/90 text-white relative overflow-hidden">
-      <div className="absolute inset-0 bg-black/10"></div>
+      <div className="absolute inset-0 bg-gradient-to-l from-lime-300 via-amber-20000"></div>
       <div className="absolute top-4 right-4">
         <span className="bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-sm font-semibold text-primary-brown">
           {formatPrice(menu.price)} / person
