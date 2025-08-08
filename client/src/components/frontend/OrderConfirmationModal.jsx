@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react"; //_!_--_!_
+import React, { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { X, Check, ShoppingCart, Truck, Box } from "lucide-react";
 
@@ -139,7 +139,7 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
                 )}
               </div>
             </div>
-            {/* --- END OF UPDATED SECTION --- */}
+          
           </div>
 
           {/* Right Side: Form */}
