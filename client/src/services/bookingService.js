@@ -145,7 +145,6 @@ export const updatePaymentStatus = async (id, paymentData, token) => {
     };
   }
 };
-
 // Update complete booking details (Admin only)
 export const updateBooking = async (id, bookingData, token) => {
   try {

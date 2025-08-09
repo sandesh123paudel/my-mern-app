@@ -9,7 +9,9 @@ import {
   X,
   Plus,
   Minus,
+  Users,
 } from "lucide-react";
+import { toast } from "react-hot-toast";
 
 // This function processes all menus to get a unique, consolidated list of items
 const getAllItems = (menus) => {
@@ -65,7 +67,7 @@ const getAllItems = (menus) => {
   return categories;
 };
 
-const CustomOrderModal = ({ menus, onClose }) => {
+const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
   const [selections, setSelections] = useState({});
   const [peopleCount, setPeopleCount] = useState("1");
   const [itemsByCategory, setItemsByCategory] = useState({});
@@ -135,7 +137,8 @@ const CustomOrderModal = ({ menus, onClose }) => {
         if (item) {
           allSelected.push({
             ...item,
-            type: "custom_selected",
+            itemId: item._id,
+            type: "selected",
             category: categoryName,
           });
         }
@@ -145,6 +148,7 @@ const CustomOrderModal = ({ menus, onClose }) => {
     return allSelected;
   };
 
+  // People count handlers
   const incrementPeople = () => {
     const current = parseInt(peopleCount) || 0;
     setPeopleCount(String(current + 1));
@@ -158,22 +162,94 @@ const CustomOrderModal = ({ menus, onClose }) => {
   };
 
   const handlePeopleCountChange = (value) => {
-    const numValue = parseInt(value) || 0;
-    if (value === "" || numValue >= 1) {
-      setPeopleCount(value);
+    setPeopleCount(value);
+  };
+
+  // Validation
+  const validateCustomOrder = () => {
+    const errors = [];
+
+    if (!peopleCount || parseInt(peopleCount) < 1) {
+      errors.push("Please enter a valid number of people");
     }
+
+    if (getAllSelectedItems().length === 0) {
+      errors.push("Please select at least one item for your custom order");
+    }
+
+    return errors;
   };
 
   const handlePlaceOrder = () => {
+    const validationErrors = validateCustomOrder();
+
+    if (validationErrors.length > 0) {
+      toast.error(validationErrors[0]);
+      return;
+    }
+
+    // Create order details in the same format as menu selection
     const orderDetails = {
-      menuName: "Custom Order",
+      menuId: "custom-order", // Special ID for custom orders
+      menu: {
+        name: "Custom Order",
+        price: 0, // Custom orders are based on individual item prices
+        locationId: menus[0]?.locationId || null, // Use first available location
+      },
       peopleCount: parseInt(peopleCount),
       selectedItems: getAllSelectedItems(),
-      subtotal: calculateTotalPrice(),
+      pricing: {
+        basePrice: 0,
+        addonsPrice: calculateTotalPrice(),
+        total: calculateTotalPrice(),
+      },
+      selectedAddons: [], // Custom orders don't have traditional addons
       selections: selections,
+      isCustomOrder: true, // Flag to identify custom orders
     };
+
     console.log("Custom Order Details:", orderDetails);
-    onClose();
+    onProceedToConfirmation(orderDetails);
+  };
+
+  // Render dietary info badges inline
+  const renderInlineDietaryInfo = (item) => {
+    const badges = [];
+
+    if (item.isVegan) {
+      badges.push(
+        <span
+          key="vegan"
+          className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded ml-2"
+        >
+          <Leaf size={8} />V
+        </span>
+      );
+    } else if (item.isVegetarian) {
+      badges.push(
+        <span
+          key="vegetarian"
+          className="inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded ml-2"
+        >
+          <Leaf size={8} />
+          Veg
+        </span>
+      );
+    }
+
+    if (item.allergens && item.allergens.length > 0) {
+      badges.push(
+        <span
+          key="allergens"
+          className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-100 text-orange-700 text-xs rounded ml-2"
+        >
+          <AlertCircle size={8} />
+          {item.allergens.join(", ")}
+        </span>
+      );
+    }
+
+    return badges;
   };
 
   const renderCategoryContent = (categoryName, categoryData) => {
@@ -191,62 +267,123 @@ const CustomOrderModal = ({ menus, onClose }) => {
       ...(categoryData.selectionGroups?.[0]?.items || []),
     ];
 
+    if (selectableItems.length === 0) {
+      return null;
+    }
+
     return (
-      <div className="mb-6">
-        <h3 className="text-base sm:text-lg font-semibold text-primary-brown mb-3 capitalize border-b border-gray-200 pb-2">
+      <div className="mb-8">
+        <h3 className="text-lg font-semibold text-gray-900 capitalize mb-4 border-b border-gray-200 pb-2">
           {categoryName === "addons" ? "Add-ons" : categoryName}
         </h3>
-        <div className="space-y-2">
-          {selectableItems.map((item, itemIndex) => {
-            const isSelected = isItemSelected(categoryName, item._id);
-            return (
-              <div
-                key={itemIndex}
-                className="flex items-start sm:items-center justify-between py-2 cursor-pointer hover:bg-gray-50 rounded px-2 gap-2"
-                onClick={() =>
-                  handleItemSelection(categoryName, item._id, !isSelected)
-                }
-              >
-                <div className="flex items-start sm:items-center gap-2 sm:gap-3 flex-1 min-w-0">
-                  <div className="flex items-center mt-0.5 sm:mt-0 flex-shrink-0">
+
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <h4 className="font-medium text-gray-900 mb-3">
+            Available {categoryName === "addons" ? "Add-ons" : categoryName}
+          </h4>
+
+          <p className="text-sm text-gray-600 mb-4">
+            Select any items you'd like from our {categoryName} collection
+          </p>
+
+          <div className="space-y-3">
+            {selectableItems.map((item, itemIndex) => {
+              const isSelected = isItemSelected(categoryName, item._id);
+              return (
+                <div
+                  key={itemIndex}
+                  className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                    isSelected
+                      ? "border-green-500 bg-green-50"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                  onClick={() =>
+                    handleItemSelection(categoryName, item._id, !isSelected)
+                  }
+                >
+                  <div className="flex items-start gap-3">
                     <input
                       type="checkbox"
                       checked={isSelected}
                       onChange={() => {}}
-                      className="w-4 h-4 text-primary-green focus:ring-primary-green rounded"
+                      className="w-4 h-4 text-green-600 rounded mt-0.5"
                     />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <span className="text-sm font-medium text-primary-brown block">
-                      {item.name}
-                    </span>
-                    <div className="flex items-center gap-1 sm:gap-2 mt-1 flex-wrap">
-                      {item.isVegan && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-green-100 text-green-700 text-xs rounded">
-                          <Leaf size={8} />V
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center flex-wrap">
+                          <h5 className="font-medium text-gray-900">
+                            {item.name}
+                          </h5>
+                          {renderInlineDietaryInfo(item)}
+                        </div>
+                        <span className="font-semibold text-gray-800">
+                          {formatPrice(item.price)}
                         </span>
-                      )}
-                      {item.isVegetarian && !item.isVegan && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded">
-                          <Leaf size={8} />
-                          Veg
-                        </span>
-                      )}
-                      {item.allergens && item.allergens.length > 0 && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-orange-100 text-orange-700 text-xs rounded">
-                          <AlertCircle size={8} />
-                          Allergens
-                        </span>
+                      </div>
+                      {item.description && (
+                        <p className="text-sm text-gray-600 mt-1">
+                          {item.description}
+                        </p>
                       )}
                     </div>
                   </div>
                 </div>
-                <span className="text-sm font-semibold text-primary-green flex-shrink-0">
-                  {formatPrice(item.price)}
-                </span>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Price breakdown for sidebar
+  const renderPriceBreakdown = () => {
+    const selectedItems = getAllSelectedItems();
+    const numPeople = parseInt(peopleCount) || 0;
+    const totalPrice = calculateTotalPrice();
+
+    return (
+      <div className="bg-white rounded-lg p-4 border border-gray-200">
+        <h4 className="font-medium text-gray-900 mb-3">Order Summary</h4>
+
+        <div className="space-y-2 text-sm">
+          {selectedItems.length > 0 ? (
+            <>
+              {/* Individual items breakdown */}
+              <div className="max-h-32 overflow-y-auto space-y-1 mb-2">
+                {selectedItems.map((item, index) => (
+                  <div key={index} className="flex justify-between text-xs">
+                    <span className="text-gray-600 truncate mr-2">
+                      {item.name} (×{peopleCount})
+                    </span>
+                    <span className="font-medium">
+                      {formatPrice(item.price * numPeople)}
+                    </span>
+                  </div>
+                ))}
               </div>
-            );
-          })}
+
+              <div className="border-t pt-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">
+                    Subtotal ({peopleCount} people):
+                  </span>
+                  <span className="font-medium">{formatPrice(totalPrice)}</span>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-4">
+              <span className="text-gray-500 text-sm">No items selected</span>
+            </div>
+          )}
+
+          <div className="flex justify-between pt-2 border-t">
+            <span className="font-medium text-gray-900">Total:</span>
+            <span className="font-bold text-lg text-gray-900">
+              {formatPrice(totalPrice)}
+            </span>
+          </div>
         </div>
       </div>
     );
@@ -261,24 +398,22 @@ const CustomOrderModal = ({ menus, onClose }) => {
       onClick={onClose}
     >
       <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
+        initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className="bg-white rounded-lg w-full max-w-7xl shadow-2xl flex flex-col min-h-[90vh] sm:min-h-0 sm:max-h-[95vh]"
+        exit={{ scale: 0.95, opacity: 0 }}
+        className="bg-gray-50 rounded-xl w-full max-w-6xl shadow-2xl flex flex-col min-h-[90vh] sm:min-h-0 lg:max-h-[95vh] lg:overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="bg-primary-green text-white p-3 sm:p-4 flex-shrink-0 sticky top-0 z-10">
+        {/* Header */}
+        <div className="bg-green-600 text-white p-3 sm:p-4 rounded-t-xl flex-shrink-0">
           <div className="flex items-center justify-between mb-2">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+            <button
               onClick={onClose}
               className="flex items-center gap-2 text-white/90 hover:text-white transition-colors"
             >
               <ArrowLeft size={18} />
               <span className="text-sm hidden sm:inline">Back</span>
-            </motion.button>
+            </button>
             <button
               onClick={onClose}
               className="text-white/90 hover:text-white"
@@ -289,30 +424,65 @@ const CustomOrderModal = ({ menus, onClose }) => {
           <h2 className="text-lg sm:text-xl font-bold mb-2">
             Create Your Custom Menu
           </h2>
-          <p className="text-sm">
-            Select from all available items to build your perfect meal.
-          </p>
-        </div>
-        <div className="flex flex-col xl:flex-row flex-1 overflow-hidden">
-          <div className="flex-1 p-3 sm:p-4 overflow-y-auto">
-            {renderCategoryContent("entree", itemsByCategory?.entree)}
-            {renderCategoryContent("mains", itemsByCategory?.mains)}
-            {renderCategoryContent("desserts", itemsByCategory?.desserts)}
-            {renderCategoryContent("addons", itemsByCategory?.addons)}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-white/90 text-sm">
+            <div className="flex items-center gap-1">
+              <span className="font-medium">Build Your Perfect Meal</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Users size={14} />
+              <span>{peopleCount} people</span>
+            </div>
           </div>
-          <div className="w-full xl:w-80 bg-gray-50 border-t xl:border-t-0 xl:border-l border-gray-200 p-3 sm:p-4 flex-shrink-0">
-            <h3 className="text-lg font-bold text-primary-brown mb-4">
-              Your Order Summary
+        </div>
+
+        <div className="flex flex-col lg:flex-row flex-1 lg:overflow-hidden">
+          {/* Main Content */}
+          <div className="flex-1 p-3 sm:p-6 lg:overflow-y-auto">
+            {Object.keys(itemsByCategory).length === 0 ? (
+              <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                  <div className="text-gray-400 mb-2">
+                    <ShoppingCart size={48} className="mx-auto" />
+                  </div>
+                  <p className="text-gray-600">Loading menu items...</p>
+                </div>
+              </div>
+            ) : (
+              <>
+                {renderCategoryContent("entree", itemsByCategory?.entree)}
+                {renderCategoryContent("mains", itemsByCategory?.mains)}
+                {renderCategoryContent("desserts", itemsByCategory?.desserts)}
+                {renderCategoryContent("addons", itemsByCategory?.addons)}
+              </>
+            )}
+          </div>
+
+          {/* Sidebar */}
+          <div className="w-full lg:w-80 bg-white border-t lg:border-t-0 lg:border-l border-gray-200 p-3 sm:p-6 lg:overflow-y-auto flex-shrink-0">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">
+              Order Details
             </h3>
-            <div className="mb-4">
+
+            {/* Custom Order Info */}
+            <div className="text-center mb-4 sm:mb-6 p-3 sm:p-4 bg-green-50 rounded-lg border border-green-200">
+              <div className="text-xl sm:text-2xl font-bold text-green-700">
+                Custom Menu
+              </div>
+              <div className="text-sm text-green-600">
+                Build your own selection
+              </div>
+            </div>
+
+            {/* People Count */}
+            <div className="mb-4 sm:mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Number of people
+                Number of People *
               </label>
               <div className="flex items-center gap-2">
                 <button
                   onClick={decrementPeople}
+                  className="w-10 h-10 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
                   disabled={parseInt(peopleCount) <= 1}
-                  className="w-10 h-10 flex items-center justify-center bg-gray-200 hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400 rounded-md transition-colors"
                 >
                   <Minus size={16} />
                 </button>
@@ -321,55 +491,70 @@ const CustomOrderModal = ({ menus, onClose }) => {
                   min="1"
                   value={peopleCount}
                   onChange={(e) => handlePeopleCountChange(e.target.value)}
-                  onBlur={(e) => {
-                    const value = e.target.value;
-                    if (value === "" || parseInt(value) < 1) {
-                      setPeopleCount("1");
-                    }
-                  }}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-primary-green text-center"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-center"
+                  placeholder="Enter number"
                 />
                 <button
                   onClick={incrementPeople}
-                  className="w-10 h-10 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded-md transition-colors"
+                  className="w-10 h-10 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
                 >
                   <Plus size={16} />
                 </button>
               </div>
+              <p className="text-xs text-gray-500 mt-1">Minimum: 1 person</p>
             </div>
-            <div className="mb-4 max-h-32 sm:max-h-40 overflow-y-auto bg-white rounded-lg p-3">
+
+            {/* Selected Items Summary */}
+            <div className="mb-4 bg-gray-50 rounded-lg p-3">
               <h4 className="text-sm font-medium text-gray-700 mb-2">
-                Selected Items:
+                Selected Items ({getAllSelectedItems().length}):
               </h4>
-              {getAllSelectedItems().length === 0 ? (
-                <p className="text-sm text-gray-500">No items selected yet</p>
-              ) : (
-                getAllSelectedItems().map((item, index) => (
-                  <div key={index} className="flex items-center py-1 text-sm">
-                    <div className="bg-green-500 rounded-full p-0.5 mr-2 flex-shrink-0">
-                      <Check size={8} className="text-white" />
+              <div className="max-h-32 overflow-y-auto">
+                {getAllSelectedItems().length === 0 ? (
+                  <p className="text-sm text-gray-500">No items selected yet</p>
+                ) : (
+                  getAllSelectedItems().map((item, index) => (
+                    <div key={index} className="flex items-center py-1 text-sm">
+                      <div className="rounded-full p-0.5 mr-2 flex-shrink-0 bg-green-500">
+                        <Check size={8} className="text-white" />
+                      </div>
+                      <span className="truncate text-gray-700 flex-1">
+                        {item.name}
+                      </span>
+                      <span className="text-xs text-gray-500 ml-2">
+                        {formatPrice(item.price)}
+                      </span>
                     </div>
-                    <span className="text-primary-brown truncate">
-                      {item.name}
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
-            <div className="mb-4 pt-3 border-t border-gray-300 bg-white rounded-lg p-3">
-              <div className="text-base sm:text-lg font-semibold text-primary-brown">
-                Total Price: {formatPrice(calculateTotalPrice())}
+                  ))
+                )}
               </div>
             </div>
+
+            {/* Price Breakdown */}
+            <div className="mb-4 sm:mb-6">{renderPriceBreakdown()}</div>
+
+            {/* Note */}
+            <div className="mb-4 sm:mb-6">
+              <p className="text-xs text-red-600 bg-red-50 p-3 rounded-lg border border-red-200">
+                * Custom orders may require additional preparation time and
+                deposits are non-refundable when cancelled
+              </p>
+            </div>
+
+            {/* Continue Button */}
             <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={{
+                scale: getAllSelectedItems().length === 0 ? 1 : 1.02,
+              }}
+              whileTap={{
+                scale: getAllSelectedItems().length === 0 ? 1 : 0.98,
+              }}
               onClick={handlePlaceOrder}
               disabled={getAllSelectedItems().length === 0}
-              className="w-full bg-red-600 disabled:bg-gray-400 text-white py-3 rounded-md font-semibold hover:bg-red-700 disabled:hover:bg-gray-400 transition-colors flex items-center justify-center gap-2"
+              className="w-full bg-red-600 disabled:bg-gray-400 text-white py-3 rounded-lg font-semibold hover:bg-red-700 disabled:hover:bg-gray-400 transition-colors flex items-center justify-center gap-2"
             >
               <ShoppingCart size={18} />
-              Place Custom Order
+              Continue to Order Details
             </motion.button>
           </div>
         </div>
