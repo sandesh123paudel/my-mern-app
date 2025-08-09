@@ -9,6 +9,7 @@ import locationRouter from "./routes/locationRoutes.js";
 import serviceRouter from "./routes/serviceRoutes.js";
 import menuItemRouter from "./routes/menuItemRoutes.js";
 import menuRouter from "./routes/menuRoutes.js";
+import bookingRouter from "./routes/bookingRoutes.js";
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -29,7 +30,7 @@ app.use("/api/locations", locationRouter);
 app.use("/api/services", serviceRouter);
 app.use("/api/menuItems", menuItemRouter);
 app.use("/api/menus", menuRouter);
-
+app.use("/api/bookings", bookingRouter);
 
 mongoose
   .connect(process.env.MONGO_URI)

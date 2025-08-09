@@ -7,7 +7,7 @@ import { getServices } from "../services/serviceServices";
 import Loading from "../components/Loading";
 import MenuFilters from "../components/frontend/MenuFilters";
 import MenuSelectionModal from "../components/frontend/MenuSelectionModal";
-import CustomOrderModal from "../components/frontend/CustomerOrderModel";
+import CustomOrderModal from "../components/frontend/CustomOrderModel";
 import OrderConfirmationModal from "../components/frontend/OrderConfirmationModal";
 
 import MenuCard from "../components/frontend/MenuCard";

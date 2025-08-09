@@ -83,3 +83,112 @@ export const loginValidator = () => {
       .withMessage("Password must be at least 6 characters long"),
   ];
 };
+
+export const bookingFormValidation = () => {
+  return [
+    // Menu validation
+    body("menu.menuId").isMongoId().withMessage("Valid menu ID is required"),
+
+    // Customer details validation
+    body("customerDetails.name")
+      .notEmpty()
+      .withMessage("Name is required")
+      .trim()
+      .isLength({ min: 2, max: 100 })
+      .withMessage("Name must be between 2 and 100 characters"),
+
+    body("customerDetails.email")
+      .isEmail()
+      .withMessage("Valid email is required")
+      .normalizeEmail(),
+
+    body("customerDetails.phone")
+      .notEmpty()
+      .withMessage("Contact number is required")
+      .isLength({ min: 10, max: 15 })
+      .withMessage("Contact number must be between 10-15 digits")
+      .matches(/^[0-9+\-\s()]+$/)
+      .withMessage("Contact number contains invalid characters"),
+
+    body("customerDetails.specialInstructions")
+      .optional()
+      .trim()
+      .isLength({ max: 1000 })
+      .withMessage("Special instructions cannot exceed 1000 characters"),
+
+    // People count validation
+    body("peopleCount")
+      .isInt({ min: 1, max: 1000 })
+      .withMessage("Number of people must be between 1 and 1000"),
+
+    // Delivery type validation
+    body("deliveryType")
+      .isIn(["Pickup", "Delivery"])
+      .withMessage("Delivery type must be either Pickup or Delivery"),
+
+    // Delivery date validation
+    body("deliveryDate")
+      .notEmpty()
+      .withMessage("Delivery date is required")
+      .isISO8601()
+      .withMessage("Invalid date format")
+      .custom((value) => {
+        const now = new Date();
+        const deliveryDate = new Date(value);
+
+        if (deliveryDate <= now) {
+          throw new Error("Delivery date must be in the future");
+        }
+
+        // Check if it's Monday (0 = Sunday, 1 = Monday)
+        if (deliveryDate.getDay() === 1) {
+          throw new Error("Delivery and pickup are not available on Mondays");
+        }
+
+        return true;
+      }),
+
+    // Address validation (conditional for delivery)
+    body("address.street")
+      .if(body("deliveryType").equals("Delivery"))
+      .notEmpty()
+      .withMessage("Street address is required for delivery")
+      .trim()
+      .isLength({ min: 1, max: 200 })
+      .withMessage("Street address must be between 1 and 200 characters"),
+
+    body("address.suburb")
+      .if(body("deliveryType").equals("Delivery"))
+      .notEmpty()
+      .withMessage("Suburb is required for delivery")
+      .trim()
+      .isLength({ min: 1, max: 100 })
+      .withMessage("Suburb must be between 1 and 100 characters"),
+
+    body("address.postcode")
+      .if(body("deliveryType").equals("Delivery"))
+      .notEmpty()
+      .withMessage("Postcode is required for delivery")
+      .trim()
+      .isLength({ min: 3, max: 10 })
+      .withMessage("Postcode must be between 3 and 10 characters"),
+
+    body("address.state")
+      .if(body("deliveryType").equals("Delivery"))
+      .notEmpty()
+      .withMessage("State is required for delivery")
+      .trim()
+      .isLength({ min: 1, max: 50 })
+      .withMessage("State is required for delivery"),
+
+    // Pricing validation
+    body("pricing.total")
+      .isFloat({ min: 0 })
+      .withMessage("Total price must be a positive number"),
+
+    // Selected items validation
+    body("selectedItems")
+      .isArray({ min: 1 })
+      .withMessage("At least one menu item must be selected"),
+  ];
+};
