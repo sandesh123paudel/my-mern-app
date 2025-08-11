@@ -1,4 +1,6 @@
-import { useState } from "react";
+import React, { useState } from "react";
+import bookingService from "../../../services/bookingService.js";
+import toast from "react-hot-toast";
 
 const BookingDetailsModal = ({
   booking,
@@ -10,6 +12,7 @@ const BookingDetailsModal = ({
   formatDate,
   formatDateTime,
 }) => {
+  // Remove token dependency since it uses cookies
   const [statusNotes, setStatusNotes] = useState("");
   const [cancellationReason, setCancellationReason] = useState("");
   const [showStatusForm, setShowStatusForm] = useState(false);
@@ -20,6 +23,7 @@ const BookingDetailsModal = ({
     paymentStatus: booking.paymentStatus || "pending",
     depositAmount: booking.depositAmount || 0,
   });
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const handleStatusUpdate = (status) => {
     if (status === "cancelled") {
@@ -49,13 +53,32 @@ const BookingDetailsModal = ({
 
   const handlePaymentUpdate = async () => {
     try {
-      // You'll need to implement this function in your booking service
-      // await bookingService.updatePaymentStatus(booking._id, paymentData, token);
-      console.log("Payment update:", paymentData);
-      setShowPaymentForm(false);
-      // Refresh the booking data or close modal
+      setIsUpdating(true);
+      const result = await bookingService.updatePaymentStatus(
+        booking._id,
+        paymentData
+      );
+
+      if (result.success) {
+        toast.success(result.message || "Payment updated successfully");
+        setShowPaymentForm(false);
+
+        // Update the booking object with new payment data
+        booking.paymentStatus = paymentData.paymentStatus;
+        booking.depositAmount = paymentData.depositAmount;
+
+        // Close modal to refresh parent component
+        setTimeout(() => {
+          onClose();
+        }, 1000);
+      } else {
+        toast.error(result.error || "Failed to update payment");
+      }
     } catch (error) {
       console.error("Error updating payment:", error);
+      toast.error("Failed to update payment");
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -74,7 +97,7 @@ const BookingDetailsModal = ({
 
   const calculateBalance = () => {
     const total = booking.pricing?.total || 0;
-    const deposit = booking.depositAmount || 0;
+    const deposit = paymentData.depositAmount || booking.depositAmount || 0;
     return total - deposit;
   };
 
@@ -186,6 +209,7 @@ const BookingDetailsModal = ({
                       })
                     }
                     className="w-full p-2 border border-gray-300 rounded-lg"
+                    disabled={isUpdating}
                   >
                     <option value="pending">Pending</option>
                     <option value="deposit_paid">Deposit Paid</option>
@@ -200,6 +224,7 @@ const BookingDetailsModal = ({
                     type="number"
                     step="0.01"
                     min="0"
+                    max={booking.pricing?.total || 0}
                     value={paymentData.depositAmount}
                     onChange={(e) =>
                       setPaymentData({
@@ -209,18 +234,37 @@ const BookingDetailsModal = ({
                     }
                     className="w-full p-2 border border-gray-300 rounded-lg"
                     placeholder="0.00"
+                    disabled={isUpdating}
                   />
+                  <p className="text-xs text-gray-600 mt-1">
+                    Max:{" "}
+                    {formatPrice
+                      ? formatPrice(booking.pricing?.total)
+                      : `$${booking.pricing?.total || 0}`}
+                  </p>
                 </div>
               </div>
+
+              <div className="bg-blue-50 p-3 rounded border border-blue-200 mb-4">
+                <p className="text-sm text-blue-700">
+                  <strong>New Balance Due:</strong>{" "}
+                  {formatPrice
+                    ? formatPrice(calculateBalance())
+                    : `$${calculateBalance()}`}
+                </p>
+              </div>
+
               <div className="flex gap-2">
                 <button
                   onClick={handlePaymentUpdate}
-                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+                  disabled={isUpdating}
+                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Update Payment
+                  {isUpdating ? "Updating..." : "Update Payment"}
                 </button>
                 <button
                   onClick={() => setShowPaymentForm(false)}
+                  disabled={isUpdating}
                   className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400"
                 >
                   Cancel
@@ -338,50 +382,9 @@ const BookingDetailsModal = ({
                   {booking.deliveryType || "Not specified"}
                 </p>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-amber-700 mb-1">
-                  Order Date
-                </label>
-                <p className="text-gray-900 bg-gray-50 p-2 rounded border">
-                  {formatDateTime
-                    ? formatDateTime(booking.orderDate)
-                    : new Date(
-                        booking.orderDate || Date.now()
-                      ).toLocaleString()}
-                </p>
-              </div>
             </div>
 
-            {/* Service Details based on type */}
-            {booking.deliveryType === "Pickup" && (
-              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <h4 className="font-semibold text-blue-800 mb-2">
-                  📦 Pickup Details
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p>
-                      <strong>Pickup Location:</strong>{" "}
-                      {booking.menu?.locationName || "TBD"}
-                    </p>
-                    <p>
-                      <strong>Date:</strong>{" "}
-                      {formatDate ? formatDate(booking.deliveryDate) : "TBD"}
-                    </p>
-                  </div>
-                  <div>
-                    <p>
-                      <strong>Estimated Time:</strong> Please call location for
-                      timing
-                    </p>
-                    <p>
-                      <strong>Contact:</strong> Please check location details
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
+            {/* Delivery Details - Correctly placed outside the p tag */}
             {booking.deliveryType === "Delivery" && booking.address && (
               <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
                 <h4 className="font-semibold text-green-800 mb-2">
@@ -430,7 +433,7 @@ const BookingDetailsModal = ({
               <h3 className="text-lg font-semibold text-amber-800 mb-4 border-b border-amber-200 pb-2">
                 Selected Menu Items
               </h3>
-              <div className="space-y-3">
+              <div className="space-y-3 max-h-60 overflow-y-auto">
                 {booking.selectedItems.map((item, index) => (
                   <div
                     key={index}

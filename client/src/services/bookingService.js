@@ -2,6 +2,9 @@ import axios from "axios";
 
 const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
+// Set axios to use credentials (cookies) for all requests
+axios.defaults.withCredentials = true;
+
 // Create new booking (Public - No auth required)
 export const createBooking = async (bookingData) => {
   try {
@@ -32,7 +35,7 @@ export const createBooking = async (bookingData) => {
 };
 
 // Get all bookings with optional filtering (Admin only)
-export const getAllBookings = async (params = {}, token) => {
+export const getAllBookings = async (params = {}) => {
   try {
     const queryParams = new URLSearchParams();
 
@@ -43,6 +46,7 @@ export const getAllBookings = async (params = {}, token) => {
     if (params.deliveryType)
       queryParams.append("deliveryType", params.deliveryType);
     if (params.locationId) queryParams.append("locationId", params.locationId);
+    if (params.serviceId) queryParams.append("serviceId", params.serviceId);
     if (params.startDate) queryParams.append("startDate", params.startDate);
     if (params.endDate) queryParams.append("endDate", params.endDate);
     if (params.search) queryParams.append("search", params.search);
@@ -54,11 +58,7 @@ export const getAllBookings = async (params = {}, token) => {
       queryString ? `?${queryString}` : ""
     }`;
 
-    const response = await axios.get(url, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const response = await axios.get(url);
 
     return {
       success: true,
@@ -75,13 +75,9 @@ export const getAllBookings = async (params = {}, token) => {
 };
 
 // Get single booking by ID (Admin only)
-export const getBookingById = async (id, token) => {
+export const getBookingById = async (id) => {
   try {
-    const response = await axios.get(`${backendUrl}/api/bookings/${id}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const response = await axios.get(`${backendUrl}/api/bookings/${id}`);
     return { success: true, data: response.data.data.booking };
   } catch (error) {
     console.error("Error fetching booking:", error);
@@ -93,7 +89,7 @@ export const getBookingById = async (id, token) => {
 };
 
 // Update booking status (Admin only)
-export const updateBookingStatus = async (id, statusData, token) => {
+export const updateBookingStatus = async (id, statusData) => {
   try {
     const response = await axios.patch(
       `${backendUrl}/api/bookings/${id}/status`,
@@ -101,7 +97,6 @@ export const updateBookingStatus = async (id, statusData, token) => {
       {
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
       }
     );
@@ -120,7 +115,7 @@ export const updateBookingStatus = async (id, statusData, token) => {
 };
 
 // Update payment status (Admin only)
-export const updatePaymentStatus = async (id, paymentData, token) => {
+export const updatePaymentStatus = async (id, paymentData) => {
   try {
     const response = await axios.patch(
       `${backendUrl}/api/bookings/${id}/payment`,
@@ -128,7 +123,6 @@ export const updatePaymentStatus = async (id, paymentData, token) => {
       {
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
       }
     );
@@ -145,8 +139,9 @@ export const updatePaymentStatus = async (id, paymentData, token) => {
     };
   }
 };
+
 // Update complete booking details (Admin only)
-export const updateBooking = async (id, bookingData, token) => {
+export const updateBooking = async (id, bookingData) => {
   try {
     const response = await axios.put(
       `${backendUrl}/api/bookings/${id}`,
@@ -154,7 +149,6 @@ export const updateBooking = async (id, bookingData, token) => {
       {
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
       }
     );
@@ -173,7 +167,7 @@ export const updateBooking = async (id, bookingData, token) => {
 };
 
 // Get booking statistics (Admin only)
-export const getBookingStats = async (params = {}, token) => {
+export const getBookingStats = async (params = {}) => {
   try {
     const queryParams = new URLSearchParams();
 
@@ -188,11 +182,7 @@ export const getBookingStats = async (params = {}, token) => {
       queryString ? `?${queryString}` : ""
     }`;
 
-    const response = await axios.get(url, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const response = await axios.get(url);
 
     return {
       success: true,
@@ -209,13 +199,12 @@ export const getBookingStats = async (params = {}, token) => {
 };
 
 // Cancel booking with reason (Admin only)
-export const cancelBooking = async (id, cancellationData, token) => {
+export const cancelBooking = async (id, cancellationData) => {
   try {
     const response = await axios.delete(`${backendUrl}/api/bookings/${id}`, {
       data: cancellationData,
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
       },
     });
     return {

@@ -482,7 +482,7 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
                 <button
                   onClick={decrementPeople}
                   className="w-10 h-10 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
-                  disabled={parseInt(peopleCount) <= 1}
+                  disabled={parseInt(peopleCount) <= 10}
                 >
                   <Minus size={16} />
                 </button>

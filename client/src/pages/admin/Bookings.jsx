@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useContext } from "react";
-import { AppContext } from "../../context/AppContext";
 import { InlineLoading } from "../../components/Loading";
 import bookingService from "../../services/bookingService";
 import toast from "react-hot-toast";
@@ -9,8 +8,6 @@ import BookingsList from "../../components/admin/Bookings/BookingsList";
 import BookingFilters from "../../components/admin/Bookings/BookingFilters";
 
 const AdminBookings = () => {
-  const { token } = useContext(AppContext);
-
   // Calendar state
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
@@ -27,6 +24,7 @@ const AdminBookings = () => {
     status: "all",
     deliveryType: "all",
     locationId: "all",
+    serviceId: "all",
     search: "",
     sortBy: "deliveryDate",
     sortOrder: "asc",
@@ -89,7 +87,7 @@ const AdminBookings = () => {
         sortOrder: "asc",
       };
 
-      const result = await bookingService.getAllBookings(params, token);
+      const result = await bookingService.getAllBookings(params);
 
       if (result.success) {
         const bookings = result.data || [];
@@ -126,11 +124,15 @@ const AdminBookings = () => {
   const applyFilters = (bookings = allBookings) => {
     let filtered = [...bookings];
 
+    console.log("Applying filters:", filters);
+    console.log("Total bookings before filtering:", filtered.length);
+
     // Apply status filter
     if (filters.status !== "all") {
       filtered = filtered.filter(
         (booking) => booking.status === filters.status
       );
+      console.log(`After status filter (${filters.status}):`, filtered.length);
     }
 
     // Apply delivery type filter
@@ -138,12 +140,67 @@ const AdminBookings = () => {
       filtered = filtered.filter(
         (booking) => booking.deliveryType === filters.deliveryType
       );
+      console.log(
+        `After delivery type filter (${filters.deliveryType}):`,
+        filtered.length
+      );
     }
 
-    // Apply location filter
+    // Apply location filter - Fixed logic
     if (filters.locationId !== "all") {
-      filtered = filtered.filter(
-        (booking) => booking.menu?.locationId === filters.locationId
+      const beforeCount = filtered.length;
+      filtered = filtered.filter((booking) => {
+        const matches = booking.menu?.locationId === filters.locationId;
+        if (!matches) {
+          console.log("Location mismatch:", {
+            bookingLocationId: booking.menu?.locationId,
+            filterLocationId: filters.locationId,
+            bookingLocationName: booking.menu?.locationName,
+          });
+        }
+        return matches;
+      });
+      console.log(
+        `After location filter (${filters.locationId}): ${
+          filtered.length
+        } (removed ${beforeCount - filtered.length})`
+      );
+    }
+
+    // Apply service filter
+    if (filters.serviceId !== "all") {
+      const beforeCount = filtered.length;
+      filtered = filtered.filter((booking) => {
+        if (!booking.menu?.name) return false;
+
+        const menuName = booking.menu.name.toLowerCase();
+
+        // Match based on service category
+        if (filters.serviceId === "catering") {
+          return (
+            menuName.includes("catering") ||
+            menuName.includes("corporate") ||
+            menuName.includes("lunch")
+          );
+        } else if (filters.serviceId === "function") {
+          return (
+            menuName.includes("function") ||
+            menuName.includes("event") ||
+            menuName.includes("party")
+          );
+        } else if (filters.serviceId === "wedding") {
+          return menuName.includes("wedding");
+        } else {
+          // Direct service ID or menu name match
+          return (
+            booking.menu.serviceId === filters.serviceId ||
+            booking.menu.name === filters.serviceId
+          );
+        }
+      });
+      console.log(
+        `After service filter (${filters.serviceId}):`,
+        filtered.length
       );
     }
 
@@ -155,8 +212,11 @@ const AdminBookings = () => {
           booking.customerDetails?.name?.toLowerCase().includes(searchTerm) ||
           booking.customerDetails?.email?.toLowerCase().includes(searchTerm) ||
           booking.customerDetails?.phone?.includes(searchTerm) ||
-          booking.bookingReference?.toLowerCase().includes(searchTerm)
+          booking.bookingReference?.toLowerCase().includes(searchTerm) ||
+          booking.menu?.name?.toLowerCase().includes(searchTerm) ||
+          booking.menu?.locationName?.toLowerCase().includes(searchTerm)
       );
+      console.log(`After search filter (${filters.search}):`, filtered.length);
     }
 
     // Apply sorting
@@ -171,12 +231,19 @@ const AdminBookings = () => {
         bValue = keys.reduce((obj, key) => obj?.[key], b);
       }
 
+      // Handle date sorting
+      if (filters.sortBy === "deliveryDate" || filters.sortBy === "orderDate") {
+        aValue = new Date(aValue);
+        bValue = new Date(bValue);
+      }
+
       if (filters.sortOrder === "desc") {
         return bValue > aValue ? 1 : -1;
       }
       return aValue > bValue ? 1 : -1;
     });
 
+    console.log("Final filtered bookings:", filtered.length);
     setFilteredBookings(filtered);
 
     // Update pagination
@@ -214,8 +281,7 @@ const AdminBookings = () => {
 
       const result = await bookingService.updateBookingStatus(
         bookingId,
-        statusData,
-        token
+        statusData
       );
 
       if (result.success) {
@@ -235,19 +301,21 @@ const AdminBookings = () => {
     try {
       const result = await bookingService.updatePaymentStatus(
         bookingId,
-        paymentData,
-        token
+        paymentData
       );
 
       if (result.success) {
         toast.success(result.message || "Payment updated successfully");
         fetchMonthBookings(); // Refresh calendar and list
+        return result;
       } else {
         toast.error(result.error || "Failed to update payment");
+        throw new Error(result.error);
       }
     } catch (error) {
       console.error("Error updating payment:", error);
       toast.error("Failed to update payment");
+      throw error;
     }
   };
 

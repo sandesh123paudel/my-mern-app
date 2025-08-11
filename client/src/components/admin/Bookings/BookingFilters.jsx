@@ -22,7 +22,57 @@ const BookingFilters = ({
     return Array.from(locationMap.values());
   }, [allBookings]);
 
+  // Get unique services from all bookings (based on menu name patterns or serviceId if available)
+  const uniqueServices = useMemo(() => {
+    const serviceMap = new Map();
+    allBookings.forEach((booking) => {
+      if (booking.menu?.name) {
+        // Extract service type from menu name or use serviceId if available
+        let serviceName = "Unknown Service";
+        let serviceId =
+          booking.menu.serviceId || booking.menu.name.toLowerCase();
+
+        // Try to determine service type from menu name
+        const menuName = booking.menu.name.toLowerCase();
+        if (
+          menuName.includes("catering") ||
+          menuName.includes("corporate") ||
+          menuName.includes("lunch")
+        ) {
+          serviceName = "Catering Service";
+          serviceId = "catering";
+        } else if (
+          menuName.includes("function") ||
+          menuName.includes("event") ||
+          menuName.includes("party")
+        ) {
+          serviceName = "Function Service";
+          serviceId = "function";
+        } else if (menuName.includes("wedding")) {
+          serviceName = "Wedding Service";
+          serviceId = "wedding";
+        } else {
+          // Use the actual menu name as service
+          serviceName = booking.menu.name;
+          serviceId = booking.menu.serviceId || booking.menu.name;
+        }
+
+        serviceMap.set(serviceId, {
+          id: serviceId,
+          name: serviceName,
+        });
+      }
+    });
+    return Array.from(serviceMap.values());
+  }, [allBookings]);
+
+  // Debug logging
+  console.log("Available locations:", uniqueLocations);
+  console.log("Available services:", uniqueServices);
+  console.log("Current filters:", filters);
+
   const handleFilterChange = (key, value) => {
+    console.log(`Filter changed: ${key} = ${value}`);
     onFilterChange({ [key]: value });
   };
 
@@ -31,6 +81,7 @@ const BookingFilters = ({
       status: "all",
       deliveryType: "all",
       locationId: "all",
+      serviceId: "all",
       search: "",
       sortBy: "deliveryDate",
       sortOrder: "asc",
@@ -41,6 +92,7 @@ const BookingFilters = ({
     filters.status !== "all" ||
     filters.deliveryType !== "all" ||
     filters.locationId !== "all" ||
+    filters.serviceId !== "all" ||
     filters.search.trim() !== "";
 
   return (
@@ -82,7 +134,7 @@ const BookingFilters = ({
 
       {/* Quick Filters (Always Visible) */}
       <div className="px-6 py-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Quick Search
@@ -138,16 +190,90 @@ const BookingFilters = ({
             </label>
             <select
               value={filters.locationId}
-              onChange={(e) => handleFilterChange("locationId", e.target.value)}
+              onChange={(e) => {
+                console.log("Location filter changed to:", e.target.value);
+                handleFilterChange("locationId", e.target.value);
+              }}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
             >
-              <option value="all">All Locations</option>
-              {uniqueLocations.map((location) => (
-                <option key={location.id} value={location.id}>
-                  {location.name}
-                </option>
-              ))}
+              <option value="all">
+                All Locations ({allBookings.length} total)
+              </option>
+              {uniqueLocations.map((location) => {
+                const bookingCount = allBookings.filter(
+                  (b) => b.menu?.locationId === location.id
+                ).length;
+                return (
+                  <option key={location.id} value={location.id}>
+                    {location.name} ({bookingCount} bookings)
+                  </option>
+                );
+              })}
+              {uniqueLocations.length === 0 && (
+                <option disabled>No locations available</option>
+              )}
             </select>
+            {uniqueLocations.length > 0 && (
+              <p className="text-xs text-gray-500 mt-1">
+                {uniqueLocations.length} location(s) available
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Service Category
+            </label>
+            <select
+              value={filters.serviceId}
+              onChange={(e) => {
+                console.log("Service filter changed to:", e.target.value);
+                handleFilterChange("serviceId", e.target.value);
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
+            >
+              <option value="all">
+                All Services ({allBookings.length} total)
+              </option>
+              {uniqueServices.map((service) => {
+                const bookingCount = allBookings.filter((b) => {
+                  const menuName = b.menu?.name?.toLowerCase() || "";
+                  if (service.id === "catering") {
+                    return (
+                      menuName.includes("catering") ||
+                      menuName.includes("corporate") ||
+                      menuName.includes("lunch")
+                    );
+                  } else if (service.id === "function") {
+                    return (
+                      menuName.includes("function") ||
+                      menuName.includes("event") ||
+                      menuName.includes("party")
+                    );
+                  } else if (service.id === "wedding") {
+                    return menuName.includes("wedding");
+                  } else {
+                    return (
+                      b.menu?.serviceId === service.id ||
+                      b.menu?.name === service.name
+                    );
+                  }
+                }).length;
+                return (
+                  <option key={service.id} value={service.id}>
+                    {service.name} ({bookingCount} bookings)
+                  </option>
+                );
+              })}
+              {uniqueServices.length === 0 && (
+                <option disabled>No services available</option>
+              )}
+            </select>
+            {uniqueServices.length > 0 && (
+              <p className="text-xs text-gray-500 mt-1">
+                {uniqueServices.length} service(s) available
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -243,11 +369,25 @@ const BookingFilters = ({
               </span>
             )}
 
+            {filters.serviceId !== "all" && (
+              <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs border border-blue-200">
+                Service:{" "}
+                {uniqueServices.find((s) => s.id === filters.serviceId)?.name ||
+                  "Unknown Service"}
+                <button
+                  onClick={() => handleFilterChange("serviceId", "all")}
+                  className="ml-1 text-blue-600 hover:text-blue-800"
+                >
+                  ×
+                </button>
+              </span>
+            )}
+
             {filters.locationId !== "all" && (
               <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs border border-blue-200">
                 Location:{" "}
                 {uniqueLocations.find((l) => l.id === filters.locationId)
-                  ?.name || filters.locationId}
+                  ?.name || "Unknown Location"}
                 <button
                   onClick={() => handleFilterChange("locationId", "all")}
                   className="ml-1 text-blue-600 hover:text-blue-800"

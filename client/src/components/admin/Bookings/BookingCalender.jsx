@@ -70,25 +70,16 @@ const BookingCalendar = ({
       0
     );
 
-    // Get unique menu items
-    const menuItems = {};
-    bookings.forEach((booking) => {
-      if (booking.selectedItems) {
-        booking.selectedItems.forEach((item) => {
-          if (menuItems[item.name]) {
-            menuItems[item.name]++;
-          } else {
-            menuItems[item.name] = 1;
-          }
-        });
-      }
-    });
+    // Get customer names for display
+    const customerNames = bookings
+      .map((booking) => booking.customerDetails?.name || "Unknown Customer")
+      .slice(0, 2); // Show max 2 names
 
     return {
       totalPeople,
       totalRevenue,
       totalBookings: bookings.length,
-      menuItems: Object.entries(menuItems).slice(0, 2), // Show top 2 items
+      customerNames,
     };
   };
 
@@ -223,14 +214,19 @@ const BookingCalendar = ({
                       </div>
                     </div>
 
-                    {/* Top Menu Items */}
-                    {daySummary.menuItems.length > 0 && (
+                    {/* Customer Names */}
+                    {daySummary.customerNames.length > 0 && (
                       <div className="text-xs text-gray-600">
-                        {daySummary.menuItems.map(([item, count], index) => (
+                        {daySummary.customerNames.map((name, index) => (
                           <div key={index} className="truncate">
-                            🍽️ {item} ({count})
+                            👤 {name}
                           </div>
                         ))}
+                        {daySummary.totalBookings > 2 && (
+                          <div className="text-gray-500">
+                            +{daySummary.totalBookings - 2} more
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -272,6 +268,7 @@ const BookingCalendar = ({
         <div className="text-sm text-amber-700 space-y-1">
           <p>• Click on any day with bookings to view detailed information</p>
           <p>• Numbers show guest count (👥) and total revenue for the day</p>
+          <p>• Customer names (👤) are displayed for each booking</p>
           <p>
             • Colored dots indicate booking status: Pending (amber), Confirmed
             (green), Completed (emerald)
