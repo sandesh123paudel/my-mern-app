@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, Star, Users, ChefHat } from "lucide-react";
 import { getMenus } from "../services/menuServices";
 import { getLocations } from "../services/locationServices";
 import { getServices } from "../services/serviceServices";
@@ -9,8 +9,8 @@ import MenuFilters from "../components/frontend/MenuFilters";
 import MenuSelectionModal from "../components/frontend/MenuSelectionModal";
 import CustomOrderModal from "../components/frontend/CustomOrderModel";
 import OrderConfirmationModal from "../components/frontend/OrderConfirmationModal";
-
 import MenuCard from "../components/frontend/MenuCard";
+import { useNavigate } from "react-router-dom";
 
 const Menu = () => {
   const [menus, setMenus] = useState([]);
@@ -24,6 +24,7 @@ const Menu = () => {
   const [selectedService, setSelectedService] = useState("");
   const [sortBy, setSortBy] = useState("default");
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const loadData = async () => {
@@ -48,13 +49,11 @@ const Menu = () => {
     loadData();
   }, []);
 
-  // ADD THIS FUNCTION
   const handleProceedToConfirmation = (orderData) => {
     setOrderForConfirmation(orderData);
-    setSelectedMenu(null); // This closes the first modal
+    setSelectedMenu(null);
   };
 
-  // ADD THIS FUNCTION
   const closeConfirmationModal = () => {
     setOrderForConfirmation(null);
   };
@@ -104,63 +103,146 @@ const Menu = () => {
 
   const filteredMenus = getFilteredAndSortedMenus();
 
+  // Animation variants
+  const pageVariants = {
+    initial: { opacity: 0 },
+    animate: { opacity: 1, transition: { duration: 0.5 } },
+    exit: { opacity: 0, transition: { duration: 0.3 } },
+  };
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
       transition: {
         staggerChildren: 0.1,
+        delayChildren: 0.2,
       },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.5, ease: "easeOut" },
+    },
+  };
+
+  const heroVariants = {
+    hidden: { opacity: 0, y: 30 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.6, ease: "easeOut" },
     },
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50">
+      <motion.div
+        className="min-h-screen bg-white"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+      >
         <Loading message="Loading delicious menus..." size="large" />
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <motion.div
+      className="min-h-screen bg-white"
+      style={{ fontFamily: "Lexend, sans-serif" }}
+      variants={pageVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+    >
       {/* Hero Section */}
       <motion.section
-        initial={{ opacity: 0, y: 50 }}
-        animate={{ opacity: 1, y: 0 }}
+        className="relative py-16 md:py-24 bg-white"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
         transition={{ duration: 0.8 }}
-        className="relative py-20 md:py-24 bg-gradient-to-r from-primary-brown to-primary-brown/90 text-white overflow-hidden"
       >
-        <div className="container mx-auto px-6 relative z-10">
-          <div className="max-w-4xl mx-auto text-center">
-            <motion.h1
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2, duration: 0.8 }}
-              className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4 md:mb-6"
+        <div className="container mx-auto px-6">
+          <motion.div
+            className="text-center max-w-4xl mx-auto"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+          >
+            {/* Breadcrumb */}
+            <motion.div
+              className="flex items-center justify-center gap-2 mb-6"
+              variants={itemVariants}
             >
-              Our <span className="text-primary-green">Menu</span> Collection
+              <span className="text-sm text-gray-500">Home</span>
+              <span className="text-sm text-gray-400">/</span>
+              <span
+                className="text-sm"
+                style={{ color: "var(--primary-brown)" }}
+              >
+                Our Menu Packages
+              </span>
+            </motion.div>
+
+            {/* Main Heading */}
+            <motion.h1
+              className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6"
+              style={{ color: "var(--primary-brown)" }}
+              variants={heroVariants}
+            >
+              NEPALESE CATERING
             </motion.h1>
+
             <motion.p
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4, duration: 0.8 }}
-              className="text-lg md:text-xl "
+              className="text-xl md:text-2xl mb-8"
+              style={{ color: "var(--primary-brown)", fontStyle: "italic" }}
+              variants={heroVariants}
+              transition={{ delay: 0.2 }}
+            >
+              Menu Packages for{" "}
+              <span className="font-semibold">Sydney & Canberra</span>
+            </motion.p>
+
+            <motion.p
+              className="text-gray-600 text-lg mb-8 max-w-2xl mx-auto leading-relaxed"
+              variants={heroVariants}
+              transition={{ delay: 0.4 }}
             >
               Discover our carefully crafted menu packages designed for every
-              occasion
+              occasion. From traditional Nepalese flavors to modern fusion
+              dishes.
             </motion.p>
-          </div>
+
+            {/* CTA Button */}
+            <motion.button
+              onClick={() => setShowCustomOrderModal(true)}
+              className="inline-flex items-center gap-2 px-8 py-4 text-white font-semibold text-lg rounded-lg shadow-lg transition-all duration-300"
+              style={{ backgroundColor: "#FF6B35" }}
+              variants={heroVariants}
+              transition={{ delay: 0.6 }}
+              whileHover={{
+                scale: 1.05,
+                boxShadow: "0 10px 25px rgba(255, 107, 53, 0.3)",
+              }}
+              whileTap={{ scale: 0.95 }}
+            >
+              EXPLORE OUR OFFERINGS
+            </motion.button>
+          </motion.div>
         </div>
-        <div className="absolute top-0 right-0 w-64 h-64 md:w-96 md:h-96 bg-primary-green/10 rounded-full -translate-y-32 md:-translate-y-48 translate-x-32 md:translate-x-48"></div>
-        <div className="absolute bottom-0 left-0 w-48 h-48 md:w-64 md:h-64 bg-white/10 rounded-full translate-y-24 md:translate-y-32 -translate-x-24 md:-translate-x-32"></div>
       </motion.section>
 
-      {/* Filters */}
+      {/* Filters Section */}
       <motion.div
-        initial={{ opacity: 0, y: 30 }}
+        initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.6, duration: 0.8 }}
+        transition={{ duration: 0.6, delay: 0.3 }}
       >
         <MenuFilters
           locations={locations}
@@ -177,47 +259,261 @@ const Menu = () => {
       </motion.div>
 
       {/* Menu Cards Section */}
-      <section className="py-12 md:py-16">
+      <motion.section
+        className="py-16 bg-gray-50"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.6, delay: 0.5 }}
+      >
+        <div className="container mx-auto px-6">
+          <AnimatePresence mode="wait">
+            {filteredMenus.length === 0 ? (
+              <motion.div
+                key="no-menus"
+                className="text-center py-20"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ duration: 0.5 }}
+              >
+                <motion.div
+                  className="bg-white rounded-lg p-12 max-w-md mx-auto shadow-sm"
+                  whileHover={{ y: -5 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <motion.div
+                    className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6"
+                    style={{ backgroundColor: "var(--primary-green)" }}
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                  >
+                    <ShoppingCart className="w-8 h-8 text-white" />
+                  </motion.div>
+                  <motion.h3
+                    className="text-2xl font-bold mb-4"
+                    style={{ color: "var(--primary-brown)" }}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4 }}
+                  >
+                    No Menus Found
+                  </motion.h3>
+                  <motion.p
+                    className="text-gray-600 mb-6"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.6 }}
+                  >
+                    Try adjusting your filters or create a custom menu instead.
+                  </motion.p>
+                  <motion.button
+                    onClick={() => setShowCustomOrderModal(true)}
+                    className="px-6 py-3 text-white rounded-lg font-semibold transition-colors"
+                    style={{ backgroundColor: "#FF6B35" }}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.8 }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    Create Custom Menu
+                  </motion.button>
+                </motion.div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="menus-grid"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.5 }}
+              >
+                {/* Section Header */}
+                <motion.div
+                  className="text-center mb-12"
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6 }}
+                >
+                  <h2
+                    className="text-3xl md:text-4xl font-bold mb-4"
+                    style={{ color: "var(--primary-brown)" }}
+                  >
+                    Choose Your Perfect Menu
+                  </h2>
+                  <motion.p
+                    className="text-gray-600 max-w-2xl mx-auto"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.2 }}
+                  >
+                    Each package is carefully designed to provide an authentic
+                    Nepalese dining experience
+                  </motion.p>
+                </motion.div>
+
+                {/* Menu Grid */}
+                <motion.div
+                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="visible"
+                >
+                  {filteredMenus.map((menu, index) => (
+                    <motion.div
+                      key={menu._id}
+                      variants={itemVariants}
+                      transition={{ delay: index * 0.1 }}
+                      layout
+                    >
+                      <MenuCard
+                        menu={menu}
+                        onClick={() => setSelectedMenu(menu)}
+                      />
+                    </motion.div>
+                  ))}
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </motion.section>
+
+      {/* Why Choose Us Section */}
+      <motion.section
+        className="py-16"
+        style={{ backgroundColor: "var(--primary-green)" }}
+        initial={{ opacity: 0, y: 50 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-100px" }}
+        transition={{ duration: 0.8 }}
+      >
         <div className="container mx-auto px-6">
           <motion.div
+            className="text-center mb-12"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+          >
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+              WHY CHOOSE OUR CATERING
+            </h2>
+            <p className="text-white/90 max-w-2xl mx-auto">
+              We pride ourselves on delivering exceptional Nepalese cuisine with
+              unmatched service quality
+            </p>
+          </motion.div>
+
+          <motion.div
+            className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto"
             variants={containerVariants}
             initial="hidden"
-            animate="visible"
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+            whileInView="visible"
+            viewport={{ once: true }}
           >
-            {filteredMenus.map((menu) => (
-              <MenuCard
-                key={menu._id}
-                menu={menu}
-                onClick={() => setSelectedMenu(menu)}
-              />
+            {[
+              {
+                icon: Star,
+                title: "Quality",
+                desc: "Premium ingredients and authentic recipes passed down through generations",
+              },
+              {
+                icon: Users,
+                title: "Service",
+                desc: "Professional catering team ensuring seamless event execution",
+              },
+              {
+                icon: ChefHat,
+                title: "Experience",
+                desc: "Years of expertise in creating memorable culinary experiences",
+              },
+            ].map((item, index) => (
+              <motion.div
+                key={item.title}
+                className="text-center"
+                variants={itemVariants}
+                whileHover={{ y: -10 }}
+                transition={{ duration: 0.3 }}
+              >
+                <motion.div
+                  className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4"
+                  initial={{ scale: 0 }}
+                  whileInView={{ scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{
+                    delay: index * 0.2,
+                    type: "spring",
+                    stiffness: 200,
+                  }}
+                >
+                  <item.icon
+                    className="w-10 h-10"
+                    style={{ color: "var(--primary-green)" }}
+                  />
+                </motion.div>
+                <h3 className="text-xl font-bold text-white mb-2">
+                  {item.title}
+                </h3>
+                <p className="text-white/80 text-sm">{item.desc}</p>
+              </motion.div>
             ))}
           </motion.div>
         </div>
-      </section>
+      </motion.section>
 
-      {/* Custom Order Section */}
-      <section className="py-12 md:py-16 bg-primary-green shadow-inner">
+      {/* Custom Order CTA Section */}
+      <motion.section
+        className="py-16"
+        style={{ backgroundColor: "var(--primary-green)" }}
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.8 }}
+      >
         <div className="container mx-auto px-6 text-center">
-          <h2 className="text-3xl font-bold text-white mb-4">
-            Don't see what you like?
-          </h2>
-          <p className="text-white mb-6 max-w-2xl mx-auto">
-            Create your own unique menu from our full range of dishes and
-            beverages. Our culinary team will craft a perfect experience just
-            for you.
-          </p>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setShowCustomOrderModal(true)}
-            className="inline-flex items-center gap-2 px-8 py-4 bg-primary-brown text-white font-semibold text-lg rounded-xl shadow-lg hover:bg-primary-brown/90 transition-colors duration-300"
+          <motion.div
+            className="max-w-3xl mx-auto"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
           >
-            <ShoppingCart size={24} color="white" />
-            Create Custom Menu
-          </motion.button>
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
+              Ready to try out our services?
+            </h2>
+            <motion.p
+              className="text-white/90 text-lg mb-8"
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2 }}
+            >
+              Our expert Nepalese catering is just one click away.
+            </motion.p>
+            <motion.button
+              onClick={() => {
+                navigate("/inquiry");
+                scrollTo(0, 0);
+              }}
+              className="px-8 py-4 bg-white font-bold text-lg rounded-lg shadow-lg transition-all duration-300"
+              style={{ color: "var(--primary-green)" }}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.4 }}
+              whileHover={{
+                scale: 1.05,
+                boxShadow: "0 15px 30px rgba(0, 0, 0, 0.2)",
+              }}
+              whileTap={{ scale: 0.95 }}
+            >
+              Enquiry
+            </motion.button>
+          </motion.div>
         </div>
-      </section>
+      </motion.section>
 
       {/* Modals */}
       <AnimatePresence>
@@ -241,7 +537,7 @@ const Menu = () => {
           />
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 };
 

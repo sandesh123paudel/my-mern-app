@@ -1,11 +1,11 @@
 import React from "react";
 import Slider from "react-slick";
 import { motion } from "framer-motion";
-
-// Import slick-carousel styles
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
+import { Quote, Star } from "lucide-react";
 
+// Testimonial data (I've kept your original data)
 const testimonialsData = [
   {
     quote:
@@ -93,34 +93,8 @@ const scaleIn = {
   },
 };
 
-const QuoteIcon = () => (
-  <motion.svg
-    width="44"
-    height="40"
-    viewBox="0 0 44 40"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    className="w-8 h-8"
-    aria-hidden="true"
-    initial={{ opacity: 0, rotate: -10 }}
-    animate={{ opacity: 1, rotate: 0 }}
-    transition={{ duration: 0.5, delay: 0.2 }}
-  >
-    <path
-      d="M33.172 5.469q2.555 0 4.547 1.547a7.4 7.4 0 0 1 2.695 4.007q.47 1.711.469 3.61 0 2.883-1.125 5.86a22.8 22.8 0 0 1-3.094 5.577 33 33 0 0 1-4.57 4.922A35 35 0 0 1 26.539 35l-3.398-3.398q5.296-4.243 7.218-6.563 1.946-2.32 2.016-4.617-2.86-.329-4.781-2.461-1.923-2.133-1.922-4.992 0-3.117 2.18-5.297 2.202-2.203 5.32-2.203m-20.625 0q2.555 0 4.547 1.547a7.4 7.4 0 0 1 2.695 4.007q.47 1.711.469 3.61 0 2.883-1.125 5.86a22.8 22.8 0 0 1-3.094 5.577 33 33 0 0 1-4.57 4.922A35 35 0 0 1 5.914 35l-3.398-3.398q5.296-4.243 7.218-6.563 1.946-2.32 2.016-4.617-2.86-.329-4.781-2.461-1.922-2.133-1.922-4.992 0-3.117 2.18-5.297 2.202-2.203 5.32-2.203"
-      fill="currentColor"
-    />
-  </motion.svg>
-);
-
 const StarIcon = ({ filled, index }) => (
-  <motion.svg
-    width="16"
-    height="15"
-    viewBox="0 0 16 15"
-    xmlns="http://www.w3.org/2000/svg"
-    className={`w-4 h-4 ${filled ? "text-orange-500" : "text-gray-300"}`}
-    aria-hidden="true"
+  <motion.div
     initial={{ opacity: 0, scale: 0 }}
     animate={{ opacity: 1, scale: 1 }}
     transition={{
@@ -130,17 +104,17 @@ const StarIcon = ({ filled, index }) => (
       stiffness: 200,
     }}
   >
-    <path
-      d="M7.524.464a.5.5 0 0 1 .952 0l1.432 4.41a.5.5 0 0 0 .476.345h4.637a.5.5 0 0 1 .294.904L11.563 8.85a.5.5 0 0 0-.181.559l1.433 4.41a.5.5 0 0 1-.77.559L8.294 11.65a.5.5 0 0 0-.588 0l-3.751 2.726a.5.5 0 0 1-.77-.56l1.433-4.41a.5.5 0 0 0-.181-.558L.685 6.123A.5.5 0 0 1 .98 5.22h4.637a.5.5 0 0 0 .476-.346z"
-      fill="currentColor"
+    <Star
+      size={16}
+      className={`${filled ? "text-orange-500 fill-current" : "text-gray-300"}`}
     />
-  </motion.svg>
+  </motion.div>
 );
 
-const TestimonialCard = ({ quote, name, role, imageUrl, rating }) => {
+const TestimonialCard = ({ quote, name, role, imageUrl, rating, index }) => {
   return (
     <motion.div
-      className="h-full w-full max-w-sm flex flex-col items-start border border-primary-green p-6 rounded-xl bg-white shadow-md hover:shadow-2xl transition-shadow duration-300"
+      className="h-full w-full flex flex-col items-start border border-primary-green p-6 rounded-xl bg-white shadow-md hover:shadow-2xl transition-shadow duration-300"
       initial="hidden"
       whileInView="visible"
       viewport={{ once: true, margin: "-50px" }}
@@ -148,8 +122,15 @@ const TestimonialCard = ({ quote, name, role, imageUrl, rating }) => {
       whileHover={{
         transition: { duration: 0.2 },
       }}
+      transition={{ delay: index * 0.1 }}
     >
-      <QuoteIcon />
+      <motion.div
+        initial={{ opacity: 0, rotate: -10 }}
+        animate={{ opacity: 1, rotate: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+      >
+        <Quote className="w-8 h-8" style={{ color: "var(--primary-green)" }} />
+      </motion.div>
 
       <motion.div
         className="flex items-center justify-center mt-4 gap-1"
@@ -158,8 +139,12 @@ const TestimonialCard = ({ quote, name, role, imageUrl, rating }) => {
         animate="visible"
         variants={staggerContainer}
       >
-        {[...Array(5)].map((_, index) => (
-          <StarIcon key={index} filled={index < rating} index={index} />
+        {[...Array(5)].map((_, starIndex) => (
+          <StarIcon
+            key={starIndex}
+            filled={starIndex < rating}
+            index={starIndex}
+          />
         ))}
       </motion.div>
 
@@ -244,6 +229,7 @@ const Testimonials = () => {
   return (
     <motion.div
       className="py-16 px-4 overflow-hidden"
+      style={{ fontFamily: "Lexend, sans-serif" }}
       initial="hidden"
       whileInView="visible"
       viewport={{ once: true, margin: "-100px" }}
@@ -256,17 +242,18 @@ const Testimonials = () => {
           }
           .slick-dots li button:before {
             font-size: 12px;
-            color: #492a00;
+            color: var(--primary-brown); /* Using the custom variable */
           }
           .slick-dots li.slick-active button:before {
-            color: #a4cd3d;
+            color: var(--primary-green); /* Using the custom variable */
           }
         `}
       </style>
 
       <motion.div className="text-center mb-12" variants={fadeUp}>
         <motion.h1
-          className="text-3xl md:text-4xl font-bold text-amber-900"
+          className="text-3xl md:text-4xl font-bold"
+          style={{ color: "var(--primary-brown)" }}
           variants={slideInFromLeft}
         >
           What Our Clients Say
@@ -290,7 +277,7 @@ const Testimonials = () => {
       >
         <Slider {...settings}>
           {testimonialsData.map((testimonial, index) => (
-            <TestimonialCard key={index} {...testimonial} />
+            <TestimonialCard key={index} {...testimonial} index={index} />
           ))}
         </Slider>
       </motion.div>

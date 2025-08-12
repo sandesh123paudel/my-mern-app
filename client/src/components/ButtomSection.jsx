@@ -41,8 +41,14 @@ const staggerContainer = {
 
 const BottomSection = () => {
   const navigate = useNavigate();
+
+  const handleInquiryClick = () => {
+    navigate("/inquiry");
+    window.scrollTo(0, 0);
+  };
+
   return (
-    <div className="w-full bg-[#a4cd3d] overflow-hidden">
+    <div className="w-full overflow-hidden" style={{ backgroundColor: 'var(--primary-green)', fontFamily: 'Lexend, sans-serif' }}>
       <motion.div
         className="max-w-7xl px-4 sm:px-6 lg:px-8 mx-auto flex flex-col md:flex-row items-center justify-between text-center md:text-left p-8 md:p-16 gap-8"
         initial="hidden"
@@ -53,7 +59,7 @@ const BottomSection = () => {
         {/* Text content */}
         <motion.div variants={slideInLeft}>
           <motion.h1
-            className="text-4xl md:text-[46px] md:leading-[60px] font-semibold text-white bg-clip-text"
+            className="text-4xl md:text-[46px] md:leading-[60px] font-semibold text-white"
             initial={{ opacity: 0, x: -80 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true, margin: "-50px" }}
@@ -66,7 +72,7 @@ const BottomSection = () => {
             Ready to try out our services?
           </motion.h1>
           <motion.p
-            className="bg-gradient-to-r text-white bg-clip-text text-lg mt-2"
+            className="text-white text-lg mt-2"
             variants={fadeUp}
           >
             Your next favorite catering is just one click away.
@@ -76,10 +82,17 @@ const BottomSection = () => {
         {/* Call-to-action button */}
         <motion.button
           variants={fadeUp}
-          onClick={() => navigate("/inquiry", scrollTo(0, 0))}
-          className="items-center space-x-2 px-6 py-2 text-white border border-white rounded-lg hover:text-primary-brown hover:border-primary-brown transition-all duration-300 font-medium"
+          onClick={handleInquiryClick}
+          className="px-8 py-4 text-white border-2 border-white rounded-lg font-bold text-lg transition-all duration-300 hover:shadow-lg"
+          whileHover={{ 
+            scale: 1.05,
+            backgroundColor: 'white',
+            color: 'var(--primary-green)',
+            boxShadow: "0 10px 25px rgba(0, 0, 0, 0.1)"
+          }}
+          whileTap={{ scale: 0.95 }}
         >
-          Inquiry
+          Enquiry
         </motion.button>
       </motion.div>
     </div>
