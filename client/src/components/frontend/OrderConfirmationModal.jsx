@@ -16,9 +16,12 @@ import {
   Home,
   Leaf,
   AlertCircle,
+  Briefcase,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { createBooking } from "../../services/bookingService"; // Import the booking service
+import { createBooking } from "../../services/bookingService";
+import { getLocations } from "../../services/locationServices";
+import { getServices } from "../../services/serviceServices";
 
 // Helper function to format currency
 const formatPrice = (price) => {
@@ -44,16 +47,61 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [locations, setLocations] = useState([]);
+  const [services, setServices] = useState([]);
+  const [selectedLocation, setSelectedLocation] = useState(orderData?.menu?.locationId || "");
+  const [selectedService, setSelectedService] = useState(orderData?.menu?.serviceId || "");
 
   useEffect(() => {
-    // Add the "no-scroll" class to the body when the modal is mounted
-    document.body.classList.add("no-scroll");
+    const loadData = async () => {
+      // Add the "no-scroll" class to the body when the modal is mounted
+      document.body.classList.add("no-scroll");
+
+      // Load locations and services for custom orders
+      if (orderData?.isCustomOrder) {
+        try {
+          const [locationsResult, servicesResult] = await Promise.all([
+            getLocations(),
+            getServices(),
+          ]);
+
+          if (locationsResult.success) {
+            const activeLocations = locationsResult.data.filter(loc => loc.isActive);
+            setLocations(activeLocations);
+          }
+
+          if (servicesResult.success) {
+            const activeServices = servicesResult.data.filter(service => service.isActive);
+            setServices(activeServices);
+          }
+        } catch (error) {
+          console.error("Error loading locations and services:", error);
+        }
+      }
+    };
+
+    loadData();
 
     // Clean up the effect by removing the class when the modal is unmounted
     return () => {
       document.body.classList.remove("no-scroll");
     };
-  }, []);
+  }, [orderData]);
+
+  // Get filtered services based on selected location
+  const getFilteredServices = () => {
+    if (!selectedLocation) return [];
+    return services.filter(service => 
+      (service.locationId?._id || service.locationId) === selectedLocation
+    );
+  };
+
+  // Handle location change
+  const handleLocationChange = (locationId) => {
+    setSelectedLocation(locationId);
+    // Reset service selection when location changes
+    setSelectedService("");
+  };
 
   // Group selected items by category using useMemo for efficiency
   const groupedItems = useMemo(() => {
@@ -144,6 +192,16 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
       }
     }
 
+    // Custom order specific validation
+    if (orderData?.isCustomOrder) {
+      if (!selectedLocation) {
+        errors.push("Please select a location");
+      }
+      if (!selectedService) {
+        errors.push("Please select a service type");
+      }
+    }
+
     if (formData.deliveryType === "Delivery") {
       if (!formData.street.trim()) {
         errors.push("Street address is required for delivery");
@@ -174,45 +232,80 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
     setIsSubmitting(true);
 
     try {
-      // Prepare booking data for API
-      console.log("Order data structure:", orderData);
-      console.log("Menu object:", orderData.menu);
-      console.log("Menu ID from orderData:", orderData.menuId);
+      console.log("=== ORDER SUBMISSION DEBUG ===");
+      console.log("Original orderData:", JSON.stringify(orderData, null, 2));
+      console.log("Is custom order:", orderData?.isCustomOrder);
+      console.log("Selected location:", selectedLocation);
+      console.log("Selected service:", selectedService);
 
+      // Prepare final order data
+      let finalOrderData = { ...orderData };
+      
+      if (orderData?.isCustomOrder) {
+        const selectedLocationObj = locations.find(loc => loc._id === selectedLocation);
+        const selectedServiceObj = services.find(service => service._id === selectedService);
+        
+        // Update the menu info with selected location and service
+        finalOrderData.menu = {
+          ...orderData.menu,
+          menuId: null, // Ensure null for custom orders
+          locationId: selectedLocation,
+          locationName: selectedLocationObj?.name || "Selected Location",
+          serviceId: selectedService,
+          serviceName: selectedServiceObj?.name || "Selected Service",
+        };
+        
+        console.log("Updated menu info for custom order:", finalOrderData.menu);
+      }
+
+      // Construct booking data with proper structure
       const bookingData = {
+        // Menu information
         menu: {
-          menuId: orderData.menuId,
-          name: orderData.menu.name,
-          price: orderData.menu.price,
+          menuId: finalOrderData?.menuId || finalOrderData?.menu?.menuId || null,
+          name: finalOrderData?.menu?.name || "Order",
+          price: finalOrderData?.menu?.price || 0,
+          locationId: finalOrderData?.menu?.locationId,
+          locationName: finalOrderData?.menu?.locationName,
+          serviceId: finalOrderData?.menu?.serviceId,
+          serviceName: finalOrderData?.menu?.serviceName,
         },
+        
+        // Customer details
         customerDetails: {
           name: formData.name,
           email: formData.email,
           phone: formData.phone,
           specialInstructions: formData.description || "",
         },
-        peopleCount: orderData.peopleCount,
+        
+        // Order details
+        peopleCount: finalOrderData?.peopleCount || 1,
         deliveryType: formData.deliveryType,
         deliveryDate: formData.deliveryDate,
-        address:
-          formData.deliveryType === "Delivery"
-            ? {
-                street: formData.street,
-                suburb: formData.suburb,
-                postcode: formData.postcode,
-                state: formData.state,
-                country: formData.country,
-              }
-            : undefined,
-        selectedItems: orderData.selectedItems || [],
+        
+        // Address (conditional)
+        address: formData.deliveryType === "Delivery" ? {
+          street: formData.street,
+          suburb: formData.suburb,
+          postcode: formData.postcode,
+          state: formData.state,
+          country: formData.country,
+        } : undefined,
+        
+        // Items and pricing
+        selectedItems: finalOrderData?.selectedItems || [],
         pricing: {
-          basePrice: orderData.pricing.basePrice,
-          addonsPrice: orderData.pricing.addonsPrice || 0,
-          total: orderData.pricing.total,
+          basePrice: finalOrderData?.pricing?.basePrice || 0,
+          addonsPrice: finalOrderData?.pricing?.addonsPrice || 0,
+          total: finalOrderData?.pricing?.total || 0,
         },
+        
+        // Custom order flag
+        isCustomOrder: finalOrderData?.isCustomOrder || false,
       };
 
-      console.log("Submitting booking data:", bookingData);
+      console.log("Final booking data being submitted:", JSON.stringify(bookingData, null, 2));
 
       // Call the booking service
       const result = await createBooking(bookingData);
@@ -232,6 +325,7 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
 
         onClose();
       } else {
+        console.error("Booking creation failed:", result.error);
         toast.error(
           result.error || "Failed to submit order. Please try again."
         );
@@ -245,8 +339,7 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
   };
 
   const totalPrice = orderData?.pricing?.total || 0;
-  const pricePerPerson =
-    orderData?.peopleCount > 0 ? totalPrice / orderData.peopleCount : 0;
+  const pricePerPerson = orderData?.peopleCount > 0 ? totalPrice / orderData.peopleCount : 0;
 
   // Define the order of categories for display
   const categoryOrder = ["entree", "mains", "desserts", "addons", "other"];
@@ -402,6 +495,78 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
           {/* Form Content */}
           <div className="flex-1 p-3 sm:p-4 lg:overflow-y-auto">
             <div className="space-y-6">
+              {/* Custom Order Location & Service Selection */}
+              {orderData?.isCustomOrder && (
+                <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                  <h3 className="font-semibold text-blue-900 mb-4 flex items-center gap-2">
+                    <MapPin size={18} />
+                    Location & Service Selection
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Location Selection */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Location *
+                      </label>
+                      <div className="relative">
+                        <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                        <select
+                          value={selectedLocation}
+                          onChange={(e) => handleLocationChange(e.target.value)}
+                          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 appearance-none bg-white text-sm"
+                          required
+                        >
+                          <option value="">Select a location</option>
+                          {locations.map((location) => (
+                            <option key={location._id} value={location._id}>
+                              {location.name} - {location.city}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Service Selection */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Service Type *
+                      </label>
+                      <div className="relative">
+                        <Briefcase className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                        <select
+                          value={selectedService}
+                          onChange={(e) => setSelectedService(e.target.value)}
+                          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 appearance-none bg-white text-sm"
+                          disabled={!selectedLocation}
+                          required
+                        >
+                          <option value="">
+                            {!selectedLocation ? "Select location first" : "Select a service"}
+                          </option>
+                          {getFilteredServices().map((service) => (
+                            <option key={service._id} value={service._id}>
+                              {service.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      {!selectedLocation && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Please select a location first to see available services
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="mt-3 p-3 bg-blue-100 rounded-lg">
+                    <p className="text-sm text-blue-800">
+                      <strong>Custom Order:</strong> Please select the location and service type for your custom menu selection.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Basic Details */}
               <div className="bg-white rounded-lg p-4 border border-gray-200">
                 <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -438,9 +603,6 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
                     />
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Email Address *
-                    </label>
                     <input
                       type="email"
                       name="email"

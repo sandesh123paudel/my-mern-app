@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import Menu from "../models/menusModel.js";
 import Booking from "../models/bookingModel.js";
 
+
 // Helper function to send response
 const sendResponse = (res, statusCode, success, message, data = null) => {
   return res.status(statusCode).json({
@@ -22,8 +23,10 @@ const asyncHandler = (fn) => (req, res, next) => {
 // @access  Public
 export const createBooking = asyncHandler(async (req, res) => {
   try {
+    console.log("Received booking request:", JSON.stringify(req.body, null, 2));
+    
     const isCustomOrder =
-      req.body.isCustomOrder || req.body.menu?.menuId === "custom-order";
+      req.body.isCustomOrder || req.body.menu?.menuId === null;
 
     let menu = null;
     let location = null;
@@ -39,9 +42,19 @@ export const createBooking = asyncHandler(async (req, res) => {
         );
       }
 
-      location = await Location.findById(req.body.menu.locationId);
-      if (!location || !location.isActive) {
-        return sendResponse(res, 404, false, "Location not found or inactive");
+      try {
+        location = await Location.findById(req.body.menu.locationId);
+        if (!location || !location.isActive) {
+          return sendResponse(res, 404, false, "Location not found or inactive");
+        }
+      } catch (locationError) {
+        console.error("Error finding location:", locationError);
+        // Fallback to using provided location data
+        location = {
+          _id: req.body.menu.locationId,
+          name: req.body.menu.locationName || "Selected Location",
+          isActive: true,
+        };
       }
 
       // For custom orders, we don't validate against menu limits
@@ -56,6 +69,10 @@ export const createBooking = asyncHandler(async (req, res) => {
       }
     } else {
       // Regular menu order - existing validation
+      if (!req.body.menu?.menuId) {
+        return sendResponse(res, 400, false, "Valid menu ID is required for regular orders");
+      }
+
       menu = await Menu.findById(req.body.menu.menuId)
         .populate("locationId")
         .populate("serviceId");
@@ -80,34 +97,56 @@ export const createBooking = asyncHandler(async (req, res) => {
       }
     }
 
-    // Generate booking reference
-    const generateReference = () => {
+    // Generate unique booking reference
+    const generateReference = async () => {
       const date = new Date();
       const year = date.getFullYear().toString().substr(-2);
       const month = String(date.getMonth() + 1).padStart(2, "0");
       const day = String(date.getDate()).padStart(2, "0");
-      const random = Math.floor(Math.random() * 1000)
-        .toString()
-        .padStart(3, "0");
-      const prefix = isCustomOrder ? "CU" : "BK"; // Different prefix for custom orders
-      return `${prefix}${year}${month}${day}${random}`;
+      
+      let attempts = 0;
+      let reference;
+      let isUnique = false;
+      
+      while (!isUnique && attempts < 10) {
+        const random = Math.floor(Math.random() * 1000)
+          .toString()
+          .padStart(3, "0");
+        const prefix = isCustomOrder ? "CU" : "BK";
+        reference = `${prefix}${year}${month}${day}${random}`;
+        
+        // Check if reference already exists
+        const existingBooking = await Booking.findOne({ bookingReference: reference });
+        if (!existingBooking) {
+          isUnique = true;
+        }
+        attempts++;
+      }
+      
+      if (!isUnique) {
+        throw new Error("Could not generate unique booking reference");
+      }
+      
+      return reference;
     };
+
+    const bookingReference = await generateReference();
 
     // Prepare booking data
     const bookingData = {
       ...req.body,
       isCustomOrder,
-      bookingReference: generateReference(),
+      bookingReference,
       menu: isCustomOrder
         ? {
-            // Custom order menu info
-            menuId: null, // No menu ID for custom orders
+            // Custom order menu info - use data from frontend
+            menuId: null, // Explicitly null for custom orders
             name: req.body.menu?.name || "Custom Order",
-            price: req.body.pricing?.total || 0,
-            serviceId: null, // No service ID for custom orders
-            serviceName: "Custom Order",
+            price: 0, // Custom orders use individual item pricing
+            serviceId: req.body.menu?.serviceId || null, // Use service from frontend
+            serviceName: req.body.menu?.serviceName || "Custom Order", // Use service name from frontend
             locationId: location._id,
-            locationName: location.name,
+            locationName: location.name || req.body.menu?.locationName,
           }
         : {
             // Regular menu order
@@ -135,9 +174,13 @@ export const createBooking = asyncHandler(async (req, res) => {
       })),
     };
 
+    console.log("Final booking data being saved:", JSON.stringify(bookingData, null, 2));
+
     // Create booking
     const booking = new Booking(bookingData);
     const savedBooking = await booking.save();
+
+    console.log("Booking saved successfully:", savedBooking.bookingReference);
 
     // Return booking reference for customer
     sendResponse(res, 201, true, "Booking created successfully", {
@@ -148,12 +191,24 @@ export const createBooking = asyncHandler(async (req, res) => {
     });
   } catch (error) {
     console.error("Create booking error:", error);
+    
+    // Enhanced error handling
+    if (error.name === 'ValidationError') {
+      const errorMessages = Object.values(error.errors).map(err => err.message);
+      return sendResponse(res, 400, false, "Validation error", {
+        errors: errorMessages,
+      });
+    }
+    
+    if (error.name === 'CastError') {
+      return sendResponse(res, 400, false, "Invalid ID format provided");
+    }
+    
     sendResponse(res, 500, false, "Failed to create booking", {
       error: error.message,
     });
   }
 });
-
 // @desc    Get all bookings for admin dashboard
 // @route   GET /api/bookings
 // @access  Private (Admin only)

@@ -52,10 +52,23 @@ const Menu = () => {
   const handleProceedToConfirmation = (orderData) => {
     setOrderForConfirmation(orderData);
     setSelectedMenu(null);
+    setShowCustomOrderModal(false); // Close custom order modal
   };
 
   const closeConfirmationModal = () => {
     setOrderForConfirmation(null);
+  };
+
+  const handleBackFromConfirmation = () => {
+    if (orderForConfirmation?.isCustomOrder) {
+      // If coming from custom order, go back to custom order modal
+      setShowCustomOrderModal(true);
+      setOrderForConfirmation(null);
+    } else {
+      // If coming from regular menu, go back to menu selection
+      setSelectedMenu(orderForConfirmation?.menu || null);
+      setOrderForConfirmation(null);
+    }
   };
 
   const filteredServices = selectedLocation
@@ -528,12 +541,14 @@ const Menu = () => {
           <OrderConfirmationModal
             orderData={orderForConfirmation}
             onClose={closeConfirmationModal}
+            onBack={handleBackFromConfirmation}
           />
         )}
         {showCustomOrderModal && (
           <CustomOrderModal
             menus={menus}
             onClose={() => setShowCustomOrderModal(false)}
+            onProceedToConfirmation={handleProceedToConfirmation}
           />
         )}
       </AnimatePresence>

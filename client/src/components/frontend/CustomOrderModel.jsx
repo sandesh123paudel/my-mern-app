@@ -10,8 +10,12 @@ import {
   Plus,
   Minus,
   Users,
+  MapPin,
+  Briefcase,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
+import { getLocations } from "../../services/locationServices";
+import { getServices } from "../../services/serviceServices";
 
 // This function processes all menus to get a unique, consolidated list of items
 const getAllItems = (menus) => {
@@ -71,13 +75,50 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
   const [selections, setSelections] = useState({});
   const [peopleCount, setPeopleCount] = useState("1");
   const [itemsByCategory, setItemsByCategory] = useState({});
+  const [locations, setLocations] = useState([]);
+  const [services, setServices] = useState([]);
+  const [selectedLocation, setSelectedLocation] = useState("");
+  const [selectedService, setSelectedService] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Add the "no-scroll" class to the body
-    document.body.classList.add("no-scroll");
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        // Add the "no-scroll" class to the body
+        document.body.classList.add("no-scroll");
 
-    // Process menus to get a list of all available items
-    setItemsByCategory(getAllItems(menus));
+        // Load locations and services
+        const [locationsResult, servicesResult] = await Promise.all([
+          getLocations(),
+          getServices(),
+        ]);
+
+        if (locationsResult.success) {
+          const activeLocations = locationsResult.data.filter(loc => loc.isActive);
+          setLocations(activeLocations);
+          // Auto-select first location if only one available
+          if (activeLocations.length === 1) {
+            setSelectedLocation(activeLocations[0]._id);
+          }
+        }
+
+        if (servicesResult.success) {
+          const activeServices = servicesResult.data.filter(service => service.isActive);
+          setServices(activeServices);
+        }
+
+        // Process menus to get a list of all available items
+        setItemsByCategory(getAllItems(menus));
+      } catch (error) {
+        console.error("Error loading data:", error);
+        toast.error("Error loading locations and services");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
 
     // Clean up the effect by removing the class when the modal is unmounted
     return () => {
@@ -148,6 +189,21 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
     return allSelected;
   };
 
+  // Get filtered services based on selected location
+  const getFilteredServices = () => {
+    if (!selectedLocation) return [];
+    return services.filter(service => 
+      (service.locationId?._id || service.locationId) === selectedLocation
+    );
+  };
+
+  // Handle location change
+  const handleLocationChange = (locationId) => {
+    setSelectedLocation(locationId);
+    // Reset service selection when location changes
+    setSelectedService("");
+  };
+
   // People count handlers
   const incrementPeople = () => {
     const current = parseInt(peopleCount) || 0;
@@ -173,6 +229,14 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
       errors.push("Please enter a valid number of people");
     }
 
+    if (!selectedLocation) {
+      errors.push("Please select a location");
+    }
+
+    if (!selectedService) {
+      errors.push("Please select a service type");
+    }
+
     if (getAllSelectedItems().length === 0) {
       errors.push("Please select at least one item for your custom order");
     }
@@ -188,13 +252,26 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
       return;
     }
 
+    // Get selected location and service details
+    const selectedLocationObj = locations.find(loc => loc._id === selectedLocation);
+    const selectedServiceObj = services.find(service => service._id === selectedService);
+
+    console.log("Selected location ID:", selectedLocation);
+    console.log("Selected location object:", selectedLocationObj);
+    console.log("Selected service ID:", selectedService);
+    console.log("Selected service object:", selectedServiceObj);
+
     // Create order details in the same format as menu selection
     const orderDetails = {
-      menuId: "custom-order", // Special ID for custom orders
+      menuId: null, // No menu ID for custom orders
       menu: {
+        menuId: null, // Explicitly set to null for custom orders
         name: "Custom Order",
         price: 0, // Custom orders are based on individual item prices
-        locationId: menus[0]?.locationId || null, // Use first available location
+        locationId: selectedLocation,
+        locationName: selectedLocationObj?.name || "Selected Location",
+        serviceId: selectedService,
+        serviceName: selectedServiceObj?.name || "Selected Service",
       },
       peopleCount: parseInt(peopleCount),
       selectedItems: getAllSelectedItems(),
@@ -208,7 +285,7 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
       isCustomOrder: true, // Flag to identify custom orders
     };
 
-    console.log("Custom Order Details:", orderDetails);
+    console.log("Custom Order Details being sent:", JSON.stringify(orderDetails, null, 2));
     onProceedToConfirmation(orderDetails);
   };
 
@@ -432,27 +509,128 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
               <Users size={14} />
               <span>{peopleCount} people</span>
             </div>
+            {selectedLocation && (
+              <div className="flex items-center gap-1">
+                <MapPin size={14} />
+                <span>{locations.find(loc => loc._id === selectedLocation)?.name || "Location"}</span>
+              </div>
+            )}
           </div>
         </div>
 
         <div className="flex flex-col lg:flex-row flex-1 lg:overflow-hidden">
           {/* Main Content */}
           <div className="flex-1 p-3 sm:p-6 lg:overflow-y-auto">
-            {Object.keys(itemsByCategory).length === 0 ? (
+            {loading ? (
               <div className="flex items-center justify-center h-64">
                 <div className="text-center">
                   <div className="text-gray-400 mb-2">
                     <ShoppingCart size={48} className="mx-auto" />
                   </div>
-                  <p className="text-gray-600">Loading menu items...</p>
+                  <p className="text-gray-600">Loading...</p>
                 </div>
               </div>
             ) : (
               <>
-                {renderCategoryContent("entree", itemsByCategory?.entree)}
-                {renderCategoryContent("mains", itemsByCategory?.mains)}
-                {renderCategoryContent("desserts", itemsByCategory?.desserts)}
-                {renderCategoryContent("addons", itemsByCategory?.addons)}
+                {/* Location and Service Selection */}
+                <div className="mb-8 bg-white rounded-lg p-6 border border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    Select Location & Service
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Location Selection */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Location *
+                      </label>
+                      <div className="relative">
+                        <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                        <select
+                          value={selectedLocation}
+                          onChange={(e) => handleLocationChange(e.target.value)}
+                          className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 appearance-none bg-white"
+                          required
+                        >
+                          <option value="">Select a location</option>
+                          {locations.map((location) => (
+                            <option key={location._id} value={location._id}>
+                              {location.name} - {location.city}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Service Selection */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Service Type *
+                      </label>
+                      <div className="relative">
+                        <Briefcase className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                        <select
+                          value={selectedService}
+                          onChange={(e) => setSelectedService(e.target.value)}
+                          className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 appearance-none bg-white"
+                          disabled={!selectedLocation}
+                          required
+                        >
+                          <option value="">
+                            {!selectedLocation ? "Select location first" : "Select a service"}
+                          </option>
+                          {getFilteredServices().map((service) => (
+                            <option key={service._id} value={service._id}>
+                              {service.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      {!selectedLocation && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Please select a location first to see available services
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Menu Items - Only show if location and service are selected */}
+                {selectedLocation && selectedService ? (
+                  <>
+                    {Object.keys(itemsByCategory).length === 0 ? (
+                      <div className="flex items-center justify-center h-64">
+                        <div className="text-center">
+                          <div className="text-gray-400 mb-2">
+                            <ShoppingCart size={48} className="mx-auto" />
+                          </div>
+                          <p className="text-gray-600">No menu items available...</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        {renderCategoryContent("entree", itemsByCategory?.entree)}
+                        {renderCategoryContent("mains", itemsByCategory?.mains)}
+                        {renderCategoryContent("desserts", itemsByCategory?.desserts)}
+                        {renderCategoryContent("addons", itemsByCategory?.addons)}
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <div className="flex items-center justify-center h-64">
+                    <div className="text-center">
+                      <div className="text-green-500 mb-4">
+                        <MapPin size={48} className="mx-auto" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                        Select Location & Service
+                      </h3>
+                      <p className="text-gray-600">
+                        Please select a location and service type to view available menu items
+                      </p>
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -482,7 +660,7 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
                 <button
                   onClick={decrementPeople}
                   className="w-10 h-10 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
-                  disabled={parseInt(peopleCount) <= 10}
+                  disabled={parseInt(peopleCount) <= 1}
                 >
                   <Minus size={16} />
                 </button>
@@ -544,13 +722,13 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
             {/* Continue Button */}
             <motion.button
               whileHover={{
-                scale: getAllSelectedItems().length === 0 ? 1 : 1.02,
+                scale: getAllSelectedItems().length === 0 || !selectedLocation || !selectedService ? 1 : 1.02,
               }}
               whileTap={{
-                scale: getAllSelectedItems().length === 0 ? 1 : 0.98,
+                scale: getAllSelectedItems().length === 0 || !selectedLocation || !selectedService ? 1 : 0.98,
               }}
               onClick={handlePlaceOrder}
-              disabled={getAllSelectedItems().length === 0}
+              disabled={getAllSelectedItems().length === 0 || !selectedLocation || !selectedService}
               className="w-full bg-red-600 disabled:bg-gray-400 text-white py-3 rounded-lg font-semibold hover:bg-red-700 disabled:hover:bg-gray-400 transition-colors flex items-center justify-center gap-2"
             >
               <ShoppingCart size={18} />

@@ -13,9 +13,45 @@ axios.defaults.withCredentials = true;
  */
 export const createBooking = async (bookingData) => {
   try {
+    // Transform the data for custom orders
+    let transformedData = { ...bookingData };
+    
+    if (bookingData.isCustomOrder) {
+      // For custom orders, ensure the structure matches backend expectations
+      transformedData = {
+        ...bookingData,
+        isCustomOrder: true,
+        menu: {
+          menuId: null, // Explicitly null for custom orders
+          name: bookingData.menu?.name || "Custom Order",
+          price: 0, // Custom orders use total pricing from selected items
+          serviceId: bookingData.menu?.serviceId || null,
+          serviceName: bookingData.menu?.serviceName || "Custom Order",
+          locationId: bookingData.menu?.locationId,
+          locationName: bookingData.menu?.locationName,
+        },
+        // Ensure selectedItems have the correct structure
+        selectedItems: (bookingData.selectedItems || []).map(item => ({
+          ...item,
+          itemId: item.itemId || item._id,
+          type: item.type || "selected",
+        })),
+      };
+      
+      // Remove any undefined values that might cause issues
+      if (transformedData.menu.menuId === undefined) {
+        transformedData.menu.menuId = null;
+      }
+      if (transformedData.menu.serviceId === undefined) {
+        transformedData.menu.serviceId = null;
+      }
+      
+  
+    }
+
     const response = await axios.post(
       `${backendUrl}/api/bookings`,
-      bookingData,
+      transformedData,
       {
         headers: {
           "Content-Type": "application/json",
@@ -30,6 +66,8 @@ export const createBooking = async (bookingData) => {
     };
   } catch (error) {
     console.error("Error creating booking:", error);
+    console.error("Error response:", error.response?.data);
+    console.error("Request data that failed:", error.config?.data);
     return {
       success: false,
       error:
@@ -41,12 +79,6 @@ export const createBooking = async (bookingData) => {
   }
 };
 
-/**
- * Get all bookings with optional filtering (Admin only)
- * Supports filtering by status, delivery type, location, service, order type, etc.
- * @param {Object} params - Filter and pagination parameters
- * @returns {Object} Response with bookings array and pagination info
- */
 export const getAllBookings = async (params = {}) => {
   try {
     const queryParams = new URLSearchParams();
@@ -627,7 +659,7 @@ export const getCustomOrderItems = async (params = {}) => {
  * @returns {boolean} True if custom order
  */
 export const isCustomOrder = (booking) => {
-  return booking?.isCustomOrder === true || booking?.menu?.menuId === "custom-order";
+  return booking?.isCustomOrder === true || booking?.menu?.menuId === null;
 };
 
 /**
