@@ -73,7 +73,7 @@ const getAllItems = (menus) => {
 
 const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
   const [selections, setSelections] = useState({});
-  const [peopleCount, setPeopleCount] = useState("1");
+  const [peopleCount, setPeopleCount] = useState("15");
   const [itemsByCategory, setItemsByCategory] = useState({});
   const [locations, setLocations] = useState([]);
   const [services, setServices] = useState([]);
@@ -225,8 +225,8 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
   const validateCustomOrder = () => {
     const errors = [];
 
-    if (!peopleCount || parseInt(peopleCount) < 1) {
-      errors.push("Please enter a valid number of people");
+    if (!peopleCount || parseInt(peopleCount) < 15) {
+      errors.push("Please enter a min number of people");
     }
 
     if (!selectedLocation) {
@@ -666,7 +666,7 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
                 </button>
                 <input
                   type="number"
-                  min="1"
+                  min="15"
                   value={peopleCount}
                   onChange={(e) => handlePeopleCountChange(e.target.value)}
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-center"
@@ -679,7 +679,7 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
                   <Plus size={16} />
                 </button>
               </div>
-              <p className="text-xs text-gray-500 mt-1">Minimum: 1 person</p>
+              <p className="text-xs text-gray-500 mt-1">Minimum: 15 person</p>
             </div>
 
             {/* Selected Items Summary */}
