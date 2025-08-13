@@ -74,7 +74,7 @@ const About = () => {
   ];
 
   const achievements = [
-    { number: "2022", label: "Established in Canberra" },
+    { number: "2015", label: "Catering Since" },
     { number: "2+", label: "Cities Served" },
     { number: "1000+", label: "Happy Customers" },
     { number: "50+", label: "Signature Dishes" },

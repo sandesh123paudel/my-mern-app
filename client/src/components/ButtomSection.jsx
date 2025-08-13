@@ -92,7 +92,7 @@ const BottomSection = () => {
           }}
           whileTap={{ scale: 0.95 }}
         >
-          Enquiry
+          Inquiry
         </motion.button>
       </motion.div>
     </div>

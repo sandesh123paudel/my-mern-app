@@ -22,25 +22,62 @@ const asyncHandler = (fn) => (req, res, next) => {
 // @access  Public
 export const createBooking = asyncHandler(async (req, res) => {
   try {
-    // Verify menu exists and is active
-    const menu = await Menu.findById(req.body.menu.menuId).populate(
-      "locationId"
-    );
-    if (!menu || !menu.isActive) {
-      return sendResponse(res, 404, false, "Menu not found or inactive");
-    }
+    const isCustomOrder =
+      req.body.isCustomOrder || req.body.menu?.menuId === "custom-order";
 
-    // Verify people count is within menu limits
-    if (
-      req.body.peopleCount < menu.minPeople ||
-      req.body.peopleCount > menu.maxPeople
-    ) {
-      return sendResponse(
-        res,
-        400,
-        false,
-        `Number of people must be between ${menu.minPeople} and ${menu.maxPeople}`
-      );
+    let menu = null;
+    let location = null;
+
+    if (isCustomOrder) {
+      // For custom orders, we need to get location information
+      if (!req.body.menu?.locationId) {
+        return sendResponse(
+          res,
+          400,
+          false,
+          "Location is required for custom orders"
+        );
+      }
+
+      location = await Location.findById(req.body.menu.locationId);
+      if (!location || !location.isActive) {
+        return sendResponse(res, 404, false, "Location not found or inactive");
+      }
+
+      // For custom orders, we don't validate against menu limits
+      // but we should still have reasonable limits
+      if (req.body.peopleCount < 1 || req.body.peopleCount > 1000) {
+        return sendResponse(
+          res,
+          400,
+          false,
+          "Number of people must be between 1 and 1000"
+        );
+      }
+    } else {
+      // Regular menu order - existing validation
+      menu = await Menu.findById(req.body.menu.menuId)
+        .populate("locationId")
+        .populate("serviceId");
+
+      if (!menu || !menu.isActive) {
+        return sendResponse(res, 404, false, "Menu not found or inactive");
+      }
+
+      location = menu.locationId;
+
+      // Verify people count is within menu limits
+      if (
+        req.body.peopleCount < menu.minPeople ||
+        req.body.peopleCount > menu.maxPeople
+      ) {
+        return sendResponse(
+          res,
+          400,
+          false,
+          `Number of people must be between ${menu.minPeople} and ${menu.maxPeople}`
+        );
+      }
     }
 
     // Generate booking reference
@@ -52,20 +89,36 @@ export const createBooking = asyncHandler(async (req, res) => {
       const random = Math.floor(Math.random() * 1000)
         .toString()
         .padStart(3, "0");
-      return `BK${year}${month}${day}${random}`;
+      const prefix = isCustomOrder ? "CU" : "BK"; // Different prefix for custom orders
+      return `${prefix}${year}${month}${day}${random}`;
     };
 
     // Prepare booking data
     const bookingData = {
       ...req.body,
+      isCustomOrder,
       bookingReference: generateReference(),
-      menu: {
-        menuId: menu._id,
-        name: menu.name,
-        price: menu.price,
-        locationId: menu.locationId._id,
-        locationName: menu.locationId.name,
-      },
+      menu: isCustomOrder
+        ? {
+            // Custom order menu info
+            menuId: null, // No menu ID for custom orders
+            name: req.body.menu?.name || "Custom Order",
+            price: req.body.pricing?.total || 0,
+            serviceId: null, // No service ID for custom orders
+            serviceName: "Custom Order",
+            locationId: location._id,
+            locationName: location.name,
+          }
+        : {
+            // Regular menu order
+            menuId: menu._id,
+            name: menu.name,
+            price: menu.price,
+            serviceId: menu.serviceId._id,
+            serviceName: menu.serviceId.name,
+            locationId: menu.locationId._id,
+            locationName: menu.locationId.name,
+          },
       customerDetails: {
         name: req.body.customerDetails.name,
         email: req.body.customerDetails.email,
@@ -78,7 +131,7 @@ export const createBooking = asyncHandler(async (req, res) => {
       // Transform selectedItems to ensure itemId is set
       selectedItems: (req.body.selectedItems || []).map((item) => ({
         ...item,
-        itemId: item.itemId || item._id, // Use itemId if available, otherwise use _id
+        itemId: item.itemId || item._id,
       })),
     };
 
@@ -89,8 +142,9 @@ export const createBooking = asyncHandler(async (req, res) => {
     // Return booking reference for customer
     sendResponse(res, 201, true, "Booking created successfully", {
       bookingReference: savedBooking.bookingReference,
-      message:
-        "Your booking has been submitted successfully. You will receive a confirmation email shortly.",
+      message: isCustomOrder
+        ? "Your custom order has been submitted successfully. You will receive a confirmation email shortly."
+        : "Your booking has been submitted successfully. You will receive a confirmation email shortly.",
     });
   } catch (error) {
     console.error("Create booking error:", error);
@@ -111,6 +165,8 @@ export const getAllBookings = asyncHandler(async (req, res) => {
       status,
       deliveryType,
       locationId,
+      serviceId,
+      orderType, // Add orderType filter (regular, custom, all)
       startDate,
       endDate,
       search,
@@ -136,6 +192,22 @@ export const getAllBookings = asyncHandler(async (req, res) => {
       query["menu.locationId"] = locationId;
     }
 
+    // Filter by service (exclude custom orders when filtering by service)
+    if (serviceId) {
+      query["menu.serviceId"] = serviceId;
+      query.isCustomOrder = false; // Exclude custom orders when filtering by service
+    }
+
+    // Filter by order type
+    if (orderType) {
+      if (orderType === "custom") {
+        query.isCustomOrder = true;
+      } else if (orderType === "regular") {
+        query.isCustomOrder = false;
+      }
+      // If orderType is "all", don't add any filter
+    }
+
     // Filter by date range
     if (startDate && endDate) {
       query.deliveryDate = {
@@ -151,6 +223,7 @@ export const getAllBookings = asyncHandler(async (req, res) => {
         { "customerDetails.name": { $regex: search, $options: "i" } },
         { "customerDetails.email": { $regex: search, $options: "i" } },
         { "customerDetails.phone": { $regex: search, $options: "i" } },
+        { "menu.name": { $regex: search, $options: "i" } },
       ];
     }
 
@@ -383,80 +456,125 @@ export const updateBooking = asyncHandler(async (req, res) => {
 // @access  Private (Admin only)
 export const getBookingStats = asyncHandler(async (req, res) => {
   try {
-    const { locationId, startDate, endDate, period = "month" } = req.query;
-
-    // Get overall stats
-    const [stats] = await Booking.getBookingStats(
+    const {
       locationId,
+      serviceId,
+      orderType,
       startDate,
-      endDate
-    );
+      endDate,
+      period = "month",
+    } = req.query;
 
-    // Get daily/weekly/monthly breakdown
-    let groupBy;
-    switch (period) {
-      case "day":
-        groupBy = { $dateToString: { format: "%Y-%m-%d", date: "$orderDate" } };
-        break;
-      case "week":
-        groupBy = { $week: "$orderDate" };
-        break;
-      case "month":
-      default:
-        groupBy = { $dateToString: { format: "%Y-%m", date: "$orderDate" } };
-        break;
+    // Build match query
+    const matchQuery = { isDeleted: false };
+
+    if (locationId) {
+      matchQuery["menu.locationId"] = new mongoose.Types.ObjectId(locationId);
     }
 
-    const periodStats = await Booking.aggregate([
-      {
-        $match: {
-          isDeleted: false,
-          ...(locationId && {
-            "menu.locationId": new mongoose.Types.ObjectId(locationId),
-          }),
-          ...(startDate &&
-            endDate && {
-              orderDate: {
-                $gte: new Date(startDate),
-                $lte: new Date(endDate),
-              },
-            }),
-        },
-      },
+    if (serviceId) {
+      matchQuery["menu.serviceId"] = new mongoose.Types.ObjectId(serviceId);
+      matchQuery.isCustomOrder = false; // Exclude custom orders when filtering by service
+    }
+
+    if (orderType) {
+      if (orderType === "custom") {
+        matchQuery.isCustomOrder = true;
+      } else if (orderType === "regular") {
+        matchQuery.isCustomOrder = false;
+      }
+    }
+
+    if (startDate && endDate) {
+      matchQuery.orderDate = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate),
+      };
+    }
+
+    // Get overall stats
+    const [stats] = await Booking.aggregate([
+      { $match: matchQuery },
       {
         $group: {
-          _id: groupBy,
-          bookings: { $sum: 1 },
-          revenue: { $sum: "$pricing.total" },
-          people: { $sum: "$peopleCount" },
+          _id: null,
+          totalBookings: { $sum: 1 },
+          totalRevenue: { $sum: "$pricing.total" },
+          totalPeople: { $sum: "$peopleCount" },
+          averageOrderValue: { $avg: "$pricing.total" },
+          customOrders: {
+            $sum: { $cond: [{ $eq: ["$isCustomOrder", true] }, 1, 0] },
+          },
+          regularOrders: {
+            $sum: { $cond: [{ $eq: ["$isCustomOrder", false] }, 1, 0] },
+          },
+          statusCounts: {
+            $push: "$status",
+          },
         },
       },
-      { $sort: { _id: 1 } },
+      {
+        $project: {
+          totalBookings: 1,
+          totalRevenue: 1,
+          totalPeople: 1,
+          averageOrderValue: { $round: ["$averageOrderValue", 2] },
+          customOrders: 1,
+          regularOrders: 1,
+          statusCounts: {
+            $reduce: {
+              input: "$statusCounts",
+              initialValue: {},
+              in: {
+                $mergeObjects: [
+                  "$$value",
+                  {
+                    $arrayToObject: [
+                      [
+                        {
+                          k: "$$this",
+                          v: {
+                            $add: [
+                              {
+                                $ifNull: [
+                                  {
+                                    $getField: {
+                                      field: "$$this",
+                                      input: "$$value",
+                                    },
+                                  },
+                                  0,
+                                ],
+                              },
+                              1,
+                            ],
+                          },
+                        },
+                      ],
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
     ]);
 
-    // Get popular menu items
+    // Get popular menu items (including custom order items)
     const popularItems = await Booking.aggregate([
-      {
-        $match: {
-          isDeleted: false,
-          ...(locationId && {
-            "menu.locationId": new mongoose.Types.ObjectId(locationId),
-          }),
-          ...(startDate &&
-            endDate && {
-              orderDate: {
-                $gte: new Date(startDate),
-                $lte: new Date(endDate),
-              },
-            }),
-        },
-      },
+      { $match: matchQuery },
       { $unwind: "$selectedItems" },
       {
         $group: {
           _id: "$selectedItems.name",
           count: { $sum: 1 },
           category: { $first: "$selectedItems.category" },
+          isFromCustomOrder: {
+            $push: {
+              $cond: [{ $eq: ["$isCustomOrder", true] }, true, false],
+            },
+          },
         },
       },
       { $sort: { count: -1 } },
@@ -469,9 +587,10 @@ export const getBookingStats = asyncHandler(async (req, res) => {
         totalRevenue: 0,
         totalPeople: 0,
         averageOrderValue: 0,
+        customOrders: 0,
+        regularOrders: 0,
         statusCounts: {},
       },
-      periodBreakdown: periodStats,
       popularItems,
     });
   } catch (error) {

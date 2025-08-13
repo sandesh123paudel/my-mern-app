@@ -139,13 +139,16 @@ const pricingSchema = new mongoose.Schema(
   { _id: false }
 );
 
-// Schema for menu information
+// Updated menuInfoSchema in bookingModel.js to support custom orders
 const menuInfoSchema = new mongoose.Schema(
   {
     menuId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Menu",
-      required: true,
+      required: function() {
+        // Only required if it's not a custom order
+        return !this.isCustomOrder;
+      },
     },
     name: {
       type: String,
@@ -156,29 +159,44 @@ const menuInfoSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    serviceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Service",
+      required: function() {
+        // Only required if it's not a custom order
+        return !this.isCustomOrder;
+      },
+    },
+    serviceName: String,
     locationId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Location",
+      required: true, // Location is always required
     },
     locationName: String,
   },
   { _id: false }
 );
 
-// Main booking schema
+// Main booking schema with custom order support
 const bookingSchema = new mongoose.Schema(
   {
     // Booking reference number (auto-generated)
     bookingReference: {
       type: String,
       unique: true,
-      // Removed required: true since we generate it in pre-save
     },
 
     // Menu information
     menu: {
       type: menuInfoSchema,
       required: true,
+    },
+
+    // Custom order flag
+    isCustomOrder: {
+      type: Boolean,
+      default: false,
     },
 
     // Customer information
@@ -287,7 +305,7 @@ const bookingSchema = new mongoose.Schema(
   }
 );
 
-// Indexes for better query performance
+// Updated indexes to handle custom orders
 bookingSchema.index({ bookingReference: 1 });
 bookingSchema.index({ "customerDetails.email": 1 });
 bookingSchema.index({ "customerDetails.phone": 1 });
@@ -295,6 +313,8 @@ bookingSchema.index({ deliveryDate: 1 });
 bookingSchema.index({ status: 1 });
 bookingSchema.index({ orderDate: 1 });
 bookingSchema.index({ "menu.locationId": 1 });
+bookingSchema.index({ "menu.serviceId": 1 });
+bookingSchema.index({ isCustomOrder: 1 });
 bookingSchema.index({ isDeleted: 1 });
 
 // Pre-save middleware to generate booking reference

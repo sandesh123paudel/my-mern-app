@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import bookingService from "../../../services/bookingService.js";
+import bookingService from "../../../services/bookingService";
 import toast from "react-hot-toast";
 
 const BookingDetailsModal = ({
@@ -11,6 +11,7 @@ const BookingDetailsModal = ({
   formatPrice,
   formatDate,
   formatDateTime,
+  formatTime, // New prop for formatting time
 }) => {
   // Remove token dependency since it uses cookies
   const [statusNotes, setStatusNotes] = useState("");
@@ -123,156 +124,6 @@ const BookingDetailsModal = ({
         </div>
 
         <div className="p-6 space-y-6">
-          {/* Status Update Forms */}
-          {showStatusForm && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h4 className="font-medium text-blue-800 mb-3">
-                Update Status to "
-                {pendingStatus.replace("_", " ").toUpperCase()}"
-              </h4>
-              <textarea
-                value={statusNotes}
-                onChange={(e) => setStatusNotes(e.target.value)}
-                placeholder="Add admin notes (optional)"
-                className="w-full p-3 border border-gray-300 rounded-lg resize-none h-20"
-              />
-              <div className="flex gap-2 mt-3">
-                <button
-                  onClick={handleConfirmStatusUpdate}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-                >
-                  Confirm Update
-                </button>
-                <button
-                  onClick={() => {
-                    setShowStatusForm(false);
-                    setStatusNotes("");
-                    setPendingStatus("");
-                  }}
-                  className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
-
-          {showCancellationForm && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-              <h4 className="font-medium text-red-800 mb-3">Cancel Booking</h4>
-              <textarea
-                value={cancellationReason}
-                onChange={(e) => setCancellationReason(e.target.value)}
-                placeholder="Reason for cancellation (required)"
-                className="w-full p-3 border border-gray-300 rounded-lg resize-none h-20"
-                required
-              />
-              <div className="flex gap-2 mt-3">
-                <button
-                  onClick={handleConfirmCancellation}
-                  disabled={!cancellationReason.trim()}
-                  className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Confirm Cancellation
-                </button>
-                <button
-                  onClick={() => {
-                    setShowCancellationForm(false);
-                    setCancellationReason("");
-                    setPendingStatus("");
-                  }}
-                  className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Payment Update Form */}
-          {showPaymentForm && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <h4 className="font-medium text-green-800 mb-3">
-                Update Payment Status
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-medium text-green-700 mb-2">
-                    Payment Status
-                  </label>
-                  <select
-                    value={paymentData.paymentStatus}
-                    onChange={(e) =>
-                      setPaymentData({
-                        ...paymentData,
-                        paymentStatus: e.target.value,
-                      })
-                    }
-                    className="w-full p-2 border border-gray-300 rounded-lg"
-                    disabled={isUpdating}
-                  >
-                    <option value="pending">Pending</option>
-                    <option value="deposit_paid">Deposit Paid</option>
-                    <option value="fully_paid">Fully Paid</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-green-700 mb-2">
-                    Deposit Amount
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max={booking.pricing?.total || 0}
-                    value={paymentData.depositAmount}
-                    onChange={(e) =>
-                      setPaymentData({
-                        ...paymentData,
-                        depositAmount: parseFloat(e.target.value) || 0,
-                      })
-                    }
-                    className="w-full p-2 border border-gray-300 rounded-lg"
-                    placeholder="0.00"
-                    disabled={isUpdating}
-                  />
-                  <p className="text-xs text-gray-600 mt-1">
-                    Max:{" "}
-                    {formatPrice
-                      ? formatPrice(booking.pricing?.total)
-                      : `$${booking.pricing?.total || 0}`}
-                  </p>
-                </div>
-              </div>
-
-              <div className="bg-blue-50 p-3 rounded border border-blue-200 mb-4">
-                <p className="text-sm text-blue-700">
-                  <strong>New Balance Due:</strong>{" "}
-                  {formatPrice
-                    ? formatPrice(calculateBalance())
-                    : `$${calculateBalance()}`}
-                </p>
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  onClick={handlePaymentUpdate}
-                  disabled={isUpdating}
-                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isUpdating ? "Updating..." : "Update Payment"}
-                </button>
-                <button
-                  onClick={() => setShowPaymentForm(false)}
-                  disabled={isUpdating}
-                  className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
-
           {/* Customer Information */}
           <div>
             <h3 className="text-lg font-semibold text-amber-800 mb-4 border-b border-amber-200 pb-2">
@@ -368,6 +219,18 @@ const BookingDetailsModal = ({
               </div>
               <div>
                 <label className="block text-sm font-medium text-amber-700 mb-1">
+                  Event Time
+                </label>
+                <p className="text-gray-900 bg-gray-50 p-2 rounded border">
+                  {booking.deliveryDate
+                    ? formatTime
+                      ? formatTime(booking.deliveryDate)
+                      : new Date(booking.deliveryDate).toLocaleTimeString()
+                    : "Not specified"}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-amber-700 mb-1">
                   Number of Guests
                 </label>
                 <p className="text-gray-900 bg-gray-50 p-2 rounded border">
@@ -384,7 +247,7 @@ const BookingDetailsModal = ({
               </div>
             </div>
 
-            {/* Delivery Details - Correctly placed outside the p tag */}
+            {/* Delivery Details */}
             {booking.deliveryType === "Delivery" && booking.address && (
               <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
                 <h4 className="font-semibold text-green-800 mb-2">
@@ -397,7 +260,12 @@ const BookingDetailsModal = ({
                       {formatDate ? formatDate(booking.deliveryDate) : "TBD"}
                     </p>
                     <p>
-                      <strong>Estimated Time:</strong> Will be confirmed
+                      <strong>Estimated Time:</strong>{" "}
+                      {booking.deliveryDate
+                        ? formatTime
+                          ? formatTime(booking.deliveryDate)
+                          : new Date(booking.deliveryDate).toLocaleTimeString()
+                        : "Will be confirmed"}
                     </p>
                   </div>
                   <div>
@@ -520,7 +388,7 @@ const BookingDetailsModal = ({
             </div>
           )}
 
-          {/* Payment Information - Moved to bottom */}
+          {/* Payment Information */}
           <div className="border-t-2 border-green-200 pt-6">
             <h3 className="text-lg font-semibold text-green-800 mb-4 border-b border-green-200 pb-2">
               💳 Payment & Financial Information
@@ -672,6 +540,159 @@ const BookingDetailsModal = ({
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* FORMS MOVED HERE - Status, Cancellation, Payment */}
+          <div className="space-y-4">
+            {showStatusForm && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="font-medium text-blue-800 mb-3">
+                  Update Status to "
+                  {pendingStatus.replace("_", " ").toUpperCase()}"
+                </h4>
+                <textarea
+                  value={statusNotes}
+                  onChange={(e) => setStatusNotes(e.target.value)}
+                  placeholder="Add admin notes (optional)"
+                  className="w-full p-3 border border-gray-300 rounded-lg resize-none h-20"
+                />
+                <div className="flex gap-2 mt-3">
+                  <button
+                    onClick={handleConfirmStatusUpdate}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                  >
+                    Confirm Update
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowStatusForm(false);
+                      setStatusNotes("");
+                      setPendingStatus("");
+                    }}
+                    className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {showCancellationForm && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <h4 className="font-medium text-red-800 mb-3">
+                  Cancel Booking
+                </h4>
+                <textarea
+                  value={cancellationReason}
+                  onChange={(e) => setCancellationReason(e.target.value)}
+                  placeholder="Reason for cancellation (required)"
+                  className="w-full p-3 border border-gray-300 rounded-lg resize-none h-20"
+                  required
+                />
+                <div className="flex gap-2 mt-3">
+                  <button
+                    onClick={handleConfirmCancellation}
+                    disabled={!cancellationReason.trim()}
+                    className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Confirm Cancellation
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowCancellationForm(false);
+                      setCancellationReason("");
+                      setPendingStatus("");
+                    }}
+                    className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {showPaymentForm && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <h4 className="font-medium text-green-800 mb-3">
+                  Update Payment Status
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-green-700 mb-2">
+                      Payment Status
+                    </label>
+                    <select
+                      value={paymentData.paymentStatus}
+                      onChange={(e) =>
+                        setPaymentData({
+                          ...paymentData,
+                          paymentStatus: e.target.value,
+                        })
+                      }
+                      className="w-full p-2 border border-gray-300 rounded-lg"
+                      disabled={isUpdating}
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="deposit_paid">Deposit Paid</option>
+                      <option value="fully_paid">Fully Paid</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-green-700 mb-2">
+                      Deposit Amount
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max={booking.pricing?.total || 0}
+                      value={paymentData.depositAmount}
+                      onChange={(e) =>
+                        setPaymentData({
+                          ...paymentData,
+                          depositAmount: parseFloat(e.target.value) || 0,
+                        })
+                      }
+                      className="w-full p-2 border border-gray-300 rounded-lg"
+                      placeholder="0.00"
+                      disabled={isUpdating}
+                    />
+                    <p className="text-xs text-gray-600 mt-1">
+                      Max:{" "}
+                      {formatPrice
+                        ? formatPrice(booking.pricing?.total)
+                        : `$${booking.pricing?.total || 0}`}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-blue-50 p-3 rounded border border-blue-200 mb-4">
+                  <p className="text-sm text-blue-700">
+                    <strong>New Balance Due:</strong>{" "}
+                    {formatPrice
+                      ? formatPrice(calculateBalance())
+                      : `$${calculateBalance()}`}
+                  </p>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={handlePaymentUpdate}
+                    disabled={isUpdating}
+                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isUpdating ? "Updating..." : "Update Payment"}
+                  </button>
+                  <button
+                    onClick={() => setShowPaymentForm(false)}
+                    disabled={isUpdating}
+                    className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Admin Actions */}
