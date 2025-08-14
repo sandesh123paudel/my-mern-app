@@ -1,5 +1,6 @@
 // controllers/inquiryController.js
 import InquiryModel from "../models/InquiryModel.js";
+import { sendAdminInquiryNotification, sendCustomerInquiryConfirmation } from "../utils/sendMail.js";
 
 export const submitInquiry = async (req, res) => {
   try {
@@ -41,6 +42,19 @@ export const submitInquiry = async (req, res) => {
 
     const newInquiry = new InquiryModel(inquiryData);
     await newInquiry.save();
+
+    // Send email notifications (don't wait for them to complete)
+    Promise.all([
+      sendAdminInquiryNotification(newInquiry.toObject()),
+      sendCustomerInquiryConfirmation(newInquiry.toObject())
+    ]).then((results) => {
+      console.log('Email notifications sent:', {
+        admin: results[0].success ? 'Success' : 'Failed',
+        customer: results[1].success ? 'Success' : 'Failed'
+      });
+    }).catch((error) => {
+      console.error('Email notification error:', error);
+    });
 
     res.status(201).json({
       success: true,
@@ -93,7 +107,8 @@ export const getInquiries = async (req, res) => {
         { message: searchRegex },
         { venue: searchRegex },
         { serviceType: searchRegex },
-      ]; // Add a condition to search by contact number if the search term is a valid number.
+      ];
+      
       if (!isNaN(searchNumber)) {
         searchConditions.push({ contact: searchNumber });
       }
@@ -134,7 +149,6 @@ export const getInquiries = async (req, res) => {
   }
 };
 
-// Update inquiry status
 export const updateInquiryStatus = async (req, res) => {
   try {
     const { id } = req.params;
@@ -179,7 +193,6 @@ export const updateInquiryStatus = async (req, res) => {
   }
 };
 
-// Delete inquiry
 export const deleteInquiry = async (req, res) => {
   try {
     const { id } = req.params;
