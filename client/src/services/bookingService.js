@@ -554,6 +554,7 @@ export const sendBookingConfirmation = async (id) => {
 // CUSTOM ORDER SPECIFIC FUNCTIONS
 // ============================================================================
 
+//
 /**
  * Create custom order
  * This is a specialized function for creating custom orders
