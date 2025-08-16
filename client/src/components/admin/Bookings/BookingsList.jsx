@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Printer } from "lucide-react";
 
 const BookingsList = ({
   bookings,
@@ -7,7 +8,8 @@ const BookingsList = ({
   onPageChange,
   onStatusUpdate,
   onPaymentUpdate,
-  onBookingClick, // Add this prop for opening detailed modal
+  onBookingClick,
+  onPrintBooking,
   formatPrice,
   formatDate,
   formatDateTime,
@@ -16,14 +18,79 @@ const BookingsList = ({
   const [editingPayment, setEditingPayment] = useState(null);
   const [paymentData, setPaymentData] = useState({
     paymentStatus: "pending",
-    depositAmount: 0,
+    depositAmount: "",
   });
 
   const itemsPerPage = 10;
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentBookings = bookings.slice(startIndex, endIndex);
+  const applyCustomSorting = (bookingsArray) => {
+    return [...bookingsArray].sort((a, b) => {
+      // Define status priority (lower number = higher priority)
+      const getStatusPriority = (status) => {
+        switch (status) {
+          case "pending": return 1;
+          case "confirmed": return 2;
+          case "preparing": return 3;
+          case "ready": return 4;
+          case "completed": return 5;
+          case "cancelled": return 6;
+          default: return 7;
+        }
+      };
+
+      const statusA = getStatusPriority(a.status || "pending");
+      const statusB = getStatusPriority(b.status || "pending");
+
+      // First sort by status priority
+      if (statusA !== statusB) {
+        return statusA - statusB;
+      }
+
+      // Within same status, sort by delivery date (upcoming first, then by recency)
+      const dateA = new Date(a.deliveryDate);
+      const dateB = new Date(b.deliveryDate);
+      const now = new Date();
+
+      // For pending/confirmed/preparing/ready - upcoming dates first
+      if (statusA <= 4) {
+        if (dateA >= now && dateB >= now) {
+          return dateA - dateB; // Upcoming dates: earliest first
+        } else if (dateA >= now) {
+          return -1; // A is upcoming, B is past
+        } else if (dateB >= now) {
+          return 1; // B is upcoming, A is past
+        } else {
+          return dateB - dateA; // Both past: most recent first
+        }
+      } else {
+        // For completed/cancelled - most recent first
+        return dateB - dateA;
+      }
+    });
+  };
+
+  const currentBookings = applyCustomSorting(bookings.slice(startIndex, endIndex));
   const totalPages = Math.ceil(bookings.length / itemsPerPage);
+
+  // Helper function to calculate financial details
+  const calculateFinancials = (booking) => {
+    const total = booking.pricing?.total || 0;
+    const paid = booking.depositAmount || 0;
+    const balance = total - paid;
+    const isFullyPaid = balance <= 0 && total > 0;
+    const isCancelled = booking.status === "cancelled";
+    
+    return {
+      total,
+      paid,
+      balance,
+      isFullyPaid,
+      isCancelled,
+      showRevenue: !isCancelled, // Don't show revenue for cancelled bookings
+      showPaymentOption: !isFullyPaid && !isCancelled, // Don't show payment option if fully paid or cancelled
+    };
+  };
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -62,16 +129,27 @@ const BookingsList = ({
   };
 
   const openPaymentEdit = (booking) => {
+    const financials = calculateFinancials(booking);
+    
+    // Don't open payment edit if fully paid or cancelled
+    if (!financials.showPaymentOption) {
+      return;
+    }
+
     setEditingPayment(booking._id);
     setPaymentData({
       paymentStatus: booking.paymentStatus || "pending",
-      depositAmount: booking.depositAmount || 0,
+      depositAmount: (booking.depositAmount || 0).toString(),
     });
   };
 
   const handlePaymentUpdate = async (bookingId) => {
     try {
-      await onPaymentUpdate(bookingId, paymentData);
+      const depositAmount = parseFloat(paymentData.depositAmount) || 0;
+      await onPaymentUpdate(bookingId, {
+        ...paymentData,
+        depositAmount,
+      });
       setEditingPayment(null);
     } catch (error) {
       console.error("Error updating payment:", error);
@@ -81,6 +159,30 @@ const BookingsList = ({
   const handlePageChange = (page) => {
     onPageChange(page);
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handlePrintBooking = (booking) => {
+    if (onPrintBooking) {
+      onPrintBooking(booking);
+    }
+  };
+
+  const handleAmountChange = (value, booking) => {
+    const total = booking.pricing?.total || 0;
+    const numericValue = parseFloat(value) || 0;
+    
+    // Don't allow amount greater than total
+    if (numericValue > total) {
+      setPaymentData({
+        ...paymentData,
+        depositAmount: total.toString(),
+      });
+    } else {
+      setPaymentData({
+        ...paymentData,
+        depositAmount: value,
+      });
+    }
   };
 
   return (
@@ -123,345 +225,384 @@ const BookingsList = ({
         </div>
       ) : (
         <div className="divide-y divide-gray-200">
-          {currentBookings.map((booking) => (
-            <div key={booking._id} className="p-6">
-              {/* Main Booking Info */}
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-3">
-                    <h4 className="font-semibold text-gray-900 text-lg">
-                      {booking.customerDetails?.name || "No Name"}
-                    </h4>
-                    <span className="text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded">
-                      #{booking.bookingReference || "No Reference"}
-                    </span>
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(
-                        booking.status || "pending"
-                      )}`}
-                    >
-                      {(booking.status || "pending")
-                        .replace("_", " ")
-                        .toUpperCase()}
-                    </span>
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium border ${getPaymentStatusColor(
-                        booking.paymentStatus || "pending"
-                      )}`}
-                    >
-                      {(booking.paymentStatus || "pending")
-                        .replace("_", " ")
-                        .toUpperCase()}
-                    </span>
-                  </div>
+          {currentBookings.map((booking) => {
+            const financials = calculateFinancials(booking);
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-                    {/* Customer Info */}
-                    <div>
-                      <h5 className="font-medium text-gray-700 mb-1">
-                        Customer
-                      </h5>
-                      <p className="text-gray-600">
-                        📧 {booking.customerDetails?.email || "No email"}
-                      </p>
-                      <p className="text-gray-600">
-                        📞 {booking.customerDetails?.phone || "No phone"}
-                      </p>
-                    </div>
-
-                    {/* Event Info */}
-                    <div>
-                      <h5 className="font-medium text-gray-700 mb-1">Event</h5>
-                      <p className="text-gray-600">
-                        🍽️ {booking.menu?.name || "No menu"}
-                      </p>
-                      <p className="text-gray-600">
-                        📍 {booking.menu?.locationName || "No location"}
-                      </p>
-                      <p className="text-gray-600">
-                        🏷️ {booking.menu?.serviceName || "No service"}
-                      </p>
-                      <p className="text-gray-600">
-                        🚚 {booking.deliveryType || "Not specified"}
-                      </p>
-                    </div>
-
-                    {/* Date & Guests */}
-                    <div>
-                      <h5 className="font-medium text-gray-700 mb-1">
-                        Details
-                      </h5>
-                      <p className="text-gray-600">
-                        📅 {formatDate(booking.deliveryDate)}
-                      </p>
-                      <p className="text-gray-600">
-                        👥 {booking.peopleCount || 0} guests
-                      </p>
-                      <p className="text-gray-600 text-xs">
-                        Booked: {formatDateTime(booking.orderDate)}
-                      </p>
-                    </div>
-
-                    {/* Financial */}
-                    <div>
-                      <h5 className="font-medium text-gray-700 mb-1">
-                        Financial
-                      </h5>
-                      <p className="text-gray-600 font-semibold">
-                        💰 {formatPrice(booking.pricing?.total)}
-                      </p>
-                      <p className="text-gray-600">
-                        💳 Paid: {formatPrice(booking.depositAmount || 0)}
-                      </p>
-                      <p className="text-gray-600">
-                        💸 Due:{" "}
-                        {formatPrice(
-                          (booking.pricing?.total || 0) -
-                            (booking.depositAmount || 0)
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="ml-4 flex flex-col gap-2">
-                  {/* Main action button - opens detailed modal */}
-                  <button
-                    onClick={() => onBookingClick && onBookingClick(booking)}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-                  >
-                    📋 View Details
-                  </button>
-
-                  <button
-                    onClick={() => toggleBookingExpansion(booking._id)}
-                    className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors text-sm"
-                  >
-                    {expandedBooking === booking._id
-                      ? "Hide Quick View"
-                      : "Quick View"}
-                  </button>
-
-                  {/* Quick status update */}
-                  {booking.status !== "cancelled" &&
-                    booking.status !== "completed" && (
-                      <select
-                        value={booking.status || "pending"}
-                        onChange={(e) =>
-                          onStatusUpdate(booking._id, e.target.value)
-                        }
-                        className="px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-green-500"
+            return (
+              <div key={booking._id} className="p-6">
+                {/* Main Booking Info */}
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-3">
+                      <h4 className="font-semibold text-gray-900 text-lg">
+                        {booking.customerDetails?.name || "No Name"}
+                      </h4>
+                      <span className="text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                        #{booking.bookingReference || "No Reference"}
+                      </span>
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(
+                          booking.status || "pending"
+                        )}`}
                       >
-                        <option value="pending">Pending</option>
-                        <option value="confirmed">Confirmed</option>
-                        <option value="preparing">Preparing</option>
-                        <option value="ready">Ready</option>
-                        <option value="completed">Completed</option>
-                      </select>
-                    )}
+                        {(booking.status || "pending")
+                          .replace("_", " ")
+                          .toUpperCase()}
+                      </span>
+                      
+                      {/* Only show payment status if not cancelled */}
+                      {!financials.isCancelled && (
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-medium border ${getPaymentStatusColor(
+                            booking.paymentStatus || "pending"
+                          )}`}
+                        >
+                          {(booking.paymentStatus || "pending")
+                            .replace("_", " ")
+                            .toUpperCase()}
+                        </span>
+                      )}
+                      
+                      {booking.isCustomOrder && (
+                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">
+                          CUSTOM ORDER
+                        </span>
+                      )}
+                    </div>
 
-                  <button
-                    onClick={() => openPaymentEdit(booking)}
-                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm"
-                  >
-                    💳 Payment
-                  </button>
-                </div>
-              </div>
-
-              {/* Expanded Details */}
-              {expandedBooking === booking._id && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Special Instructions */}
-                    {booking.customerDetails?.specialInstructions && (
-                      <div className="lg:col-span-2">
-                        <h5 className="font-medium text-gray-700 mb-2">
-                          Special Instructions
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                      {/* Customer Info */}
+                      <div>
+                        <h5 className="font-medium text-gray-700 mb-1">
+                          Customer
                         </h5>
-                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                          <p className="text-sm text-amber-700">
-                            {booking.customerDetails.specialInstructions}
-                          </p>
-                        </div>
+                        <p className="text-gray-600">
+                          📧 {booking.customerDetails?.email || "No email"}
+                        </p>
+                        <p className="text-gray-600">
+                          📞 {booking.customerDetails?.phone || "No phone"}
+                        </p>
                       </div>
-                    )}
 
-                    {/* Selected Items */}
-                    {booking.selectedItems &&
-                      booking.selectedItems.length > 0 && (
-                        <div>
+                      {/* Event Info */}
+                      <div>
+                        <h5 className="font-medium text-gray-700 mb-1">Event</h5>
+                        <p className="text-gray-600">
+                          🍽️ {booking.menu?.name || "No menu"}
+                        </p>
+                        <p className="text-gray-600">
+                          📍 {booking.menu?.locationName || "No location"}
+                        </p>
+                        <p className="text-gray-600">
+                          🏷️ {booking.menu?.serviceName || "No service"}
+                        </p>
+                        <p className="text-gray-600">
+                          🚚 {booking.deliveryType || "Not specified"}
+                        </p>
+                      </div>
+
+                      {/* Date & Guests */}
+                      <div>
+                        <h5 className="font-medium text-gray-700 mb-1">
+                          Details
+                        </h5>
+                        <p className="text-gray-600">
+                          📅 {formatDate(booking.deliveryDate)}
+                        </p>
+                        <p className="text-gray-600">
+                          👥 {booking.peopleCount || 0} guests
+                        </p>
+                        <p className="text-gray-600 text-xs">
+                          Booked: {formatDateTime(booking.orderDate)}
+                        </p>
+                      </div>
+
+                      {/* Financial */}
+                      <div>
+                        <h5 className="font-medium text-gray-700 mb-1">
+                          Financial
+                        </h5>
+                        
+                        {financials.showRevenue ? (
+                          <>
+                            <p className="text-gray-600 font-semibold">
+                              💰 {formatPrice(financials.total)}
+                            </p>
+                            {financials.isFullyPaid ? (
+                              <p className="text-green-600 font-medium">
+                                ✅ Fully Paid: {formatPrice(financials.paid)}
+                              </p>
+                            ) : (
+                              <>
+                                <p className="text-gray-600">
+                                  💳 Paid: {formatPrice(financials.paid)}
+                                </p>
+                                <p className="text-orange-600">
+                                  💸 Due: {formatPrice(financials.balance)}
+                                </p>
+                              </>
+                            )}
+                          </>
+                        ) : (
+                          <p className="text-red-600 font-medium">
+                            ❌ Cancelled
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="ml-4 flex flex-col gap-2">
+                    <button
+                      onClick={() => onBookingClick && onBookingClick(booking)}
+                      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                    >
+                      📋 View Details
+                    </button>
+
+                    <button
+                      onClick={() => handlePrintBooking(booking)}
+                      className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm font-medium flex items-center gap-2"
+                      title="Print Receipt"
+                    >
+                      <Printer className="w-4 h-4" />
+                      Print
+                    </button>
+
+                    <button
+                      onClick={() => toggleBookingExpansion(booking._id)}
+                      className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors text-sm"
+                    >
+                      {expandedBooking === booking._id
+                        ? "Hide Quick View"
+                        : "Quick View"}
+                    </button>
+
+                    {/* Quick status update - Don't show for completed or cancelled */}
+                    {booking.status !== "cancelled" &&
+                      booking.status !== "completed" && (
+                        <select
+                          value={booking.status || "pending"}
+                          onChange={(e) =>
+                            onStatusUpdate(booking._id, e.target.value)
+                          }
+                          className="px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-green-500"
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="confirmed">Confirmed</option>
+                          <option value="preparing">Preparing</option>
+                          <option value="ready">Ready</option>
+                          <option value="completed">Completed</option>
+                        </select>
+                      )}
+
+                    {/* Payment button - only show if payment is allowed */}
+                    {financials.showPaymentOption && (
+                      <button
+                        onClick={() => openPaymentEdit(booking)}
+                        className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm"
+                      >
+                        💳 Payment
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Expanded Details */}
+                {expandedBooking === booking._id && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {/* Special Instructions */}
+                      {booking.customerDetails?.specialInstructions && (
+                        <div className="lg:col-span-2">
                           <h5 className="font-medium text-gray-700 mb-2">
-                            Selected Items
+                            Special Instructions
                           </h5>
-                          <div className="space-y-2 max-h-40 overflow-y-auto">
-                            {booking.selectedItems.map((item, index) => (
-                              <div
-                                key={index}
-                                className="bg-gray-50 border border-gray-200 rounded p-2"
-                              >
-                                <div className="flex justify-between items-start">
-                                  <div>
-                                    <h6 className="font-medium text-sm">
-                                      {item.name}
-                                    </h6>
-                                    {item.description && (
-                                      <p className="text-xs text-gray-600">
-                                        {item.description}
-                                      </p>
-                                    )}
-                                    <div className="flex gap-1 mt-1">
-                                      <span className="text-xs bg-amber-100 text-amber-800 px-1 py-0.5 rounded">
-                                        {item.category?.toUpperCase()}
-                                      </span>
-                                      {item.isVegetarian && (
-                                        <span className="text-xs bg-green-100 text-green-700 px-1 py-0.5 rounded">
-                                          🌱 VEG
-                                        </span>
-                                      )}
-                                      {item.isVegan && (
-                                        <span className="text-xs bg-green-100 text-green-700 px-1 py-0.5 rounded">
-                                          🌿 VEGAN
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
+                          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                            <p className="text-sm text-amber-700">
+                              {booking.customerDetails.specialInstructions}
+                            </p>
                           </div>
                         </div>
                       )}
 
-                    {/* Address for Delivery */}
-                    {booking.deliveryType === "Delivery" && booking.address && (
-                      <div>
-                        <h5 className="font-medium text-gray-700 mb-2">
-                          Delivery Address
-                        </h5>
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                          <div className="text-sm text-blue-700">
-                            {booking.address.street && (
-                              <p>{booking.address.street}</p>
-                            )}
-                            <p>
-                              {[
-                                booking.address.suburb,
-                                booking.address.postcode,
-                                booking.address.state,
-                              ]
-                                .filter(Boolean)
-                                .join(", ")}
-                            </p>
-                            {booking.address.country && (
-                              <p>{booking.address.country}</p>
-                            )}
+                      {/* Selected Items */}
+                      {booking.selectedItems &&
+                        booking.selectedItems.length > 0 && (
+                          <div>
+                            <h5 className="font-medium text-gray-700 mb-2">
+                              Selected Items ({booking.selectedItems.length})
+                            </h5>
+                            <div className="space-y-2 max-h-40 overflow-y-auto">
+                              {booking.selectedItems.map((item, index) => (
+                                <div
+                                  key={index}
+                                  className="bg-gray-50 border border-gray-200 rounded p-2"
+                                >
+                                  <div className="flex justify-between items-start">
+                                    <div className="flex-1">
+                                      <h6 className="font-medium text-sm">
+                                        {item.name}
+                                      </h6>
+                                      {item.description && (
+                                        <p className="text-xs text-gray-600">
+                                          {item.description}
+                                        </p>
+                                      )}
+                                      <div className="flex gap-1 mt-1">
+                                        <span className="text-xs bg-amber-100 text-amber-800 px-1 py-0.5 rounded">
+                                          {item.category?.toUpperCase()}
+                                        </span>
+                                        {item.isVegetarian && (
+                                          <span className="text-xs bg-green-100 text-green-700 px-1 py-0.5 rounded">
+                                            🌱 VEG
+                                          </span>
+                                        )}
+                                        {item.isVegan && (
+                                          <span className="text-xs bg-green-100 text-green-700 px-1 py-0.5 rounded">
+                                            🌿 VEGAN
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    {booking.isCustomOrder && item.price && (
+                                      <div className="ml-2 text-sm font-medium text-gray-900">
+                                        {formatPrice(item.price)}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                      {/* Address for Delivery */}
+                      {booking.deliveryType === "Delivery" && booking.address && (
+                        <div>
+                          <h5 className="font-medium text-gray-700 mb-2">
+                            Delivery Address
+                          </h5>
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                            <div className="text-sm text-blue-700">
+                              {booking.address.street && (
+                                <p>{booking.address.street}</p>
+                              )}
+                              <p>
+                                {[
+                                  booking.address.suburb,
+                                  booking.address.postcode,
+                                  booking.address.state,
+                                ]
+                                  .filter(Boolean)
+                                  .join(", ")}
+                              </p>
+                              {booking.address.country && (
+                                <p>{booking.address.country}</p>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                    {/* Admin Notes */}
-                    {booking.adminNotes && (
-                      <div className="lg:col-span-2">
-                        <h5 className="font-medium text-gray-700 mb-2">
-                          Admin Notes
-                        </h5>
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                          <p className="text-sm text-blue-700">
-                            {booking.adminNotes}
+                      {/* Admin Notes */}
+                      {booking.adminNotes && (
+                        <div className="lg:col-span-2">
+                          <h5 className="font-medium text-gray-700 mb-2">
+                            Admin Notes
+                          </h5>
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                            <p className="text-sm text-blue-700">
+                              {booking.adminNotes}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Payment Edit Form */}
+                {editingPayment === booking._id && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <h5 className="font-medium text-green-800 mb-3">
+                        Update Payment Information
+                      </h5>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-green-700 mb-1">
+                            Payment Status
+                          </label>
+                          <select
+                            value={paymentData.paymentStatus}
+                            onChange={(e) =>
+                              setPaymentData({
+                                ...paymentData,
+                                paymentStatus: e.target.value,
+                              })
+                            }
+                            className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+                          >
+                            <option value="pending">Pending</option>
+                            <option value="deposit_paid">Deposit Paid</option>
+                            <option value="fully_paid">Fully Paid</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-green-700 mb-1">
+                            Amount Paid
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            max={booking.pricing?.total || 0}
+                            value={paymentData.depositAmount}
+                            onChange={(e) => handleAmountChange(e.target.value, booking)}
+                            onFocus={(e) => e.target.select()}
+                            className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+                            placeholder="Enter amount"
+                          />
+                          <p className="text-xs text-gray-600 mt-1">
+                            Max: {formatPrice(booking.pricing?.total)}
                           </p>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
 
-              {/* Payment Edit Form */}
-              {editingPayment === booking._id && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <h5 className="font-medium text-green-800 mb-3">
-                      Update Payment Information
-                    </h5>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-green-700 mb-1">
-                          Payment Status
-                        </label>
-                        <select
-                          value={paymentData.paymentStatus}
-                          onChange={(e) =>
-                            setPaymentData({
-                              ...paymentData,
-                              paymentStatus: e.target.value,
-                            })
-                          }
-                          className="w-full p-2 border border-gray-300 rounded-lg text-sm"
-                        >
-                          <option value="pending">Pending</option>
-                          <option value="deposit_paid">Deposit Paid</option>
-                          <option value="fully_paid">Fully Paid</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-green-700 mb-1">
-                          Deposit Amount
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          max={booking.pricing?.total || 0}
-                          value={paymentData.depositAmount}
-                          onChange={(e) =>
-                            setPaymentData({
-                              ...paymentData,
-                              depositAmount: parseFloat(e.target.value) || 0,
-                            })
-                          }
-                          className="w-full p-2 border border-gray-300 rounded-lg text-sm"
-                          placeholder="0.00"
-                        />
-                        <p className="text-xs text-gray-600 mt-1">
-                          Max: {formatPrice(booking.pricing?.total)}
-                        </p>
-                      </div>
-
-                      <div className="flex items-end">
-                        <div className="w-full space-y-2">
-                          <p className="text-sm text-green-700">
-                            <strong>Balance Due:</strong>{" "}
-                            {formatPrice(
-                              (booking.pricing?.total || 0) -
-                                paymentData.depositAmount
-                            )}
-                          </p>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handlePaymentUpdate(booking._id)}
-                              className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 text-sm"
-                            >
-                              Update
-                            </button>
-                            <button
-                              onClick={() => setEditingPayment(null)}
-                              className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 text-sm"
-                            >
-                              Cancel
-                            </button>
+                        <div className="flex items-end">
+                          <div className="w-full space-y-2">
+                            <p className="text-sm text-green-700">
+                              <strong>Balance Due:</strong>{" "}
+                              {formatPrice(
+                                Math.max(0, (booking.pricing?.total || 0) -
+                                (parseFloat(paymentData.depositAmount) || 0))
+                              )}
+                            </p>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handlePaymentUpdate(booking._id)}
+                                className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 text-sm"
+                              >
+                                Update
+                              </button>
+                              <button
+                                onClick={() => setEditingPayment(null)}
+                                className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 text-sm"
+                              >
+                                Cancel
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
-          ))}
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -483,7 +624,6 @@ const BookingsList = ({
                 Previous
               </button>
 
-              {/* Page numbers */}
               {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                 const pageNum =
                   Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;

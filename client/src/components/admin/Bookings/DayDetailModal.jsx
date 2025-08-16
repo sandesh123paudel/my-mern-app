@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Printer } from "lucide-react";
 
 const DayDetailModal = ({
   date,
@@ -6,6 +7,7 @@ const DayDetailModal = ({
   onClose,
   onStatusUpdate,
   onPaymentUpdate,
+  onPrintBooking,
   formatPrice,
   formatDate,
   formatDateTime,
@@ -14,27 +16,48 @@ const DayDetailModal = ({
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [paymentData, setPaymentData] = useState({
     paymentStatus: "pending",
-    depositAmount: 0,
+    depositAmount: "",
   });
 
-  // Calculate day summary
+  // Helper function to calculate financial details
+  const calculateFinancials = (booking) => {
+    const total = booking.pricing?.total || 0;
+    const paid = booking.depositAmount || 0;
+    const balance = total - paid;
+    const isFullyPaid = balance <= 0 && total > 0;
+    const isCancelled = booking.status === "cancelled";
+    
+    return {
+      total,
+      paid,
+      balance,
+      isFullyPaid,
+      isCancelled,
+      showRevenue: !isCancelled,
+      showPaymentOption: !isFullyPaid && !isCancelled,
+    };
+  };
+
+  // Calculate day summary with proper financial logic
   const getDaySummary = () => {
-    const totalPeople = bookings.reduce(
+    const activeBookings = bookings.filter(booking => booking.status !== "cancelled");
+    
+    const totalPeople = activeBookings.reduce(
       (sum, booking) => sum + (booking.peopleCount || 0),
       0
     );
-    const totalRevenue = bookings.reduce(
+    const totalRevenue = activeBookings.reduce(
       (sum, booking) => sum + (booking.pricing?.total || 0),
       0
     );
-    const totalPaid = bookings.reduce(
+    const totalPaid = activeBookings.reduce(
       (sum, booking) => sum + (booking.depositAmount || 0),
       0
     );
 
-    // Aggregate menu items
+    // Aggregate menu items from active bookings only
     const menuItems = {};
-    bookings.forEach((booking) => {
+    activeBookings.forEach((booking) => {
       if (booking.selectedItems) {
         booking.selectedItems.forEach((item) => {
           if (menuItems[item.name]) {
@@ -46,7 +69,7 @@ const DayDetailModal = ({
       }
     });
 
-    // Status breakdown
+    // Status breakdown for all bookings
     const statusCounts = {};
     bookings.forEach((booking) => {
       const status = booking.status || "pending";
@@ -58,11 +81,51 @@ const DayDetailModal = ({
       totalRevenue,
       totalPaid,
       totalBookings: bookings.length,
+      activeBookings: activeBookings.length,
       menuItems,
       statusCounts,
     };
   };
 
+  // Apply custom sorting to bookings
+  const applySortedBookings = (bookingsArray) => {
+    return [...bookingsArray].sort((a, b) => {
+      // Define status priority (lower number = higher priority)
+      const getStatusPriority = (status) => {
+        switch (status) {
+          case "pending": return 1;
+          case "confirmed": return 2;
+          case "preparing": return 3;
+          case "ready": return 4;
+          case "completed": return 5;
+          case "cancelled": return 6;
+          default: return 7;
+        }
+      };
+
+      const statusA = getStatusPriority(a.status || "pending");
+      const statusB = getStatusPriority(b.status || "pending");
+
+      // First sort by status priority
+      if (statusA !== statusB) {
+        return statusA - statusB;
+      }
+
+      // Within same status, sort by delivery time (earlier times first for active, recent first for completed/cancelled)
+      const dateA = new Date(a.deliveryDate);
+      const dateB = new Date(b.deliveryDate);
+
+      // For active bookings (pending through ready) - earlier times first
+      if (statusA <= 4) {
+        return dateA - dateB;
+      } else {
+        // For completed/cancelled - most recent first
+        return dateB - dateA;
+      }
+    });
+  };
+
+  const sortedBookings = applySortedBookings(bookings);
   const summary = getDaySummary();
 
   const getStatusColor = (status) => {
@@ -86,7 +149,11 @@ const DayDetailModal = ({
 
   const handlePaymentUpdate = async (bookingId) => {
     try {
-      await onPaymentUpdate(bookingId, paymentData);
+      const depositAmount = parseFloat(paymentData.depositAmount) || 0;
+      await onPaymentUpdate(bookingId, {
+        ...paymentData,
+        depositAmount,
+      });
       setShowPaymentForm(false);
       setSelectedBooking(null);
     } catch (error) {
@@ -95,12 +162,42 @@ const DayDetailModal = ({
   };
 
   const openPaymentForm = (booking) => {
+    const financials = calculateFinancials(booking);
+    
+    // Don't open if payment not allowed
+    if (!financials.showPaymentOption) {
+      return;
+    }
+
     setSelectedBooking(booking);
     setPaymentData({
       paymentStatus: booking.paymentStatus || "pending",
-      depositAmount: booking.depositAmount || 0,
+      depositAmount: (booking.depositAmount || 0).toString(),
     });
     setShowPaymentForm(true);
+  };
+
+  const handleAmountChange = (value, booking) => {
+    const total = booking.pricing?.total || 0;
+    const numericValue = parseFloat(value) || 0;
+    
+    if (numericValue > total) {
+      setPaymentData({
+        ...paymentData,
+        depositAmount: total.toString(),
+      });
+    } else {
+      setPaymentData({
+        ...paymentData,
+        depositAmount: value,
+      });
+    }
+  };
+
+  const handlePrintBooking = (booking) => {
+    if (onPrintBooking) {
+      onPrintBooking(booking);
+    }
   };
 
   return (
@@ -114,7 +211,7 @@ const DayDetailModal = ({
                 📅 {formatDate(date.toISOString())}
               </h2>
               <p className="text-green-100">
-                {summary.totalBookings} events scheduled
+                {summary.totalBookings} events scheduled ({summary.activeBookings} active)
               </p>
             </div>
             <button
@@ -136,6 +233,9 @@ const DayDetailModal = ({
               <p className="text-2xl font-bold text-blue-900">
                 {summary.totalPeople}
               </p>
+              <p className="text-xs text-blue-600 mt-1">
+                (Active bookings only)
+              </p>
             </div>
 
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
@@ -144,6 +244,9 @@ const DayDetailModal = ({
               </h3>
               <p className="text-2xl font-bold text-green-900">
                 {formatPrice(summary.totalRevenue)}
+              </p>
+              <p className="text-xs text-green-600 mt-1">
+                (Excludes cancelled)
               </p>
             </div>
 
@@ -168,7 +271,7 @@ const DayDetailModal = ({
           {Object.keys(summary.menuItems).length > 0 && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
               <h3 className="font-semibold text-amber-800 mb-3">
-                🍽️ Menu Items Summary
+                🍽️ Menu Items Summary (Active Bookings)
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                 {Object.entries(summary.menuItems).map(([item, count]) => (
@@ -211,121 +314,157 @@ const DayDetailModal = ({
               📋 Individual Bookings
             </h3>
             <div className="space-y-4">
-              {bookings.map((booking) => (
-                <div
-                  key={booking._id}
-                  className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h4 className="font-semibold text-gray-900">
-                          {booking.customerDetails?.name || "No Name"}
-                        </h4>
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(
-                            booking.status || "pending"
-                          )}`}
-                        >
-                          {(booking.status || "pending")
-                            .replace("_", " ")
-                            .toUpperCase()}
-                        </span>
-                      </div>
+              {sortedBookings.map((booking) => {
+                const financials = calculateFinancials(booking);
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                        <div>
-                          <p className="text-gray-600">
-                            📧 {booking.customerDetails?.email || "No email"}
-                          </p>
-                          <p className="text-gray-600">
-                            📞 {booking.customerDetails?.phone || "No phone"}
-                          </p>
-                        </div>
-
-                        <div>
-                          <p className="text-gray-600">
-                            🍽️ {booking.menu?.name || "No menu"}
-                          </p>
-                          <p className="text-gray-600">
-                            📍 {booking.menu?.locationName || "No location"}
-                          </p>
-                          <p className="text-gray-600">
-                            🚚 {booking.deliveryType || "Not specified"}
-                          </p>
-                        </div>
-
-                        <div>
-                          <p className="text-gray-600">
-                            👥 {booking.peopleCount || 0} guests
-                          </p>
-                          <p className="text-gray-600 font-semibold">
-                            💰 {formatPrice(booking.pricing?.total)}
-                          </p>
-                          <p className="text-gray-600">
-                            💳 Paid: {formatPrice(booking.depositAmount || 0)}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Special Instructions */}
-                      {booking.customerDetails?.specialInstructions && (
-                        <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded">
-                          <p className="text-sm text-amber-700">
-                            <strong>Special Instructions:</strong>{" "}
-                            {booking.customerDetails.specialInstructions}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="ml-4 flex flex-col gap-2">
-                      {/* Status Update */}
-                      {booking.status !== "cancelled" &&
-                        booking.status !== "completed" && (
-                          <select
-                            value={booking.status || "pending"}
-                            onChange={(e) =>
-                              onStatusUpdate(booking._id, e.target.value)
-                            }
-                            className="px-3 py-1 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-green-500"
+                return (
+                  <div
+                    key={booking._id}
+                    className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h4 className="font-semibold text-gray-900">
+                            {booking.customerDetails?.name || "No Name"}
+                          </h4>
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(
+                              booking.status || "pending"
+                            )}`}
                           >
-                            <option value="pending">Pending</option>
-                            <option value="confirmed">Confirmed</option>
-                            <option value="preparing">Preparing</option>
-                            <option value="ready">Ready</option>
-                            <option value="completed">Completed</option>
-                          </select>
+                            {(booking.status || "pending")
+                              .replace("_", " ")
+                              .toUpperCase()}
+                          </span>
+                          {booking.isCustomOrder && (
+                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">
+                              CUSTOM ORDER
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                          <div>
+                            <p className="text-gray-600">
+                              📧 {booking.customerDetails?.email || "No email"}
+                            </p>
+                            <p className="text-gray-600">
+                              📞 {booking.customerDetails?.phone || "No phone"}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-gray-600">
+                              🍽️ {booking.menu?.name || "No menu"}
+                            </p>
+                            <p className="text-gray-600">
+                              📍 {booking.menu?.locationName || "No location"}
+                            </p>
+                            <p className="text-gray-600">
+                              🚚 {booking.deliveryType || "Not specified"}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-gray-600">
+                              👥 {booking.peopleCount || 0} guests
+                            </p>
+                            {financials.showRevenue ? (
+                              <>
+                                <p className="text-gray-600 font-semibold">
+                                  💰 {formatPrice(financials.total)}
+                                </p>
+                                {financials.isFullyPaid ? (
+                                  <p className="text-green-600 font-medium">
+                                    ✅ Fully Paid: {formatPrice(financials.paid)}
+                                  </p>
+                                ) : (
+                                  <p className="text-orange-600">
+                                    💳 Paid: {formatPrice(financials.paid)}
+                                  </p>
+                                )}
+                              </>
+                            ) : (
+                              <p className="text-red-600 font-medium">
+                                ❌ Cancelled
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Special Instructions */}
+                        {booking.customerDetails?.specialInstructions && (
+                          <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded">
+                            <p className="text-sm text-amber-700">
+                              <strong>Special Instructions:</strong>{" "}
+                              {booking.customerDetails.specialInstructions}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="ml-4 flex flex-col gap-2">
+                        {/* Print Button */}
+                        <button
+                          onClick={() => handlePrintBooking(booking)}
+                          className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700 flex items-center gap-1"
+                          title="Print Receipt"
+                        >
+                          <Printer className="w-3 h-3" />
+                          Print
+                        </button>
+
+                        {/* Status Update - Don't show for completed or cancelled */}
+                        {booking.status !== "cancelled" &&
+                          booking.status !== "completed" && (
+                            <select
+                              value={booking.status || "pending"}
+                              onChange={(e) =>
+                                onStatusUpdate(booking._id, e.target.value)
+                              }
+                              className="px-3 py-1 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-green-500"
+                            >
+                              <option value="pending">Pending</option>
+                              <option value="confirmed">Confirmed</option>
+                              <option value="preparing">Preparing</option>
+                              <option value="ready">Ready</option>
+                              <option value="completed">Completed</option>
+                            </select>
+                          )}
+
+                        {/* Payment Update - only show if allowed */}
+                        {financials.showPaymentOption && (
+                          <button
+                            onClick={() => openPaymentForm(booking)}
+                            className="bg-indigo-600 text-white px-3 py-1 rounded text-xs hover:bg-indigo-700"
+                          >
+                            💳 Payment
+                          </button>
                         )}
 
-                      {/* Payment Update */}
-                      <button
-                        onClick={() => openPaymentForm(booking)}
-                        className="bg-indigo-600 text-white px-3 py-1 rounded text-xs hover:bg-indigo-700"
-                      >
-                        💳 Payment
-                      </button>
-
-                      {/* Cancel if not already cancelled */}
-                      {booking.status !== "cancelled" && (
-                        <button
-                          onClick={() =>
-                            onStatusUpdate(
-                              booking._id,
-                              "cancelled",
-                              "Cancelled from day view"
-                            )
-                          }
-                          className="bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700"
-                        >
-                          ❌ Cancel
-                        </button>
-                      )}
+                        {/* Cancel button - only show for bookings that aren't completed or cancelled */}
+                        {booking.status !== "cancelled" && 
+                         booking.status !== "completed" && (
+                          <button
+                            onClick={() =>
+                              onStatusUpdate(
+                                booking._id,
+                                "cancelled",
+                                "Cancelled from day view"
+                              )
+                            }
+                            className="bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700"
+                          >
+                            ❌ Cancel
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -360,22 +499,22 @@ const DayDetailModal = ({
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Deposit Amount
+                      Amount Paid
                     </label>
                     <input
                       type="number"
                       step="0.01"
                       min="0"
+                      max={selectedBooking.pricing?.total || 0}
                       value={paymentData.depositAmount}
-                      onChange={(e) =>
-                        setPaymentData({
-                          ...paymentData,
-                          depositAmount: parseFloat(e.target.value) || 0,
-                        })
-                      }
+                      onChange={(e) => handleAmountChange(e.target.value, selectedBooking)}
+                      onFocus={(e) => e.target.select()}
                       className="w-full p-2 border border-gray-300 rounded-lg"
-                      placeholder="0.00"
+                      placeholder="Enter amount"
                     />
+                    <p className="text-xs text-gray-600 mt-1">
+                      Max: {formatPrice(selectedBooking.pricing?.total)}
+                    </p>
                   </div>
 
                   <div className="bg-gray-50 p-3 rounded">
@@ -386,8 +525,8 @@ const DayDetailModal = ({
                     <p className="text-sm text-gray-600">
                       <strong>Balance Due:</strong>{" "}
                       {formatPrice(
-                        (selectedBooking.pricing?.total || 0) -
-                          paymentData.depositAmount
+                        Math.max(0, (selectedBooking.pricing?.total || 0) -
+                        (parseFloat(paymentData.depositAmount) || 0))
                       )}
                     </p>
                   </div>
@@ -421,9 +560,11 @@ const DayDetailModal = ({
             <div className="text-sm text-gray-600">
               <p>
                 Total for {formatDate(date.toISOString())}:{" "}
-                {summary.totalBookings} events,
-                {summary.totalPeople} guests,{" "}
+                {summary.totalBookings} events, {summary.totalPeople} guests,{" "}
                 {formatPrice(summary.totalRevenue)} revenue
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                Revenue excludes cancelled bookings
               </p>
             </div>
             <button

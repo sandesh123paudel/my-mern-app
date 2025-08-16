@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Printer } from "lucide-react";
 import bookingService from "../../../services/bookingService";
 import toast from "react-hot-toast";
 
@@ -7,13 +8,13 @@ const BookingDetailsModal = ({
   onClose,
   onUpdateStatus,
   onDeleteBooking,
+  onPrintBooking,
   getStatusColor,
   formatPrice,
   formatDate,
   formatDateTime,
-  formatTime, // New prop for formatting time
+  formatTime,
 }) => {
-  // Remove token dependency since it uses cookies
   const [statusNotes, setStatusNotes] = useState("");
   const [cancellationReason, setCancellationReason] = useState("");
   const [showStatusForm, setShowStatusForm] = useState(false);
@@ -22,9 +23,33 @@ const BookingDetailsModal = ({
   const [pendingStatus, setPendingStatus] = useState("");
   const [paymentData, setPaymentData] = useState({
     paymentStatus: booking.paymentStatus || "pending",
-    depositAmount: booking.depositAmount || 0,
+    depositAmount: (booking.depositAmount || 0).toString(),
   });
   const [isUpdating, setIsUpdating] = useState(false);
+
+  // Calculate financial details
+  const calculateFinancials = () => {
+    const total = booking.pricing?.total || 0;
+    const paid = booking.depositAmount || 0;
+    const balance = total - paid;
+    const isFullyPaid = balance <= 0 && total > 0;
+    const isCancelled = booking.status === "cancelled";
+    const isCompleted = booking.status === "completed";
+    
+    return {
+      total,
+      paid,
+      balance,
+      isFullyPaid,
+      isCancelled,
+      isCompleted,
+      showRevenue: !isCancelled,
+      showPaymentOption: !isFullyPaid && !isCancelled && !isCompleted,
+      canBeCancelled: !isCancelled && !isCompleted,
+    };
+  };
+
+  const financials = calculateFinancials();
 
   const handleStatusUpdate = (status) => {
     if (status === "cancelled") {
@@ -55,20 +80,24 @@ const BookingDetailsModal = ({
   const handlePaymentUpdate = async () => {
     try {
       setIsUpdating(true);
+      const depositAmount = parseFloat(paymentData.depositAmount) || 0;
+      
       const result = await bookingService.updatePaymentStatus(
         booking._id,
-        paymentData
+        {
+          ...paymentData,
+          depositAmount,
+        }
       );
 
       if (result.success) {
         toast.success(result.message || "Payment updated successfully");
         setShowPaymentForm(false);
-
+        
         // Update the booking object with new payment data
         booking.paymentStatus = paymentData.paymentStatus;
-        booking.depositAmount = paymentData.depositAmount;
+        booking.depositAmount = depositAmount;
 
-        // Close modal to refresh parent component
         setTimeout(() => {
           onClose();
         }, 1000);
@@ -96,10 +125,27 @@ const BookingDetailsModal = ({
     }
   };
 
-  const calculateBalance = () => {
+  const calculateCurrentBalance = () => {
     const total = booking.pricing?.total || 0;
-    const deposit = paymentData.depositAmount || booking.depositAmount || 0;
-    return total - deposit;
+    const deposit = parseFloat(paymentData.depositAmount) || 0;
+    return Math.max(0, total - deposit);
+  };
+
+  const handleAmountChange = (value) => {
+    const total = booking.pricing?.total || 0;
+    const numericValue = parseFloat(value) || 0;
+    
+    if (numericValue > total) {
+      setPaymentData({
+        ...paymentData,
+        depositAmount: total.toString(),
+      });
+    } else {
+      setPaymentData({
+        ...paymentData,
+        depositAmount: value,
+      });
+    }
   };
 
   return (
@@ -114,12 +160,22 @@ const BookingDetailsModal = ({
                 #{booking.bookingReference || "No Reference"}
               </p>
             </div>
-            <button
-              onClick={onClose}
-              className="text-white hover:text-gray-200 text-2xl"
-            >
-              ✕
-            </button>
+            <div className="flex items-center gap-2">
+              {/* Print Button */}
+              <button
+                onClick={() => onPrintBooking && onPrintBooking(booking)}
+                className="bg-green-700 text-white px-3 py-1 rounded-lg hover:bg-green-800 transition-colors flex items-center gap-2 text-sm"
+              >
+                <Printer className="w-4 h-4" />
+                Print
+              </button>
+              <button
+                onClick={onClose}
+                className="text-white hover:text-gray-200 text-2xl"
+              >
+                ✕
+              </button>
+            </div>
           </div>
         </div>
 
@@ -195,6 +251,11 @@ const BookingDetailsModal = ({
                 </label>
                 <p className="text-gray-900 bg-gray-50 p-2 rounded border">
                   {booking.menu?.name || "Not specified"}
+                  {booking.isCustomOrder && (
+                    <span className="ml-2 text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
+                      CUSTOM ORDER
+                    </span>
+                  )}
                 </p>
               </div>
               <div>
@@ -349,6 +410,12 @@ const BookingDetailsModal = ({
                           </p>
                         )}
                       </div>
+                      {/* Show item price for custom orders */}
+                      {booking.isCustomOrder && item.price && (
+                        <div className="ml-2 text-sm font-medium text-gray-900">
+                          {formatPrice(item.price)}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -384,165 +451,194 @@ const BookingDetailsModal = ({
                 <p>
                   <strong>Reason:</strong> {booking.cancellationReason}
                 </p>
+                <p className="text-sm text-red-600 mt-2">
+                  <strong>Note:</strong> This booking has been cancelled and revenue is excluded from totals.
+                </p>
               </div>
             </div>
           )}
 
-          {/* Payment Information */}
-          <div className="border-t-2 border-green-200 pt-6">
-            <h3 className="text-lg font-semibold text-green-800 mb-4 border-b border-green-200 pb-2">
-              💳 Payment & Financial Information
-            </h3>
+          {/* Payment Information - Only show if not cancelled */}
+          {financials.showRevenue && (
+            <div className="border-t-2 border-green-200 pt-6">
+              <h3 className="text-lg font-semibold text-green-800 mb-4 border-b border-green-200 pb-2">
+                💳 Payment & Financial Information
+              </h3>
 
-            {/* Pricing Breakdown */}
-            <div className="mb-6">
-              <h4 className="font-medium text-green-700 mb-3">
-                Pricing Breakdown
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-green-50 p-3 rounded border border-green-200">
-                  <label className="block text-sm font-medium text-green-700 mb-1">
-                    Base Price
-                  </label>
-                  <p className="text-lg font-semibold text-green-900">
-                    {formatPrice
-                      ? formatPrice(booking.pricing?.basePrice)
-                      : `${booking.pricing?.basePrice || 0}`}
-                  </p>
-                </div>
-                <div className="bg-green-50 p-3 rounded border border-green-200">
-                  <label className="block text-sm font-medium text-green-700 mb-1">
-                    Addons Price
-                  </label>
-                  <p className="text-lg font-semibold text-green-900">
-                    {formatPrice
-                      ? formatPrice(booking.pricing?.addonsPrice)
-                      : `${booking.pricing?.addonsPrice || 0}`}
-                  </p>
-                </div>
-                <div className="bg-green-100 p-3 rounded border-2 border-green-300">
-                  <label className="block text-sm font-medium text-green-700 mb-1">
-                    <span className="text-lg font-bold">Total Amount</span>
-                  </label>
-                  <p className="text-2xl font-bold text-green-800">
-                    {formatPrice
-                      ? formatPrice(booking.pricing?.total)
-                      : `${booking.pricing?.total || 0}`}
-                  </p>
+              {/* Pricing Breakdown */}
+              <div className="mb-6">
+                <h4 className="font-medium text-green-700 mb-3">
+                  Pricing Breakdown
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {!booking.isCustomOrder && (
+                    <>
+                      <div className="bg-green-50 p-3 rounded border border-green-200">
+                        <label className="block text-sm font-medium text-green-700 mb-1">
+                          Base Price
+                        </label>
+                        <p className="text-lg font-semibold text-green-900">
+                          {formatPrice
+                            ? formatPrice(booking.pricing?.basePrice)
+                            : `$${booking.pricing?.basePrice || 0}`}
+                        </p>
+                      </div>
+                      <div className="bg-green-50 p-3 rounded border border-green-200">
+                        <label className="block text-sm font-medium text-green-700 mb-1">
+                          Addons Price
+                        </label>
+                        <p className="text-lg font-semibold text-green-900">
+                          {formatPrice
+                            ? formatPrice(booking.pricing?.addonsPrice)
+                            : `$${booking.pricing?.addonsPrice || 0}`}
+                        </p>
+                      </div>
+                    </>
+                  )}
+                  <div className={`bg-green-100 p-3 rounded border-2 border-green-300 ${booking.isCustomOrder ? 'md:col-span-3' : ''}`}>
+                    <label className="block text-sm font-medium text-green-700 mb-1">
+                      <span className="text-lg font-bold">Total Amount</span>
+                    </label>
+                    <p className="text-2xl font-bold text-green-800">
+                      {formatPrice
+                        ? formatPrice(financials.total)
+                        : `$${financials.total}`}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Payment Status and Actions */}
-            <div>
-              <h4 className="font-medium text-green-700 mb-3">
-                Payment Status & Management
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-green-700 mb-1">
-                      Payment Status
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`inline-block px-3 py-1 rounded-full text-sm font-medium border ${getPaymentStatusColor(
-                          booking.paymentStatus || "pending"
-                        )}`}
-                      >
-                        {(booking.paymentStatus || "pending")
-                          .replace("_", " ")
-                          .toUpperCase()}
-                      </span>
-                      <button
-                        onClick={() => setShowPaymentForm(true)}
-                        className="text-blue-600 hover:text-blue-800 text-sm underline"
-                      >
-                        Update
-                      </button>
+              {/* Payment Status and Actions */}
+              <div>
+                <h4 className="font-medium text-green-700 mb-3">
+                  Payment Status & Management
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-green-700 mb-1">
+                        Payment Status
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`inline-block px-3 py-1 rounded-full text-sm font-medium border ${getPaymentStatusColor(
+                            booking.paymentStatus || "pending"
+                          )}`}
+                        >
+                          {(booking.paymentStatus || "pending")
+                            .replace("_", " ")
+                            .toUpperCase()}
+                        </span>
+                        {financials.showPaymentOption && (
+                          <button
+                            onClick={() => setShowPaymentForm(true)}
+                            className="text-blue-600 hover:text-blue-800 text-sm underline"
+                          >
+                            Update
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-green-700 mb-1">
-                      Amount Paid (Deposit)
-                    </label>
-                    <p className="text-lg font-semibold text-green-900 bg-green-50 p-2 rounded border border-green-200">
-                      {formatPrice
-                        ? formatPrice(booking.depositAmount)
-                        : `${booking.depositAmount || 0}`}
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-green-700 mb-1">
-                      Balance Due
-                    </label>
-                    <p className="text-lg font-semibold text-orange-900 bg-orange-50 p-2 rounded border border-orange-200">
-                      {formatPrice
-                        ? formatPrice(calculateBalance())
-                        : `${calculateBalance()}`}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-green-700 mb-2">
-                      Payment Progress
-                    </label>
-                    <div className="bg-gray-200 rounded-full h-4 mb-2">
-                      <div
-                        className="bg-green-600 h-4 rounded-full transition-all duration-300"
-                        style={{
-                          width: `${
-                            booking.pricing?.total > 0
-                              ? Math.min(
-                                  ((booking.depositAmount || 0) /
-                                    booking.pricing.total) *
-                                    100,
-                                  100
-                                )
-                              : 0
-                          }%`,
-                        }}
-                      ></div>
-                    </div>
-                    <div className="flex justify-between text-sm text-gray-600">
-                      <span>
-                        {booking.pricing?.total > 0
-                          ? Math.round(
-                              ((booking.depositAmount || 0) /
-                                booking.pricing.total) *
-                                100
-                            )
-                          : 0}
-                        % paid
-                      </span>
-                      <span>
+                    <div>
+                      <label className="block text-sm font-medium text-green-700 mb-1">
+                        Amount Paid
+                      </label>
+                      <p className="text-lg font-semibold text-green-900 bg-green-50 p-2 rounded border border-green-200">
                         {formatPrice
-                          ? formatPrice(booking.pricing?.total)
-                          : `${booking.pricing?.total || 0}`}
-                      </span>
+                          ? formatPrice(financials.paid)
+                          : `$${financials.paid}`}
+                      </p>
                     </div>
+
+                    {!financials.isFullyPaid && (
+                      <div>
+                        <label className="block text-sm font-medium text-green-700 mb-1">
+                          Balance Due
+                        </label>
+                        <p className="text-lg font-semibold text-orange-900 bg-orange-50 p-2 rounded border border-orange-200">
+                          {formatPrice
+                            ? formatPrice(financials.balance)
+                            : `$${financials.balance}`}
+                        </p>
+                      </div>
+                    )}
                   </div>
 
-                  <div className="bg-blue-50 p-3 rounded border border-blue-200">
-                    <h5 className="font-medium text-blue-800 mb-2">
-                      Payment Notes
-                    </h5>
-                    <ul className="text-sm text-blue-700 space-y-1">
-                      <li>• Deposit required to confirm booking</li>
-                      <li>• Balance due before event date</li>
-                      <li>• Multiple payment methods accepted</li>
-                    </ul>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-green-700 mb-2">
+                        Payment Progress
+                      </label>
+                      <div className="bg-gray-200 rounded-full h-4 mb-2">
+                        <div
+                          className="bg-green-600 h-4 rounded-full transition-all duration-300"
+                          style={{
+                            width: `${
+                              financials.total > 0
+                                ? Math.min(
+                                    (financials.paid / financials.total) * 100,
+                                    100
+                                  )
+                                : 0
+                            }%`,
+                          }}
+                        ></div>
+                      </div>
+                      <div className="flex justify-between text-sm text-gray-600">
+                        <span>
+                          {financials.total > 0
+                            ? Math.round(
+                                (financials.paid / financials.total) * 100
+                              )
+                            : 0}
+                          % paid
+                        </span>
+                        <span>
+                          {formatPrice
+                            ? formatPrice(financials.total)
+                            : `$${financials.total}`}
+                        </span>
+                      </div>
+                    </div>
+
+                    {financials.isFullyPaid ? (
+                      <div className="bg-green-50 p-3 rounded border border-green-200">
+                        <h5 className="font-medium text-green-800 mb-2">
+                          ✅ Payment Complete
+                        </h5>
+                        <p className="text-sm text-green-700">
+                          This booking has been fully paid.
+                        </p>
+                      </div>
+                    ) : financials.isCompleted ? (
+                      <div className="bg-blue-50 p-3 rounded border border-blue-200">
+                        <h5 className="font-medium text-blue-800 mb-2">
+                          📋 Booking Completed
+                        </h5>
+                        <p className="text-sm text-blue-700">
+                          This booking is completed. Payment updates are disabled.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="bg-blue-50 p-3 rounded border border-blue-200">
+                        <h5 className="font-medium text-blue-800 mb-2">
+                          Payment Notes
+                        </h5>
+                        <ul className="text-sm text-blue-700 space-y-1">
+                          <li>• Deposit required to confirm booking</li>
+                          <li>• Balance due before event date</li>
+                          <li>• Multiple payment methods accepted</li>
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* FORMS MOVED HERE - Status, Cancellation, Payment */}
+          {/* FORMS SECTION */}
           <div className="space-y-4">
             {showStatusForm && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -582,6 +678,9 @@ const BookingDetailsModal = ({
                 <h4 className="font-medium text-red-800 mb-3">
                   Cancel Booking
                 </h4>
+                <p className="text-sm text-red-700 mb-3">
+                  ⚠️ Warning: Cancelling this booking will exclude it from revenue calculations and disable payment options.
+                </p>
                 <textarea
                   value={cancellationReason}
                   onChange={(e) => setCancellationReason(e.target.value)}
@@ -639,29 +738,22 @@ const BookingDetailsModal = ({
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-green-700 mb-2">
-                      Deposit Amount
+                      Amount Paid
                     </label>
                     <input
                       type="number"
                       step="0.01"
                       min="0"
-                      max={booking.pricing?.total || 0}
+                      max={financials.total}
                       value={paymentData.depositAmount}
-                      onChange={(e) =>
-                        setPaymentData({
-                          ...paymentData,
-                          depositAmount: parseFloat(e.target.value) || 0,
-                        })
-                      }
+                      onChange={(e) => handleAmountChange(e.target.value)}
+                      onFocus={(e) => e.target.select()}
                       className="w-full p-2 border border-gray-300 rounded-lg"
-                      placeholder="0.00"
+                      placeholder="Enter amount"
                       disabled={isUpdating}
                     />
                     <p className="text-xs text-gray-600 mt-1">
-                      Max:{" "}
-                      {formatPrice
-                        ? formatPrice(booking.pricing?.total)
-                        : `$${booking.pricing?.total || 0}`}
+                      Max: {formatPrice ? formatPrice(financials.total) : `${financials.total}`}
                     </p>
                   </div>
                 </div>
@@ -670,8 +762,8 @@ const BookingDetailsModal = ({
                   <p className="text-sm text-blue-700">
                     <strong>New Balance Due:</strong>{" "}
                     {formatPrice
-                      ? formatPrice(calculateBalance())
-                      : `$${calculateBalance()}`}
+                      ? formatPrice(calculateCurrentBalance())
+                      : `${calculateCurrentBalance()}`}
                   </p>
                 </div>
 
@@ -695,13 +787,14 @@ const BookingDetailsModal = ({
             )}
           </div>
 
-          {/* Admin Actions */}
+          {/* Admin Actions - Only show if no forms are open */}
           {!showStatusForm && !showCancellationForm && !showPaymentForm && (
             <div className="border-t border-gray-200 pt-6">
               <h3 className="text-lg font-semibold text-amber-800 mb-4">
                 Admin Actions
               </h3>
               <div className="flex flex-wrap gap-3">
+                {/* Status progression buttons */}
                 {booking.status === "pending" && (
                   <button
                     onClick={() => handleStatusUpdate("confirmed")}
@@ -729,8 +822,7 @@ const BookingDetailsModal = ({
                   </button>
                 )}
 
-                {(booking.status === "ready" ||
-                  booking.status === "confirmed") && (
+                {(booking.status === "ready" || booking.status === "confirmed") && (
                   <button
                     onClick={() => handleStatusUpdate("completed")}
                     className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors font-medium"
@@ -739,22 +831,44 @@ const BookingDetailsModal = ({
                   </button>
                 )}
 
-                {booking.status !== "cancelled" &&
-                  booking.status !== "completed" && (
-                    <button
-                      onClick={() => handleStatusUpdate("cancelled")}
-                      className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors font-medium"
-                    >
-                      ❌ Cancel Booking
-                    </button>
-                  )}
+                {/* Payment management - only show if payment is allowed */}
+                {financials.showPaymentOption && (
+                  <button
+                    onClick={() => setShowPaymentForm(true)}
+                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors font-medium"
+                  >
+                    💳 Manage Payment
+                  </button>
+                )}
 
-                <button
-                  onClick={() => setShowPaymentForm(true)}
-                  className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors font-medium"
-                >
-                  💳 Manage Payment
-                </button>
+                {/* Cancellation - only show if booking can be cancelled */}
+                {financials.canBeCancelled && (
+                  <button
+                    onClick={() => handleStatusUpdate("cancelled")}
+                    className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors font-medium"
+                  >
+                    ❌ Cancel Booking
+                  </button>
+                )}
+
+                {/* Additional info for completed/cancelled bookings */}
+                {financials.isCompleted && (
+                  <div className="w-full mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <p className="text-sm text-green-700">
+                      ✅ <strong>Booking Completed:</strong> This booking has been successfully completed. 
+                      Status and payment updates are no longer available.
+                    </p>
+                  </div>
+                )}
+
+                {financials.isCancelled && (
+                  <div className="w-full mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-sm text-red-700">
+                      ❌ <strong>Booking Cancelled:</strong> This booking has been cancelled and is excluded from revenue calculations.
+                      Status and payment updates are disabled.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -771,6 +885,11 @@ const BookingDetailsModal = ({
                   ? formatDateTime(booking.updatedAt)
                   : new Date(booking.updatedAt || Date.now()).toLocaleString()}
               </p>
+              {financials.isCancelled && (
+                <p className="text-red-600 font-medium">
+                  ⚠️ Revenue excluded from totals due to cancellation
+                </p>
+              )}
             </div>
             <button
               onClick={onClose}

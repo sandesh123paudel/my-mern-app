@@ -7,6 +7,9 @@ import DayDetailModal from "../../components/admin/Bookings/DayDetailModal";
 import BookingsList from "../../components/admin/Bookings/BookingsList";
 import BookingFilters from "../../components/admin/Bookings/BookingFilters";
 import BookingDetailsModal from "../../components/admin/Bookings/BookingDetailsModal";
+import BookingPrintModal from "../../components/admin/Bookings/BookingPrintModal";
+import BookingExportComponent from "../../components/admin/Bookings/BookingExport";
+import { Printer, Download, FileText } from "lucide-react";
 
 const AdminBookings = () => {
   // Calendar state
@@ -23,6 +26,8 @@ const AdminBookings = () => {
   // Modal state
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [showExportPanel, setShowExportPanel] = useState(false);
 
   // Filter state with custom order support
   const [filters, setFilters] = useState({
@@ -30,7 +35,7 @@ const AdminBookings = () => {
     deliveryType: "all",
     locationId: "all",
     serviceId: "all",
-    orderType: "all", // new filter for custom/regular orders
+    orderType: "all",
     search: "",
     sortBy: "deliveryDate",
     sortOrder: "asc",
@@ -40,7 +45,7 @@ const AdminBookings = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState({});
 
-  // Helper function to safely extract ID as string (same as in BookingFilters)
+  // Helper function to safely extract ID as string
   const extractId = (id) => {
     if (!id) return null;
     if (typeof id === "string") return id;
@@ -117,7 +122,7 @@ const AdminBookings = () => {
       const params = {
         startDate: startOfMonth.toISOString(),
         endDate: endOfMonth.toISOString(),
-        limit: 1000, // Get all bookings for the month
+        limit: 1000,
         sortBy: "deliveryDate",
         sortOrder: "asc",
       };
@@ -155,12 +160,9 @@ const AdminBookings = () => {
     }
   };
 
-  // Apply filters to bookings list (not calendar) - FIXED FILTERING LOGIC
+  // Apply filters to bookings list (not calendar)
   const applyFilters = (bookings = allBookings) => {
     let filtered = [...bookings];
-
-    console.log("🔍 Applying filters:", filters);
-    console.log("📊 Total bookings before filtering:", filtered.length);
 
     // Apply order type filter first
     if (filters.orderType !== "all") {
@@ -169,20 +171,12 @@ const AdminBookings = () => {
       } else if (filters.orderType === "regular") {
         filtered = filtered.filter((booking) => booking.isCustomOrder !== true);
       }
-      console.log(
-        `🏷️ After order type filter (${filters.orderType}):`,
-        filtered.length
-      );
     }
 
     // Apply status filter
     if (filters.status !== "all") {
       filtered = filtered.filter(
         (booking) => booking.status === filters.status
-      );
-      console.log(
-        `📋 After status filter (${filters.status}):`,
-        filtered.length
       );
     }
 
@@ -191,63 +185,23 @@ const AdminBookings = () => {
       filtered = filtered.filter(
         (booking) => booking.deliveryType === filters.deliveryType
       );
-      console.log(
-        `🚚 After delivery type filter (${filters.deliveryType}):`,
-        filtered.length
-      );
     }
 
-    // Apply location filter - FIXED WITH PROPER ID EXTRACTION
+    // Apply location filter
     if (filters.locationId !== "all") {
-      const beforeCount = filtered.length;
       filtered = filtered.filter((booking) => {
         const bookingLocationId = extractId(booking.menu?.locationId);
-        const matches = bookingLocationId === filters.locationId;
-
-        if (!matches) {
-          console.log(`❌ Location mismatch:`, {
-            bookingLocationId,
-            filterLocationId: filters.locationId,
-            bookingLocationName: booking.menu?.locationName,
-            bookingReference: booking.bookingReference,
-          });
-        }
-
-        return matches;
+        return bookingLocationId === filters.locationId;
       });
-      console.log(
-        `📍 After location filter (${filters.locationId}): ${
-          filtered.length
-        } (removed ${beforeCount - filtered.length})`
-      );
     }
 
-    // Apply service filter - FIXED WITH PROPER ID EXTRACTION
+    // Apply service filter
     if (filters.serviceId !== "all" && filters.orderType !== "custom") {
-      const beforeCount = filtered.length;
       filtered = filtered.filter((booking) => {
-        // Skip custom orders (they don't have services)
         if (booking.isCustomOrder) return false;
-
         const bookingServiceId = extractId(booking.menu?.serviceId);
-        const matches = bookingServiceId === filters.serviceId;
-
-        if (!matches) {
-          console.log(`❌ Service mismatch:`, {
-            bookingServiceId,
-            filterServiceId: filters.serviceId,
-            bookingServiceName: booking.menu?.serviceName,
-            bookingReference: booking.bookingReference,
-          });
-        }
-
-        return matches;
+        return bookingServiceId === filters.serviceId;
       });
-      console.log(
-        `🏢 After service filter (${filters.serviceId}): ${
-          filtered.length
-        } (removed ${beforeCount - filtered.length})`
-      );
     }
 
     // Apply search filter
@@ -263,48 +217,52 @@ const AdminBookings = () => {
           booking.menu?.locationName?.toLowerCase().includes(searchTerm) ||
           booking.menu?.serviceName?.toLowerCase().includes(searchTerm)
       );
-      console.log(
-        `🔍 After search filter (${filters.search}):`,
-        filtered.length
-      );
     }
 
-    // Apply sorting
+    // Apply custom sorting - priority-based with time considerations
     filtered.sort((a, b) => {
-      let aValue = a[filters.sortBy];
-      let bValue = b[filters.sortBy];
+      // Define status priority (lower number = higher priority)
+      const getStatusPriority = (status) => {
+        switch (status) {
+          case "pending": return 1;
+          case "confirmed": return 2;
+          case "preparing": return 3;
+          case "ready": return 4;
+          case "completed": return 5;
+          case "cancelled": return 6;
+          default: return 7;
+        }
+      };
 
-      // Handle nested properties
-      if (filters.sortBy.includes(".")) {
-        const keys = filters.sortBy.split(".");
-        aValue = keys.reduce((obj, key) => obj?.[key], a);
-        bValue = keys.reduce((obj, key) => obj?.[key], b);
+      const statusA = getStatusPriority(a.status || "pending");
+      const statusB = getStatusPriority(b.status || "pending");
+
+      // First sort by status priority
+      if (statusA !== statusB) {
+        return statusA - statusB;
       }
 
-      // Handle date sorting
-      if (filters.sortBy === "deliveryDate" || filters.sortBy === "orderDate") {
-        aValue = new Date(aValue);
-        bValue = new Date(bValue);
-      }
+      // Within same status, sort by delivery date
+      const dateA = new Date(a.deliveryDate);
+      const dateB = new Date(b.deliveryDate);
+      const now = new Date();
 
-      if (filters.sortOrder === "desc") {
-        return bValue > aValue ? 1 : -1;
+      // For active bookings (pending through ready) - upcoming dates first
+      if (statusA <= 4) {
+        if (dateA >= now && dateB >= now) {
+          return dateA - dateB; // Upcoming dates: earliest first
+        } else if (dateA >= now) {
+          return -1; // A is upcoming, B is past
+        } else if (dateB >= now) {
+          return 1; // B is upcoming, A is past
+        } else {
+          return dateB - dateA; // Both past: most recent first
+        }
+      } else {
+        // For completed/cancelled - most recent first
+        return dateB - dateA;
       }
-      return aValue > bValue ? 1 : -1;
     });
-
-    console.log("✅ Final filtered bookings:", filtered.length);
-
-    // Debug: Show sample of filtered bookings
-    if (filtered.length > 0) {
-      console.log("📝 Sample filtered booking:", {
-        reference: filtered[0].bookingReference,
-        locationId: extractId(filtered[0].menu?.locationId),
-        locationName: filtered[0].menu?.locationName,
-        serviceId: extractId(filtered[0].menu?.serviceId),
-        serviceName: filtered[0].menu?.serviceName,
-      });
-    }
 
     setFilteredBookings(filtered);
 
@@ -346,6 +304,17 @@ const AdminBookings = () => {
     setShowBookingModal(false);
   };
 
+  // Handle print functionality
+  const handlePrintBooking = (booking) => {
+    setSelectedBooking(booking);
+    setShowPrintModal(true);
+  };
+
+  const closePrintModal = () => {
+    setSelectedBooking(null);
+    setShowPrintModal(false);
+  };
+
   // Update booking status
   const updateBookingStatus = async (bookingId, status, notes = "") => {
     try {
@@ -359,7 +328,7 @@ const AdminBookings = () => {
 
       if (result.success) {
         toast.success(result.message || "Booking status updated successfully");
-        fetchMonthBookings(); // Refresh calendar and list
+        fetchMonthBookings();
       } else {
         toast.error(result.error || "Failed to update booking status");
       }
@@ -379,7 +348,7 @@ const AdminBookings = () => {
 
       if (result.success) {
         toast.success(result.message || "Payment updated successfully");
-        fetchMonthBookings(); // Refresh calendar and list
+        fetchMonthBookings();
         return result;
       } else {
         toast.error(result.error || "Failed to update payment");
@@ -399,8 +368,8 @@ const AdminBookings = () => {
 
       if (result.success) {
         toast.success(result.message || "Booking cancelled successfully");
-        fetchMonthBookings(); // Refresh calendar and list
-        closeBookingDetails(); // Close modal if open
+        fetchMonthBookings();
+        closeBookingDetails();
       } else {
         toast.error(result.error || "Failed to cancel booking");
       }
@@ -412,23 +381,25 @@ const AdminBookings = () => {
 
   // Handle filter changes
   const handleFilterChange = (newFilters) => {
-    console.log("🔄 Filter changed:", newFilters);
     setFilters((prev) => ({ ...prev, ...newFilters }));
     setCurrentPage(1);
   };
 
-  // Calculate summary stats
+  // Calculate summary stats - FIXED to exclude cancelled bookings from revenue
   const getSummaryStats = () => {
     const total = allBookings.length;
     const custom = allBookings.filter(
       (booking) => booking.isCustomOrder
     ).length;
     const regular = total - custom;
-    const totalRevenue = allBookings.reduce(
+    
+    // Only include revenue from non-cancelled bookings
+    const activeBookings = allBookings.filter(booking => booking.status !== "cancelled");
+    const totalRevenue = activeBookings.reduce(
       (sum, booking) => sum + (booking.pricing?.total || 0),
       0
     );
-    const customRevenue = allBookings
+    const customRevenue = activeBookings
       .filter((booking) => booking.isCustomOrder)
       .reduce((sum, booking) => sum + (booking.pricing?.total || 0), 0);
 
@@ -444,7 +415,6 @@ const AdminBookings = () => {
 
   // Apply filters when they change
   useEffect(() => {
-    console.log("🔄 Filters changed, reapplying...", filters);
     applyFilters();
   }, [filters, allBookings]);
 
@@ -472,6 +442,16 @@ const AdminBookings = () => {
               <span>Custom: {summaryStats.custom}</span>
             </div>
           </div>
+          
+          {/* Export Button */}
+          <button
+            onClick={() => setShowExportPanel(!showExportPanel)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+          >
+            <Download className="w-4 h-4" />
+            Export
+          </button>
+          
           <button
             onClick={() => fetchMonthBookings()}
             className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
@@ -502,12 +482,27 @@ const AdminBookings = () => {
           </p>
         </div>
         <div className="bg-green-50 p-4 rounded-lg shadow-sm border border-green-200">
-          <h3 className="text-sm font-medium text-green-600">Total Revenue</h3>
+          <h3 className="text-sm font-medium text-green-600">Active Revenue</h3>
           <p className="text-2xl font-bold text-green-900">
             {formatPrice(summaryStats.totalRevenue)}
           </p>
+          <p className="text-xs text-green-600 mt-1">
+            (Excludes cancelled bookings)
+          </p>
         </div>
       </div>
+
+      {/* Export Panel */}
+      {showExportPanel && (
+        <BookingExportComponent
+          filters={filters}
+          allBookings={allBookings}
+          filteredBookings={filteredBookings}
+          formatPrice={formatPrice}
+          formatDate={formatDate}
+          formatDateTime={formatDateTime}
+        />
+      )}
 
       {/* Calendar Section */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -537,6 +532,7 @@ const AdminBookings = () => {
         onStatusUpdate={updateBookingStatus}
         onPaymentUpdate={updatePayment}
         onBookingClick={openBookingDetails}
+        onPrintBooking={handlePrintBooking}
         formatPrice={formatPrice}
         formatDate={formatDate}
         formatDateTime={formatDateTime}
@@ -550,6 +546,7 @@ const AdminBookings = () => {
           onClose={() => setShowDayModal(false)}
           onStatusUpdate={updateBookingStatus}
           onPaymentUpdate={updatePayment}
+          onPrintBooking={handlePrintBooking}
           formatPrice={formatPrice}
           formatDate={formatDate}
           formatDateTime={formatDateTime}
@@ -563,7 +560,19 @@ const AdminBookings = () => {
           onClose={closeBookingDetails}
           onUpdateStatus={updateBookingStatus}
           onDeleteBooking={deleteBooking}
+          onPrintBooking={handlePrintBooking}
           getStatusColor={getStatusColor}
+          formatPrice={formatPrice}
+          formatDate={formatDate}
+          formatDateTime={formatDateTime}
+        />
+      )}
+
+      {/* Print Modal */}
+      {showPrintModal && selectedBooking && (
+        <BookingPrintModal
+          booking={selectedBooking}
+          onClose={closePrintModal}
           formatPrice={formatPrice}
           formatDate={formatDate}
           formatDateTime={formatDateTime}
