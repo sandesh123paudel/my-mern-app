@@ -57,7 +57,7 @@ const BookingPrintModal = ({ booking, onClose, formatPrice, formatDate, formatDa
               line-height: 1.4;
             }
             .receipt {
-              width: 58mm;
+              width: 80mm;
               max-width: 220px;
               margin: 0 auto;
               padding: 10px;
