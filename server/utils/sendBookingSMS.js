@@ -1,6 +1,12 @@
 // utils/sendBookingSMS.js
 const { sendSMS } = require("./sendSMS.js");
 
+// Helper function to format currency with proper rounding
+const formatCurrency = (amount) => {
+  const num = parseFloat(amount) || 0;
+  return num.toFixed(2); // This ensures exactly 2 decimal places
+};
+
 // Send SMS to customer for booking confirmation
 const sendCustomerBookingSMS = async (bookingData) => {
   try {
@@ -25,9 +31,9 @@ const sendCustomerBookingSMS = async (bookingData) => {
     // Create short SMS message with essential info
     const message = `Booking confirmed! Ref: ${
       bookingData.bookingReference
-    }. Date: ${formattedDate} ${formattedTime}. Amount: $${
-      bookingData.pricing?.total || "0"
-    }. Bank details sent via email. - ${
+    }. Date: ${formattedDate} ${formattedTime}. Amount: $${formatCurrency(
+      bookingData.pricing?.total
+    )}. Bank details sent via email. - ${
       process.env.COMPANY_NAME || "Our Team"
     }`;
 
@@ -74,9 +80,9 @@ const sendAdminBookingSMS = async (bookingData) => {
       bookingData.customerDetails?.phone
     }). Ref: ${
       bookingData.bookingReference
-    }. ${formattedDate} ${formattedTime}. $${
-      bookingData.pricing?.total || "0"
-    }. ${bookingData.peopleCount} guests.`;
+    }. ${formattedDate} ${formattedTime}. $${formatCurrency(
+      bookingData.pricing?.total
+    )}. ${bookingData.peopleCount} guests.`;
 
     return await sendSMS(
       adminPhone,

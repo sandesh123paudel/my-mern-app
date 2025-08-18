@@ -446,6 +446,54 @@ const sendCustomerBookingConfirmation = async (
       `;
     }
 
+    // Create dietary requirements section HTML if needed
+    let dietarySection = "";
+    if (
+      bookingData.customerDetails?.dietaryRequirements?.length > 0 ||
+      bookingData.customerDetails?.spiceLevel
+    ) {
+      let dietaryContent = "";
+
+      if (bookingData.customerDetails.dietaryRequirements?.length > 0) {
+        const dietaryList = bookingData.customerDetails.dietaryRequirements
+          .map(
+            (req) =>
+              `<li>${
+                req.charAt(0).toUpperCase() + req.slice(1).replace("-", " ")
+              }</li>`
+          )
+          .join("");
+
+        dietaryContent += `
+      <div style="margin-bottom: 10px;">
+        <strong>Dietary Requirements:</strong>
+        <ul style="margin: 5px 0 0 20px; padding-left: 15px;">
+          ${dietaryList}
+        </ul>
+      </div>
+    `;
+      }
+
+      if (bookingData.customerDetails.spiceLevel) {
+        dietaryContent += `
+      <div>
+        <strong>Spice Preference:</strong> 
+        ${
+          bookingData.customerDetails.spiceLevel.charAt(0).toUpperCase() +
+          bookingData.customerDetails.spiceLevel.slice(1)
+        }
+      </div>
+    `;
+      }
+
+      dietarySection = `
+    <div class="items-section" style="background-color: #f8f9fa; padding: 15px; border-radius: 6px; margin: 20px 0;">
+      <div class="items-title" style="font-weight: 600; color: #492a00; margin-bottom: 10px;">Dietary Preferences</div>
+      ${dietaryContent}
+    </div>
+  `;
+    }
+
     // Create bank details section HTML if needed
     let bankDetailsSection = "";
     if (locationBankDetails) {
@@ -488,6 +536,8 @@ const sendCustomerBookingConfirmation = async (
       submittedAt: submittedAt,
       selectedItemsSection: selectedItemsSection,
       specialInstructionsSection: specialInstructionsSection,
+      dietarySection: dietarySection,
+
       bankDetailsSection: bankDetailsSection,
       supportEmail: process.env.EMAIL,
       supportPhone: process.env.SUPPORT_PHONE || "+61 XXX XXX XXX",

@@ -687,7 +687,7 @@ const CUSTOMER_BOOKING_CONFIRMATION_TEMPLATE = `
       <p>Thank you for your booking! We have successfully received your order and our team will process it shortly.</p>
       
       <div class="amount-highlight">
-        💰 Total Amount: $\{{ totalAmount }}
+        💰 Total Amount: $\{{totalAmount}}
       </div>
       
       <div class="booking-summary">
@@ -737,6 +737,8 @@ const CUSTOMER_BOOKING_CONFIRMATION_TEMPLATE = `
       {{selectedItemsSection}}
       
       {{specialInstructionsSection}}
+
+      {{dietarySection}}
       
       {{bankDetailsSection}}
       
@@ -1016,6 +1018,8 @@ const ADMIN_BOOKING_NOTIFICATION_TEMPLATE = `
       {{selectedItemsSection}}
       
       {{specialInstructionsSection}}
+
+      {{dietarySection}}
       
       <div class="action-buttons">
         <a href="{{adminDashboardUrl}}" class="btn btn-primary">View in Dashboard</a>
