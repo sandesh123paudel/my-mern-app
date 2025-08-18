@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const Menu = require("../models/menusModel.js");
 const Booking = require("../models/bookingModel.js");
-const Location = require("../models/locationModel.js"); // Add this import
+const Location = require("../models/locationModel.js");
 const {
   sendAdminBookingNotification,
   sendCustomerBookingConfirmation,
@@ -186,6 +186,9 @@ const createBooking = asyncHandler(async (req, res) => {
           req.body.customerDetails.description ||
           req.body.customerDetails.specialInstructions ||
           "",
+        // Simple dietary requirements - only store what user selected
+        dietaryRequirements: req.body.customerDetails.dietaryRequirements || [],
+        spiceLevel: req.body.customerDetails.spiceLevel || "medium",
       },
       // Transform selectedItems to ensure itemId is set
       selectedItems: (req.body.selectedItems || []).map((item) => ({
@@ -299,10 +302,13 @@ const getAllBookings = asyncHandler(async (req, res) => {
       deliveryType,
       locationId,
       serviceId,
-      orderType, // Add orderType filter (regular, custom, all)
+      orderType,
       startDate,
       endDate,
       search,
+      // Simple dietary filters
+      dietaryRequirement, // single filter: vegetarian, vegan, gluten-free, halal-friendly
+      spiceLevel,
       sortBy = "orderDate",
       sortOrder = "desc",
     } = req.query;
@@ -328,7 +334,7 @@ const getAllBookings = asyncHandler(async (req, res) => {
     // Filter by service (exclude custom orders when filtering by service)
     if (serviceId) {
       query["menu.serviceId"] = serviceId;
-      query.isCustomOrder = false; // Exclude custom orders when filtering by service
+      query.isCustomOrder = false;
     }
 
     // Filter by order type
@@ -338,7 +344,16 @@ const getAllBookings = asyncHandler(async (req, res) => {
       } else if (orderType === "regular") {
         query.isCustomOrder = false;
       }
-      // If orderType is "all", don't add any filter
+    }
+
+    // Simple dietary requirement filter
+    if (dietaryRequirement) {
+      query["customerDetails.dietaryRequirements"] = dietaryRequirement;
+    }
+
+    // Spice level filter
+    if (spiceLevel) {
+      query["customerDetails.spiceLevel"] = spiceLevel;
     }
 
     // Filter by date range
@@ -399,7 +414,9 @@ const getAllBookings = asyncHandler(async (req, res) => {
   }
 });
 
-// Rest of the controller methods remain the same...
+// @desc    Get booking by ID
+// @route   GET /api/bookings/:id
+// @access  Private (Admin only)
 const getBookingById = asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
@@ -424,6 +441,9 @@ const getBookingById = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Update booking status
+// @route   PUT /api/bookings/:id/status
+// @access  Private (Admin only)
 const updateBookingStatus = asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
@@ -471,6 +491,9 @@ const updateBookingStatus = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Update payment status
+// @route   PUT /api/bookings/:id/payment
+// @access  Private (Admin only)
 const updatePaymentStatus = asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
@@ -512,6 +535,9 @@ const updatePaymentStatus = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Update booking details
+// @route   PUT /api/bookings/:id
+// @access  Private (Admin only)
 const updateBooking = asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
@@ -544,6 +570,14 @@ const updateBooking = asyncHandler(async (req, res) => {
         booking.customerDetails.specialInstructions =
           customerDetails.specialInstructions;
       }
+      
+      // Update simple dietary requirements
+      if (customerDetails.dietaryRequirements !== undefined) {
+        booking.customerDetails.dietaryRequirements = customerDetails.dietaryRequirements;
+      }
+      if (customerDetails.spiceLevel !== undefined) {
+        booking.customerDetails.spiceLevel = customerDetails.spiceLevel;
+      }
     }
 
     // Update other fields if provided
@@ -573,6 +607,9 @@ const updateBooking = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Get booking statistics
+// @route   GET /api/bookings/stats
+// @access  Private (Admin only)
 const getBookingStats = asyncHandler(async (req, res) => {
   try {
     const {
@@ -593,7 +630,7 @@ const getBookingStats = asyncHandler(async (req, res) => {
 
     if (serviceId) {
       matchQuery["menu.serviceId"] = new mongoose.Types.ObjectId(serviceId);
-      matchQuery.isCustomOrder = false; // Exclude custom orders when filtering by service
+      matchQuery.isCustomOrder = false;
     }
 
     if (orderType) {
@@ -630,6 +667,13 @@ const getBookingStats = asyncHandler(async (req, res) => {
           statusCounts: {
             $push: "$status",
           },
+          // Simple dietary stats
+          dietaryBreakdown: {
+            $push: "$customerDetails.dietaryRequirements"
+          },
+          spiceLevelBreakdown: {
+            $push: "$customerDetails.spiceLevel"
+          }
         },
       },
       {
@@ -646,20 +690,20 @@ const getBookingStats = asyncHandler(async (req, res) => {
               initialValue: {},
               in: {
                 $mergeObjects: [
-                  "$value",
+                  "$$value",
                   {
                     $arrayToObject: [
                       [
                         {
-                          k: "$this",
+                          k: "$$this",
                           v: {
                             $add: [
                               {
                                 $ifNull: [
                                   {
                                     $getField: {
-                                      field: "$this",
-                                      input: "$value",
+                                      field: "$$this",
+                                      input: "$$value",
                                     },
                                   },
                                   0,
@@ -676,11 +720,13 @@ const getBookingStats = asyncHandler(async (req, res) => {
               },
             },
           },
+          dietaryBreakdown: 1,
+          spiceLevelBreakdown: 1,
         },
       },
     ]);
 
-    // Get popular menu items (including custom order items)
+    // Get popular menu items
     const popularItems = await Booking.aggregate([
       { $match: matchQuery },
       { $unwind: "$selectedItems" },
@@ -689,11 +735,6 @@ const getBookingStats = asyncHandler(async (req, res) => {
           _id: "$selectedItems.name",
           count: { $sum: 1 },
           category: { $first: "$selectedItems.category" },
-          isFromCustomOrder: {
-            $push: {
-              $cond: [{ $eq: ["$isCustomOrder", true] }, true, false],
-            },
-          },
         },
       },
       { $sort: { count: -1 } },
@@ -709,6 +750,8 @@ const getBookingStats = asyncHandler(async (req, res) => {
         customOrders: 0,
         regularOrders: 0,
         statusCounts: {},
+        dietaryBreakdown: [],
+        spiceLevelBreakdown: [],
       },
       popularItems,
     });
@@ -720,6 +763,9 @@ const getBookingStats = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Cancel booking
+// @route   PUT /api/bookings/:id/cancel
+// @access  Private (Admin only)
 const cancelBooking = asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
@@ -754,6 +800,102 @@ const cancelBooking = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Get bookings by customer (for customer portal)
+// @route   GET /api/bookings/customer/:email
+// @access  Public (with email verification)
+const getBookingsByCustomer = asyncHandler(async (req, res) => {
+  try {
+    const { email } = req.params;
+    const { page = 1, limit = 10 } = req.query;
+
+    if (!email) {
+      return sendResponse(res, 400, false, "Email is required");
+    }
+
+    // Build query
+    const query = {
+      "customerDetails.email": email.toLowerCase(),
+      isDeleted: false
+    };
+
+    // Calculate pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // Execute query
+    const [bookings, totalCount] = await Promise.all([
+      Booking.find(query)
+        .populate("menu.locationId", "name address phone email")
+        .sort({ orderDate: -1 })
+        .skip(skip)
+        .limit(parseInt(limit)),
+      Booking.countDocuments(query),
+    ]);
+
+    // Calculate pagination info
+    const totalPages = Math.ceil(totalCount / parseInt(limit));
+    const hasNextPage = parseInt(page) < totalPages;
+    const hasPrevPage = parseInt(page) > 1;
+
+    sendResponse(res, 200, true, "Customer bookings retrieved successfully", {
+      bookings,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages,
+        totalCount,
+        hasNextPage,
+        hasPrevPage,
+        limit: parseInt(limit),
+      },
+    });
+  } catch (error) {
+    console.error("Get customer bookings error:", error);
+    sendResponse(res, 500, false, "Failed to retrieve customer bookings", {
+      error: error.message,
+    });
+  }
+});
+
+// @desc    Get booking by reference number (for customer lookup)
+// @route   GET /api/bookings/reference/:reference
+// @access  Public
+const getBookingByReference = asyncHandler(async (req, res) => {
+  try {
+    const { reference } = req.params;
+    const { email } = req.query; // Optional email for additional verification
+
+    if (!reference) {
+      return sendResponse(res, 400, false, "Booking reference is required");
+    }
+
+    // Build query
+    const query = {
+      bookingReference: reference.toUpperCase(),
+      isDeleted: false
+    };
+
+    // Add email verification if provided
+    if (email) {
+      query["customerDetails.email"] = email.toLowerCase();
+    }
+
+    const booking = await Booking.findOne(query)
+      .populate("menu.locationId", "name address phone email");
+
+    if (!booking) {
+      return sendResponse(res, 404, false, "Booking not found or email doesn't match");
+    }
+
+    sendResponse(res, 200, true, "Booking retrieved successfully", {
+      booking,
+    });
+  } catch (error) {
+    console.error("Get booking by reference error:", error);
+    sendResponse(res, 500, false, "Failed to retrieve booking", {
+      error: error.message,
+    });
+  }
+});
+
 module.exports = {
   createBooking,
   getAllBookings,
@@ -763,4 +905,6 @@ module.exports = {
   updateBooking,
   getBookingStats,
   cancelBooking,
+  getBookingsByCustomer,
+  getBookingByReference,
 };

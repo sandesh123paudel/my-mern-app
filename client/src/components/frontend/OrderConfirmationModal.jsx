@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useContext } from "react";
 import { motion } from "framer-motion";
 import {
   X,
@@ -22,6 +22,8 @@ import { toast } from "react-hot-toast";
 import { createBooking } from "../../services/bookingService";
 import { getLocations } from "../../services/locationServices";
 import { getServices } from "../../services/serviceServices";
+import { getInquiries } from "../../services/inquiryService"; // Import inquiry service
+import { AppContext } from "../../context/AppContext"; // Import the context
 
 // Helper function to format currency
 const formatPrice = (price) => {
@@ -32,6 +34,9 @@ const formatPrice = (price) => {
 };
 
 const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
+  // Get user data from context
+  const { userData, isLoggedIn, isAdmin } = useContext(AppContext);
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -49,13 +54,42 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [locations, setLocations] = useState([]);
   const [services, setServices] = useState([]);
-  const [selectedLocation, setSelectedLocation] = useState(orderData?.menu?.locationId || "");
-  const [selectedService, setSelectedService] = useState(orderData?.menu?.serviceId || "");
+  const [selectedLocation, setSelectedLocation] = useState(
+    orderData?.menu?.locationId || ""
+  );
+  const [selectedService, setSelectedService] = useState(
+    orderData?.menu?.serviceId || ""
+  );
+
+  // Inquiry auto-fill states
+  const [inquiries, setInquiries] = useState([]);
+  const [showInquiryDropdown, setShowInquiryDropdown] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isLoadingInquiries, setIsLoadingInquiries] = useState(false);
+
+  // Simple dietary requirements state
+  const [hasDietaryRequirements, setHasDietaryRequirements] = useState(
+    orderData?.hasDietaryRequirements ||
+      (orderData?.dietaryRequirements &&
+        orderData.dietaryRequirements.length > 0) ||
+      false
+  );
+  const [dietaryRequirements, setDietaryRequirements] = useState(
+    orderData?.dietaryRequirements || []
+  );
+  const [spiceLevel, setSpiceLevel] = useState(
+    orderData?.spiceLevel || "medium"
+  );
 
   useEffect(() => {
     const loadData = async () => {
       // Add the "no-scroll" class to the body when the modal is mounted
       document.body.classList.add("no-scroll");
+
+      // Load inquiries for admin users
+      if (isAdmin) {
+        await loadInquiries();
+      }
 
       // Load locations and services for custom orders
       if (orderData?.isCustomOrder) {
@@ -66,12 +100,16 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
           ]);
 
           if (locationsResult.success) {
-            const activeLocations = locationsResult.data.filter(loc => loc.isActive);
+            const activeLocations = locationsResult.data.filter(
+              (loc) => loc.isActive
+            );
             setLocations(activeLocations);
           }
 
           if (servicesResult.success) {
-            const activeServices = servicesResult.data.filter(service => service.isActive);
+            const activeServices = servicesResult.data.filter(
+              (service) => service.isActive
+            );
             setServices(activeServices);
           }
         } catch (error) {
@@ -86,13 +124,60 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
     return () => {
       document.body.classList.remove("no-scroll");
     };
-  }, [orderData]);
+  }, [orderData, isAdmin]); // Updated dependencies
+
+  // Load inquiries for admin
+  const loadInquiries = async () => {
+    if (!isAdmin) return;
+
+    setIsLoadingInquiries(true);
+    try {
+      const result = await getInquiries({ limit: 100 }); // Get recent 100 inquiries
+      if (result.success) {
+        setInquiries(result.data || []);
+      } else {
+        console.error("Failed to load inquiries:", result.error);
+      }
+    } catch (error) {
+      console.error("Error loading inquiries:", error);
+    } finally {
+      setIsLoadingInquiries(false);
+    }
+  };
+
+  // Filter inquiries based on search term
+  const filteredInquiries = useMemo(() => {
+    if (!searchTerm) return inquiries.slice(0, 10); // Show first 10 if no search
+
+    return inquiries
+      .filter(
+        (inquiry) =>
+          inquiry.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          inquiry.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          String(inquiry.contact || "").includes(searchTerm) // Convert phone to string
+      )
+      .slice(0, 10);
+  }, [inquiries, searchTerm]);
+
+  // Auto-fill from selected inquiry
+  const fillFromInquiry = (inquiry) => {
+    setFormData((prev) => ({
+      ...prev,
+      name: inquiry.name || "",
+      email: inquiry.email || "",
+      phone: String(inquiry.contact || ""), // Convert phone to string
+    }));
+    setShowInquiryDropdown(false);
+    setSearchTerm("");
+    toast.success(`Contact details filled from ${inquiry.name}'s inquiry!`);
+  };
 
   // Get filtered services based on selected location
   const getFilteredServices = () => {
     if (!selectedLocation) return [];
-    return services.filter(service => 
-      (service.locationId?._id || service.locationId) === selectedLocation
+    return services.filter(
+      (service) =>
+        (service.locationId?._id || service.locationId) === selectedLocation
     );
   };
 
@@ -101,6 +186,25 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
     setSelectedLocation(locationId);
     // Reset service selection when location changes
     setSelectedService("");
+  };
+
+  // Handle dietary requirements toggle
+  const handleDietaryToggle = (hasRequirements) => {
+    setHasDietaryRequirements(hasRequirements);
+    if (!hasRequirements) {
+      // Reset dietary requirements when user selects "No"
+      setDietaryRequirements([]);
+      setSpiceLevel("medium");
+    }
+  };
+
+  // Handle dietary requirement selection
+  const handleDietaryRequirementToggle = (requirement) => {
+    setDietaryRequirements((prev) =>
+      prev.includes(requirement)
+        ? prev.filter((req) => req !== requirement)
+        : [...prev, requirement]
+    );
   };
 
   // Group selected items by category using useMemo for efficiency
@@ -160,6 +264,133 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
     }
 
     return badges;
+  };
+
+  // Simple Dietary Requirements Component
+  const renderDietaryRequirements = () => {
+    return (
+      <div className="bg-white rounded-lg p-4 border border-gray-200 mb-6">
+        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          🍽️ Dietary Requirements
+        </h3>
+
+        {/* Initial Question */}
+        <div className="mb-4">
+          <p className="text-sm font-medium text-gray-700 mb-3">
+            Do you have any dietary requirements or spice preferences?
+          </p>
+          <div className="flex gap-4">
+            <label className="flex items-center">
+              <input
+                type="radio"
+                name="hasDietary"
+                checked={hasDietaryRequirements === true}
+                onChange={() => handleDietaryToggle(true)}
+                className="w-4 h-4 text-green-600 focus:ring-green-500 border-gray-300"
+              />
+              <span className="ml-2 text-sm text-gray-700">Yes</span>
+            </label>
+            <label className="flex items-center">
+              <input
+                type="radio"
+                name="hasDietary"
+                checked={hasDietaryRequirements === false}
+                onChange={() => handleDietaryToggle(false)}
+                className="w-4 h-4 text-green-600 focus:ring-green-500 border-gray-300"
+              />
+              <span className="ml-2 text-sm text-gray-700">No</span>
+            </label>
+          </div>
+        </div>
+
+        {/* Show dietary options only if user selected "Yes" */}
+        {hasDietaryRequirements && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="space-y-4"
+          >
+            {/* Dietary Requirements */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select your dietary requirements:
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {[
+                  { value: "vegetarian", label: "🌱 Vegetarian" },
+                  { value: "vegan", label: "🌿 Vegan" },
+                  { value: "gluten-free", label: "🚫 Gluten-Free" },
+                  { value: "halal-friendly", label: "☪️ Halal-Friendly" },
+                ].map((option) => (
+                  <label key={option.value} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={dietaryRequirements.includes(option.value)}
+                      onChange={() =>
+                        handleDietaryRequirementToggle(option.value)
+                      }
+                      className="w-4 h-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">
+                      {option.label}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Spice Level */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Spice Level Preference:
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: "mild", label: "🌶️ Mild" },
+                  { value: "medium", label: "🌶️🌶️ Medium" },
+                  { value: "hot", label: "🌶️🌶️🌶️ Hot" },
+                  { value: "extra-hot", label: "🌶️🌶️🌶️🌶️ Extra Hot" },
+                ].map((option) => (
+                  <label key={option.value} className="flex items-center">
+                    <input
+                      type="radio"
+                      name="spiceLevel"
+                      value={option.value}
+                      checked={spiceLevel === option.value}
+                      onChange={(e) => setSpiceLevel(e.target.value)}
+                      className="w-4 h-4 text-green-600 focus:ring-green-500 border-gray-300"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">
+                      {option.label}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Summary */}
+            {(dietaryRequirements.length > 0 || spiceLevel !== "medium") && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <h4 className="font-medium text-green-800 mb-1">
+                  Your Preferences:
+                </h4>
+                <div className="text-sm text-green-700">
+                  {dietaryRequirements.length > 0 && (
+                    <p>
+                      <strong>Dietary:</strong> {dietaryRequirements.join(", ")}
+                    </p>
+                  )}
+                  <p>
+                    <strong>Spice Level:</strong> {spiceLevel}
+                  </p>
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </div>
+    );
   };
 
   const validateForm = () => {
@@ -240,11 +471,15 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
 
       // Prepare final order data
       let finalOrderData = { ...orderData };
-      
+
       if (orderData?.isCustomOrder) {
-        const selectedLocationObj = locations.find(loc => loc._id === selectedLocation);
-        const selectedServiceObj = services.find(service => service._id === selectedService);
-        
+        const selectedLocationObj = locations.find(
+          (loc) => loc._id === selectedLocation
+        );
+        const selectedServiceObj = services.find(
+          (service) => service._id === selectedService
+        );
+
         // Update the menu info with selected location and service
         finalOrderData.menu = {
           ...orderData.menu,
@@ -254,7 +489,7 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
           serviceId: selectedService,
           serviceName: selectedServiceObj?.name || "Selected Service",
         };
-        
+
         console.log("Updated menu info for custom order:", finalOrderData.menu);
       }
 
@@ -262,7 +497,8 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
       const bookingData = {
         // Menu information
         menu: {
-          menuId: finalOrderData?.menuId || finalOrderData?.menu?.menuId || null,
+          menuId:
+            finalOrderData?.menuId || finalOrderData?.menu?.menuId || null,
           name: finalOrderData?.menu?.name || "Order",
           price: finalOrderData?.menu?.price || 0,
           locationId: finalOrderData?.menu?.locationId,
@@ -270,29 +506,37 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
           serviceId: finalOrderData?.menu?.serviceId,
           serviceName: finalOrderData?.menu?.serviceName,
         },
-        
-        // Customer details
+
+        // Customer details with dietary requirements
         customerDetails: {
           name: formData.name,
           email: formData.email,
           phone: formData.phone,
           specialInstructions: formData.description || "",
+          // Include dietary requirements in simple format
+          dietaryRequirements: hasDietaryRequirements
+            ? dietaryRequirements
+            : [],
+          spiceLevel: hasDietaryRequirements ? spiceLevel : "medium",
         },
-        
+
         // Order details
         peopleCount: finalOrderData?.peopleCount || 1,
         deliveryType: formData.deliveryType,
         deliveryDate: formData.deliveryDate,
-        
+
         // Address (conditional)
-        address: formData.deliveryType === "Delivery" ? {
-          street: formData.street,
-          suburb: formData.suburb,
-          postcode: formData.postcode,
-          state: formData.state,
-          country: formData.country,
-        } : undefined,
-        
+        address:
+          formData.deliveryType === "Delivery"
+            ? {
+                street: formData.street,
+                suburb: formData.suburb,
+                postcode: formData.postcode,
+                state: formData.state,
+                country: formData.country,
+              }
+            : undefined,
+
         // Items and pricing
         selectedItems: finalOrderData?.selectedItems || [],
         pricing: {
@@ -300,12 +544,15 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
           addonsPrice: finalOrderData?.pricing?.addonsPrice || 0,
           total: finalOrderData?.pricing?.total || 0,
         },
-        
+
         // Custom order flag
         isCustomOrder: finalOrderData?.isCustomOrder || false,
       };
 
-      console.log("Final booking data being submitted:", JSON.stringify(bookingData, null, 2));
+      console.log(
+        "Final booking data being submitted:",
+        JSON.stringify(bookingData, null, 2)
+      );
 
       // Call the booking service
       const result = await createBooking(bookingData);
@@ -339,7 +586,8 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
   };
 
   const totalPrice = orderData?.pricing?.total || 0;
-  const pricePerPerson = orderData?.peopleCount > 0 ? totalPrice / orderData.peopleCount : 0;
+  const pricePerPerson =
+    orderData?.peopleCount > 0 ? totalPrice / orderData.peopleCount : 0;
 
   // Define the order of categories for display
   const categoryOrder = ["entree", "mains", "desserts", "addons", "other"];
@@ -502,7 +750,7 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
                     <MapPin size={18} />
                     Location & Service Selection
                   </h3>
-                  
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {/* Location Selection */}
                     <div>
@@ -510,7 +758,10 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
                         Location *
                       </label>
                       <div className="relative">
-                        <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                        <MapPin
+                          className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                          size={16}
+                        />
                         <select
                           value={selectedLocation}
                           onChange={(e) => handleLocationChange(e.target.value)}
@@ -533,7 +784,10 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
                         Service Type *
                       </label>
                       <div className="relative">
-                        <Briefcase className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                        <Briefcase
+                          className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                          size={16}
+                        />
                         <select
                           value={selectedService}
                           onChange={(e) => setSelectedService(e.target.value)}
@@ -542,7 +796,9 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
                           required
                         >
                           <option value="">
-                            {!selectedLocation ? "Select location first" : "Select a service"}
+                            {!selectedLocation
+                              ? "Select location first"
+                              : "Select a service"}
                           </option>
                           {getFilteredServices().map((service) => (
                             <option key={service._id} value={service._id}>
@@ -553,26 +809,140 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
                       </div>
                       {!selectedLocation && (
                         <p className="text-xs text-gray-500 mt-1">
-                          Please select a location first to see available services
+                          Please select a location first to see available
+                          services
                         </p>
                       )}
                     </div>
                   </div>
-                  
+
                   <div className="mt-3 p-3 bg-blue-100 rounded-lg">
                     <p className="text-sm text-blue-800">
-                      <strong>Custom Order:</strong> Please select the location and service type for your custom menu selection.
+                      <strong>Custom Order:</strong> Please select the location
+                      and service type for your custom menu selection.
                     </p>
                   </div>
                 </div>
               )}
 
+              {/* Dietary Requirements Section */}
+              {renderDietaryRequirements()}
+
               {/* Basic Details */}
               <div className="bg-white rounded-lg p-4 border border-gray-200">
-                <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <User size={18} />
-                  Contact Information
-                </h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                    <User size={18} />
+                    Contact Information
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    {/* Auto-fill from inquiry button - only for admin */}
+                    {isAdmin && (
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setShowInquiryDropdown(!showInquiryDropdown)
+                          }
+                          className="text-sm bg-purple-100 hover:bg-purple-200 text-purple-700 px-3 py-1 rounded-lg transition-colors flex items-center gap-1"
+                        >
+                          <Users size={14} />
+                          Fill from Inquiry
+                        </button>
+
+                        {/* Inquiry Dropdown */}
+                        {showInquiryDropdown && (
+                          <div className="absolute top-full right-0 mt-1 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                            <div className="p-3 border-b border-gray-200">
+                              <input
+                                type="text"
+                                placeholder="Search inquiries by name, email, or phone..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                              />
+                            </div>
+                            <div className="max-h-64 overflow-y-auto">
+                              {isLoadingInquiries ? (
+                                <div className="p-4 text-center text-gray-500">
+                                  <div className="animate-spin rounded-full h-6 w-6 border-2 border-purple-600 border-t-transparent mx-auto mb-2"></div>
+                                  Loading inquiries...
+                                </div>
+                              ) : filteredInquiries.length > 0 ? (
+                                filteredInquiries.map((inquiry) => (
+                                  <button
+                                    key={inquiry._id}
+                                    type="button"
+                                    onClick={() => fillFromInquiry(inquiry)}
+                                    className="w-full text-left p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors"
+                                  >
+                                    <div className="font-medium text-gray-900">
+                                      {inquiry.name}
+                                    </div>
+                                    <div className="text-sm text-gray-600">
+                                      {inquiry.email}
+                                    </div>
+                                    <div className="text-sm text-gray-500">
+                                      {String(inquiry.contact || "")}
+                                    </div>
+                                  </button>
+                                ))
+                              ) : (
+                                <div className="p-4 text-center text-gray-500">
+                                  {searchTerm
+                                    ? "No inquiries match your search"
+                                    : "No inquiries found"}
+                                </div>
+                              )}
+                            </div>
+                            <div className="p-2 border-t border-gray-200">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setShowInquiryDropdown(false);
+                                  setSearchTerm("");
+                                }}
+                                className="text-sm text-gray-600 hover:text-gray-800"
+                              >
+                                Close
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Show user info if logged in */}
+                {isLoggedIn && userData && (
+                  <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <p className="text-sm text-green-800">
+                      <strong>Logged in as:</strong>{" "}
+                      {userData.name ||
+                        `${userData.firstName || ""} ${
+                          userData.lastName || ""
+                        }`.trim() ||
+                        userData.email}
+                    </p>
+                    <p className="text-xs text-green-600 mt-1">
+                      Your contact information can be auto-filled from your
+                      profile
+                    </p>
+                  </div>
+                )}
+
+                {/* Admin inquiry helper info */}
+                {isAdmin && (
+                  <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                    <p className="text-sm text-purple-800">
+                      <strong>Admin Feature:</strong> You can auto-fill customer
+                      contact details from existing inquiries using the "Fill
+                      from Inquiry" button above.
+                    </p>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -603,6 +973,9 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
                     />
                   </div>
                   <div className="sm:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Email Address *
+                    </label>
                     <input
                       type="email"
                       name="email"

@@ -29,13 +29,20 @@ const BookingsList = ({
       // Define status priority (lower number = higher priority)
       const getStatusPriority = (status) => {
         switch (status) {
-          case "pending": return 1;
-          case "confirmed": return 2;
-          case "preparing": return 3;
-          case "ready": return 4;
-          case "completed": return 5;
-          case "cancelled": return 6;
-          default: return 7;
+          case "pending":
+            return 1;
+          case "confirmed":
+            return 2;
+          case "preparing":
+            return 3;
+          case "ready":
+            return 4;
+          case "completed":
+            return 5;
+          case "cancelled":
+            return 6;
+          default:
+            return 7;
         }
       };
 
@@ -70,7 +77,22 @@ const BookingsList = ({
     });
   };
 
-  const currentBookings = applyCustomSorting(bookings.slice(startIndex, endIndex));
+  const formatDietaryRequirements = (requirements) => {
+    if (!requirements || requirements.length === 0) {
+      return "None";
+    }
+    return requirements.join(", ");
+  };
+
+  const formatSpiceLevel = (level) => {
+    if (!level || level === "medium") return "Medium";
+    return level.charAt(0).toUpperCase() + level.slice(1);
+  };
+
+  // Check if customer has dietary requirement
+  const currentBookings = applyCustomSorting(
+    bookings.slice(startIndex, endIndex)
+  );
   const totalPages = Math.ceil(bookings.length / itemsPerPage);
 
   // Helper function to calculate financial details
@@ -80,7 +102,7 @@ const BookingsList = ({
     const balance = total - paid;
     const isFullyPaid = balance <= 0 && total > 0;
     const isCancelled = booking.status === "cancelled";
-    
+
     return {
       total,
       paid,
@@ -130,7 +152,7 @@ const BookingsList = ({
 
   const openPaymentEdit = (booking) => {
     const financials = calculateFinancials(booking);
-    
+
     // Don't open payment edit if fully paid or cancelled
     if (!financials.showPaymentOption) {
       return;
@@ -170,7 +192,7 @@ const BookingsList = ({
   const handleAmountChange = (value, booking) => {
     const total = booking.pricing?.total || 0;
     const numericValue = parseFloat(value) || 0;
-    
+
     // Don't allow amount greater than total
     if (numericValue > total) {
       setPaymentData({
@@ -249,7 +271,7 @@ const BookingsList = ({
                           .replace("_", " ")
                           .toUpperCase()}
                       </span>
-                      
+
                       {/* Only show payment status if not cancelled */}
                       {!financials.isCancelled && (
                         <span
@@ -262,7 +284,7 @@ const BookingsList = ({
                             .toUpperCase()}
                         </span>
                       )}
-                      
+
                       {booking.isCustomOrder && (
                         <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">
                           CUSTOM ORDER
@@ -286,7 +308,9 @@ const BookingsList = ({
 
                       {/* Event Info */}
                       <div>
-                        <h5 className="font-medium text-gray-700 mb-1">Event</h5>
+                        <h5 className="font-medium text-gray-700 mb-1">
+                          Event
+                        </h5>
                         <p className="text-gray-600">
                           🍽️ {booking.menu?.name || "No menu"}
                         </p>
@@ -322,7 +346,7 @@ const BookingsList = ({
                         <h5 className="font-medium text-gray-700 mb-1">
                           Financial
                         </h5>
-                        
+
                         {financials.showRevenue ? (
                           <>
                             <p className="text-gray-600 font-semibold">
@@ -413,6 +437,30 @@ const BookingsList = ({
                 {expandedBooking === booking._id && (
                   <div className="mt-4 pt-4 border-t border-gray-200">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {booking.customerDetails?.dietaryRequirements && (
+                        <div className="mb-4">
+                          <h4 className="font-medium text-gray-700 mb-2">
+                            Dietary Requirements
+                          </h4>
+                          <div className="bg-blue-50 border border-blue-200 rounded p-3">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 text-sm">
+                              <div>
+                                <strong>Dietary:</strong>{" "}
+                                {formatDietaryRequirements(
+                                  booking.customerDetails?.dietaryRequirements
+                                )}
+                              </div>
+                              <div>
+                                <strong>Spice Level:</strong>{" "}
+                                {formatSpiceLevel(
+                                  booking.customerDetails?.spiceLevel
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Special Instructions */}
                       {booking.customerDetails?.specialInstructions && (
                         <div className="lg:col-span-2">
@@ -479,32 +527,33 @@ const BookingsList = ({
                         )}
 
                       {/* Address for Delivery */}
-                      {booking.deliveryType === "Delivery" && booking.address && (
-                        <div>
-                          <h5 className="font-medium text-gray-700 mb-2">
-                            Delivery Address
-                          </h5>
-                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                            <div className="text-sm text-blue-700">
-                              {booking.address.street && (
-                                <p>{booking.address.street}</p>
-                              )}
-                              <p>
-                                {[
-                                  booking.address.suburb,
-                                  booking.address.postcode,
-                                  booking.address.state,
-                                ]
-                                  .filter(Boolean)
-                                  .join(", ")}
-                              </p>
-                              {booking.address.country && (
-                                <p>{booking.address.country}</p>
-                              )}
+                      {booking.deliveryType === "Delivery" &&
+                        booking.address && (
+                          <div>
+                            <h5 className="font-medium text-gray-700 mb-2">
+                              Delivery Address
+                            </h5>
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                              <div className="text-sm text-blue-700">
+                                {booking.address.street && (
+                                  <p>{booking.address.street}</p>
+                                )}
+                                <p>
+                                  {[
+                                    booking.address.suburb,
+                                    booking.address.postcode,
+                                    booking.address.state,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(", ")}
+                                </p>
+                                {booking.address.country && (
+                                  <p>{booking.address.country}</p>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      )}
+                        )}
 
                       {/* Admin Notes */}
                       {booking.adminNotes && (
@@ -561,7 +610,9 @@ const BookingsList = ({
                             min="0"
                             max={booking.pricing?.total || 0}
                             value={paymentData.depositAmount}
-                            onChange={(e) => handleAmountChange(e.target.value, booking)}
+                            onChange={(e) =>
+                              handleAmountChange(e.target.value, booking)
+                            }
                             onFocus={(e) => e.target.select()}
                             className="w-full p-2 border border-gray-300 rounded-lg text-sm"
                             placeholder="Enter amount"
@@ -576,8 +627,11 @@ const BookingsList = ({
                             <p className="text-sm text-green-700">
                               <strong>Balance Due:</strong>{" "}
                               {formatPrice(
-                                Math.max(0, (booking.pricing?.total || 0) -
-                                (parseFloat(paymentData.depositAmount) || 0))
+                                Math.max(
+                                  0,
+                                  (booking.pricing?.total || 0) -
+                                    (parseFloat(paymentData.depositAmount) || 0)
+                                )
                               )}
                             </p>
                             <div className="flex gap-2">

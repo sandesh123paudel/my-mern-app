@@ -1,37 +1,46 @@
 import React, { useRef } from "react";
 import { X, Printer } from "lucide-react";
 
-const BookingPrintModal = ({ booking, onClose, formatPrice, formatDate, formatDateTime }) => {
+const BookingPrintModal = ({
+  booking,
+  onClose,
+  formatPrice,
+  formatDate,
+  formatDateTime,
+}) => {
   const printRef = useRef();
 
   // Get location details based on booking location
   const getLocationDetails = () => {
-    const locationName = booking.menu?.locationName?.toLowerCase() || '';
-    
-    if (locationName.includes('sydney') || locationName.includes('campsie')) {
+    const locationName = booking.menu?.locationName?.toLowerCase() || "";
+
+    if (locationName.includes("sydney") || locationName.includes("campsie")) {
       return {
-        name: 'MC Catering Services Sydney',
-        address: '66 Evaline St, Campsie NSW 2194, Australia',
-        phone: '+61297873769 / 0452453028 / 0449 557 777',
-        email: 'anu_np43@hotmail.com',
-        city: 'Sydney'
+        name: "MC Catering Services Sydney",
+        address: "66 Evaline St, Campsie NSW 2194, Australia",
+        phone: "+61297873769 / 0452453028 / 0449 557 777",
+        email: "anu_np43@hotmail.com",
+        city: "Sydney",
       };
-    } else if (locationName.includes('canberra') || locationName.includes('mawson')) {
+    } else if (
+      locationName.includes("canberra") ||
+      locationName.includes("mawson")
+    ) {
       return {
-        name: 'MC Catering Services Canberra',
-        address: '4/118 Mawson Pl, Mawson ACT 2607, Australia',
-        phone: '+61297188773 / 0452453028 / 0449 557 777',
-        email: 'anu_np43@hotmail.com',
-        city: 'Canberra'
+        name: "MC Catering Services Canberra",
+        address: "4/118 Mawson Pl, Mawson ACT 2607, Australia",
+        phone: "+61297188773 / 0452453028 / 0449 557 777",
+        email: "anu_np43@hotmail.com",
+        city: "Canberra",
       };
     } else {
       // Default to Sydney if location not recognized
       return {
-        name: 'MC Catering Services Kathmandu',
-        address: '66 Evaline St, Campsie NSW 2194, Australia',
-        phone: '+61297873769 / 0452453028 / 0449 557 777',
-        email: 'anu_np43@hotmail.com',
-        city: 'Sydney'
+        name: "MC Catering Services Kathmandu",
+        address: "66 Evaline St, Campsie NSW 2194, Australia",
+        phone: "+61297873769 / 0452453028 / 0449 557 777",
+        email: "anu_np43@hotmail.com",
+        city: "Sydney",
       };
     }
   };
@@ -39,9 +48,9 @@ const BookingPrintModal = ({ booking, onClose, formatPrice, formatDate, formatDa
   const locationDetails = getLocationDetails();
 
   const handlePrint = () => {
-    const printWindow = window.open('', '_blank');
+    const printWindow = window.open("", "_blank");
     const printContent = printRef.current.innerHTML;
-    
+
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
@@ -143,7 +152,7 @@ const BookingPrintModal = ({ booking, onClose, formatPrice, formatDate, formatDa
         </body>
       </html>
     `);
-    
+
     printWindow.document.close();
     printWindow.onload = () => {
       printWindow.print();
@@ -196,9 +205,13 @@ const BookingPrintModal = ({ booking, onClose, formatPrice, formatDate, formatDa
                 <div className="header">
                   <div className="company-name">{locationDetails.name}</div>
                   <div className="company-info">{locationDetails.address}</div>
-                  <div className="company-info">Ph: {locationDetails.phone}</div>
+                  <div className="company-info">
+                    Ph: {locationDetails.phone}
+                  </div>
                   <div className="company-info">{locationDetails.email}</div>
-                  <div className="website">https://mulchowkkitchen.com.au/catering-and-functions/</div>
+                  <div className="website">
+                    https://mulchowkkitchen.com.au/catering-and-functions/
+                  </div>
                 </div>
 
                 {/* Booking Details */}
@@ -254,8 +267,10 @@ const BookingPrintModal = ({ booking, onClose, formatPrice, formatDate, formatDa
                   <div className="section">
                     <div className="section-title">Delivery Address</div>
                     <div style={{ fontSize: "10px" }}>
-                      {booking.address.street}<br/>
-                      {booking.address.suburb}, {booking.address.state}<br/>
+                      {booking.address.street}
+                      <br />
+                      {booking.address.suburb}, {booking.address.state}
+                      <br />
                       {booking.address.postcode}
                     </div>
                   </div>
@@ -266,7 +281,9 @@ const BookingPrintModal = ({ booking, onClose, formatPrice, formatDate, formatDa
                   <div className="section-title">
                     {booking.isCustomOrder ? "Custom Order" : "Menu"}
                   </div>
-                  {!booking.isCustomOrder ? (
+
+                  {/* Show menu info for non-custom orders */}
+                  {!booking.isCustomOrder && (
                     <>
                       <div className="line-item">
                         <span>Menu:</span>
@@ -281,19 +298,22 @@ const BookingPrintModal = ({ booking, onClose, formatPrice, formatDate, formatDa
                         <span>{booking.menu?.locationName}</span>
                       </div>
                     </>
-                  ) : (
+                  )}
+
+                  {/* Always show selected items if they exist */}
+                  {booking.selectedItems?.length > 0 && (
                     <>
-                      <div className="line-item">
-                        <span>Location:</span>
-                        <span>{booking.menu?.locationName}</span>
-                      </div>
                       <div style={{ fontSize: "9px", marginTop: "5px" }}>
                         <strong>Selected Items:</strong>
                       </div>
-                      {booking.selectedItems?.map((item, index) => (
-                        <div key={index} className="line-item" style={{ fontSize: "9px", marginLeft: "5px" }}>
+                      {booking.selectedItems.map((item, index) => (
+                        <div
+                          key={index}
+                          className="line-item"
+                          style={{ fontSize: "9px", marginLeft: "5px" }}
+                        >
                           <span>• {item.name}</span>
-                          <span>{formatPrice(item.price)}</span>
+                          {item.price && <span>{formatPrice(item.price)}</span>}
                         </div>
                       ))}
                     </>
@@ -312,7 +332,9 @@ const BookingPrintModal = ({ booking, onClose, formatPrice, formatDate, formatDa
                       {booking.pricing?.addonsPrice > 0 && (
                         <div className="line-item">
                           <span>Add-ons:</span>
-                          <span>{formatPrice(booking.pricing?.addonsPrice)}</span>
+                          <span>
+                            {formatPrice(booking.pricing?.addonsPrice)}
+                          </span>
                         </div>
                       )}
                     </>
@@ -348,8 +370,14 @@ const BookingPrintModal = ({ booking, onClose, formatPrice, formatDate, formatDa
                 {/* Footer */}
                 <div className="footer">
                   <div>Thank you for choosing MC Catering Services!</div>
-                  <div>For tracking & updates call: {locationDetails.phone.split(' / ')[0]}</div>
-                  <div>Website: https://mulchowkkitchen.com.au/catering-and-functions/</div>
+                  <div>
+                    For tracking & updates call:{" "}
+                    {locationDetails.phone.split(" / ")[0]}
+                  </div>
+                  <div>
+                    Website:
+                    https://mulchowkkitchen.com.au/catering-and-functions/
+                  </div>
                   <div>Printed: {formatDateTime(new Date())}</div>
                 </div>
               </div>

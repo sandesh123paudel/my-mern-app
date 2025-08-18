@@ -80,6 +80,11 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
   const [selectedLocation, setSelectedLocation] = useState("");
   const [selectedService, setSelectedService] = useState("");
   const [loading, setLoading] = useState(true);
+  
+  // Simple dietary requirements state
+  const [hasDietaryRequirements, setHasDietaryRequirements] = useState(false);
+  const [dietaryRequirements, setDietaryRequirements] = useState([]);
+  const [spiceLevel, setSpiceLevel] = useState("medium");
 
   useEffect(() => {
     const loadData = async () => {
@@ -221,6 +226,25 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
     setPeopleCount(value);
   };
 
+  // Handle dietary requirements toggle
+  const handleDietaryToggle = (hasRequirements) => {
+    setHasDietaryRequirements(hasRequirements);
+    if (!hasRequirements) {
+      // Reset dietary requirements when user selects "No"
+      setDietaryRequirements([]);
+      setSpiceLevel("medium");
+    }
+  };
+
+  // Handle dietary requirement selection
+  const handleDietaryRequirementToggle = (requirement) => {
+    setDietaryRequirements(prev => 
+      prev.includes(requirement)
+        ? prev.filter(req => req !== requirement)
+        : [...prev, requirement]
+    );
+  };
+
   // Validation
   const validateCustomOrder = () => {
     const errors = [];
@@ -256,11 +280,6 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
     const selectedLocationObj = locations.find(loc => loc._id === selectedLocation);
     const selectedServiceObj = services.find(service => service._id === selectedService);
 
-    console.log("Selected location ID:", selectedLocation);
-    console.log("Selected location object:", selectedLocationObj);
-    console.log("Selected service ID:", selectedService);
-    console.log("Selected service object:", selectedServiceObj);
-
     // Create order details in the same format as menu selection
     const orderDetails = {
       menuId: null, // No menu ID for custom orders
@@ -283,6 +302,10 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
       selectedAddons: [], // Custom orders don't have traditional addons
       selections: selections,
       isCustomOrder: true, // Flag to identify custom orders
+      // Include dietary requirements
+      dietaryRequirements: hasDietaryRequirements ? dietaryRequirements : [],
+      spiceLevel: hasDietaryRequirements ? spiceLevel : "medium",
+      hasDietaryRequirements,
     };
 
     console.log("Custom Order Details being sent:", JSON.stringify(orderDetails, null, 2));
@@ -409,6 +432,121 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
             })}
           </div>
         </div>
+      </div>
+    );
+  };
+
+  // Simple Dietary Requirements Component
+  const renderDietaryRequirements = () => {
+    return (
+      <div className="mb-8 bg-white rounded-lg p-6 border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          🍽️ Dietary Requirements
+        </h3>
+        
+        {/* Initial Question */}
+        <div className="mb-4">
+          <p className="text-sm font-medium text-gray-700 mb-3">
+            Do you have any dietary requirements or spice preferences?
+          </p>
+          <div className="flex gap-4">
+            <label className="flex items-center">
+              <input
+                type="radio"
+                name="hasDietary"
+                checked={hasDietaryRequirements === true}
+                onChange={() => handleDietaryToggle(true)}
+                className="w-4 h-4 text-green-600 focus:ring-green-500 border-gray-300"
+              />
+              <span className="ml-2 text-sm text-gray-700">Yes</span>
+            </label>
+            <label className="flex items-center">
+              <input
+                type="radio"
+                name="hasDietary"
+                checked={hasDietaryRequirements === false}
+                onChange={() => handleDietaryToggle(false)}
+                className="w-4 h-4 text-green-600 focus:ring-green-500 border-gray-300"
+              />
+              <span className="ml-2 text-sm text-gray-700">No</span>
+            </label>
+          </div>
+        </div>
+
+        {/* Show dietary options only if user selected "Yes" */}
+        {hasDietaryRequirements && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="space-y-4"
+          >
+            {/* Dietary Requirements */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select your dietary requirements:
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: "vegetarian", label: "🌱 Vegetarian" },
+                  { value: "vegan", label: "🌿 Vegan" },
+                  { value: "gluten-free", label: "🚫 Gluten-Free" },
+                  { value: "halal-friendly", label: "☪️ Halal-Friendly" }
+                ].map((option) => (
+                  <label key={option.value} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={dietaryRequirements.includes(option.value)}
+                      onChange={() => handleDietaryRequirementToggle(option.value)}
+                      className="w-4 h-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">{option.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Spice Level */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Spice Level Preference:
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: "mild", label: "🌶️ Mild" },
+                  { value: "medium", label: "🌶️🌶️ Medium" },
+                  { value: "hot", label: "🌶️🌶️🌶️ Hot" },
+                  { value: "extra-hot", label: "🌶️🌶️🌶️🌶️ Extra Hot" }
+                ].map((option) => (
+                  <label key={option.value} className="flex items-center">
+                    <input
+                      type="radio"
+                      name="spiceLevel"
+                      value={option.value}
+                      checked={spiceLevel === option.value}
+                      onChange={(e) => setSpiceLevel(e.target.value)}
+                      className="w-4 h-4 text-green-600 focus:ring-green-500 border-gray-300"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">{option.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Summary */}
+            {(dietaryRequirements.length > 0 || spiceLevel !== "medium") && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <h4 className="font-medium text-green-800 mb-1">Your Preferences:</h4>
+                <div className="text-sm text-green-700">
+                  {dietaryRequirements.length > 0 && (
+                    <p><strong>Dietary:</strong> {dietaryRequirements.join(", ")}</p>
+                  )}
+                  <p><strong>Spice Level:</strong> {spiceLevel}</p>
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
       </div>
     );
   };
@@ -594,6 +732,9 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
                     </div>
                   </div>
                 </div>
+
+                {/* Dietary Requirements Section */}
+                {renderDietaryRequirements()}
 
                 {/* Menu Items - Only show if location and service are selected */}
                 {selectedLocation && selectedService ? (

@@ -26,6 +26,28 @@ const BookingDetailsModal = ({
     depositAmount: (booking.depositAmount || 0).toString(),
   });
   const [isUpdating, setIsUpdating] = useState(false);
+  // Simple function to display dietary requirements
+  const formatDietaryRequirements = (requirements) => {
+    if (!requirements || requirements.length === 0) {
+      return "None";
+    }
+    return requirements.join(", ");
+  };
+
+  const formatSpiceLevel = (level) => {
+    if (!level || level === "medium") return "Medium";
+    return level.charAt(0).toUpperCase() + level.slice(1);
+  };
+
+  // Check if customer has dietary requirements
+  const hasDietaryInfo = () => {
+    return (
+      (booking.customerDetails?.dietaryRequirements &&
+        booking.customerDetails.dietaryRequirements.length > 0) ||
+      (booking.customerDetails?.spiceLevel &&
+        booking.customerDetails.spiceLevel !== "medium")
+    );
+  };
 
   // Calculate financial details
   const calculateFinancials = () => {
@@ -35,7 +57,7 @@ const BookingDetailsModal = ({
     const isFullyPaid = balance <= 0 && total > 0;
     const isCancelled = booking.status === "cancelled";
     const isCompleted = booking.status === "completed";
-    
+
     return {
       total,
       paid,
@@ -81,19 +103,16 @@ const BookingDetailsModal = ({
     try {
       setIsUpdating(true);
       const depositAmount = parseFloat(paymentData.depositAmount) || 0;
-      
-      const result = await bookingService.updatePaymentStatus(
-        booking._id,
-        {
-          ...paymentData,
-          depositAmount,
-        }
-      );
+
+      const result = await bookingService.updatePaymentStatus(booking._id, {
+        ...paymentData,
+        depositAmount,
+      });
 
       if (result.success) {
         toast.success(result.message || "Payment updated successfully");
         setShowPaymentForm(false);
-        
+
         // Update the booking object with new payment data
         booking.paymentStatus = paymentData.paymentStatus;
         booking.depositAmount = depositAmount;
@@ -134,7 +153,7 @@ const BookingDetailsModal = ({
   const handleAmountChange = (value) => {
     const total = booking.pricing?.total || 0;
     const numericValue = parseFloat(value) || 0;
-    
+
     if (numericValue > total) {
       setPaymentData({
         ...paymentData,
@@ -225,6 +244,28 @@ const BookingDetailsModal = ({
                 </span>
               </div>
             </div>
+
+            {hasDietaryInfo() && (
+              <div className="mb-4">
+                <h4 className="font-medium text-gray-700 mb-2">
+                  Dietary Requirements
+                </h4>
+                <div className="bg-blue-50 border border-blue-200 rounded p-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <strong>Dietary:</strong>{" "}
+                      {formatDietaryRequirements(
+                        booking.customerDetails?.dietaryRequirements
+                      )}
+                    </div>
+                    <div>
+                      <strong>Spice Level:</strong>{" "}
+                      {formatSpiceLevel(booking.customerDetails?.spiceLevel)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Special Instructions */}
             {booking.customerDetails?.specialInstructions && (
@@ -452,7 +493,8 @@ const BookingDetailsModal = ({
                   <strong>Reason:</strong> {booking.cancellationReason}
                 </p>
                 <p className="text-sm text-red-600 mt-2">
-                  <strong>Note:</strong> This booking has been cancelled and revenue is excluded from totals.
+                  <strong>Note:</strong> This booking has been cancelled and
+                  revenue is excluded from totals.
                 </p>
               </div>
             </div>
@@ -495,7 +537,11 @@ const BookingDetailsModal = ({
                       </div>
                     </>
                   )}
-                  <div className={`bg-green-100 p-3 rounded border-2 border-green-300 ${booking.isCustomOrder ? 'md:col-span-3' : ''}`}>
+                  <div
+                    className={`bg-green-100 p-3 rounded border-2 border-green-300 ${
+                      booking.isCustomOrder ? "md:col-span-3" : ""
+                    }`}
+                  >
                     <label className="block text-sm font-medium text-green-700 mb-1">
                       <span className="text-lg font-bold">Total Amount</span>
                     </label>
@@ -617,7 +663,8 @@ const BookingDetailsModal = ({
                           📋 Booking Completed
                         </h5>
                         <p className="text-sm text-blue-700">
-                          This booking is completed. Payment updates are disabled.
+                          This booking is completed. Payment updates are
+                          disabled.
                         </p>
                       </div>
                     ) : (
@@ -679,7 +726,8 @@ const BookingDetailsModal = ({
                   Cancel Booking
                 </h4>
                 <p className="text-sm text-red-700 mb-3">
-                  ⚠️ Warning: Cancelling this booking will exclude it from revenue calculations and disable payment options.
+                  ⚠️ Warning: Cancelling this booking will exclude it from
+                  revenue calculations and disable payment options.
                 </p>
                 <textarea
                   value={cancellationReason}
@@ -753,7 +801,10 @@ const BookingDetailsModal = ({
                       disabled={isUpdating}
                     />
                     <p className="text-xs text-gray-600 mt-1">
-                      Max: {formatPrice ? formatPrice(financials.total) : `${financials.total}`}
+                      Max:{" "}
+                      {formatPrice
+                        ? formatPrice(financials.total)
+                        : `${financials.total}`}
                     </p>
                   </div>
                 </div>
@@ -822,7 +873,8 @@ const BookingDetailsModal = ({
                   </button>
                 )}
 
-                {(booking.status === "ready" || booking.status === "confirmed") && (
+                {(booking.status === "ready" ||
+                  booking.status === "confirmed") && (
                   <button
                     onClick={() => handleStatusUpdate("completed")}
                     className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors font-medium"
@@ -855,8 +907,9 @@ const BookingDetailsModal = ({
                 {financials.isCompleted && (
                   <div className="w-full mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
                     <p className="text-sm text-green-700">
-                      ✅ <strong>Booking Completed:</strong> This booking has been successfully completed. 
-                      Status and payment updates are no longer available.
+                      ✅ <strong>Booking Completed:</strong> This booking has
+                      been successfully completed. Status and payment updates
+                      are no longer available.
                     </p>
                   </div>
                 )}
@@ -864,7 +917,8 @@ const BookingDetailsModal = ({
                 {financials.isCancelled && (
                   <div className="w-full mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
                     <p className="text-sm text-red-700">
-                      ❌ <strong>Booking Cancelled:</strong> This booking has been cancelled and is excluded from revenue calculations.
+                      ❌ <strong>Booking Cancelled:</strong> This booking has
+                      been cancelled and is excluded from revenue calculations.
                       Status and payment updates are disabled.
                     </p>
                   </div>

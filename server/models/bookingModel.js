@@ -73,10 +73,21 @@ const customerDetailsSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    // Simple Dietary Requirements - only if user selects them
+    dietaryRequirements: {
+      type: [String],
+      enum: ["vegetarian", "vegan", "gluten-free", "halal-friendly"],
+      default: [],
+    },
+    // Simple Spice Level
+    spiceLevel: {
+      type: String,
+      enum: ["mild", "medium", "hot", "extra-hot"],
+      default: "medium",
+    },
   },
   { _id: false }
 );
-
 // Schema for delivery/pickup address
 const addressSchema = new mongoose.Schema(
   {
@@ -302,7 +313,6 @@ const bookingSchema = new mongoose.Schema(
 );
 
 // Updated indexes to handle custom orders
-bookingSchema.index({ bookingReference: 1 });
 bookingSchema.index({ "customerDetails.email": 1 });
 bookingSchema.index({ "customerDetails.phone": 1 });
 bookingSchema.index({ deliveryDate: 1 });

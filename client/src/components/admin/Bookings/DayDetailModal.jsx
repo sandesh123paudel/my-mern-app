@@ -26,7 +26,7 @@ const DayDetailModal = ({
     const balance = total - paid;
     const isFullyPaid = balance <= 0 && total > 0;
     const isCancelled = booking.status === "cancelled";
-    
+
     return {
       total,
       paid,
@@ -40,8 +40,10 @@ const DayDetailModal = ({
 
   // Calculate day summary with proper financial logic
   const getDaySummary = () => {
-    const activeBookings = bookings.filter(booking => booking.status !== "cancelled");
-    
+    const activeBookings = bookings.filter(
+      (booking) => booking.status !== "cancelled"
+    );
+
     const totalPeople = activeBookings.reduce(
       (sum, booking) => sum + (booking.peopleCount || 0),
       0
@@ -86,20 +88,37 @@ const DayDetailModal = ({
       statusCounts,
     };
   };
+  const formatDietaryRequirements = (requirements) => {
+    if (!requirements || requirements.length === 0) {
+      return "None";
+    }
+    return requirements.join(", ");
+  };
 
+  const formatSpiceLevel = (level) => {
+    if (!level || level === "medium") return "Medium";
+    return level.charAt(0).toUpperCase() + level.slice(1);
+  };
   // Apply custom sorting to bookings
   const applySortedBookings = (bookingsArray) => {
     return [...bookingsArray].sort((a, b) => {
       // Define status priority (lower number = higher priority)
       const getStatusPriority = (status) => {
         switch (status) {
-          case "pending": return 1;
-          case "confirmed": return 2;
-          case "preparing": return 3;
-          case "ready": return 4;
-          case "completed": return 5;
-          case "cancelled": return 6;
-          default: return 7;
+          case "pending":
+            return 1;
+          case "confirmed":
+            return 2;
+          case "preparing":
+            return 3;
+          case "ready":
+            return 4;
+          case "completed":
+            return 5;
+          case "cancelled":
+            return 6;
+          default:
+            return 7;
         }
       };
 
@@ -163,7 +182,7 @@ const DayDetailModal = ({
 
   const openPaymentForm = (booking) => {
     const financials = calculateFinancials(booking);
-    
+
     // Don't open if payment not allowed
     if (!financials.showPaymentOption) {
       return;
@@ -180,7 +199,7 @@ const DayDetailModal = ({
   const handleAmountChange = (value, booking) => {
     const total = booking.pricing?.total || 0;
     const numericValue = parseFloat(value) || 0;
-    
+
     if (numericValue > total) {
       setPaymentData({
         ...paymentData,
@@ -211,7 +230,8 @@ const DayDetailModal = ({
                 📅 {formatDate(date.toISOString())}
               </h2>
               <p className="text-green-100">
-                {summary.totalBookings} events scheduled ({summary.activeBookings} active)
+                {summary.totalBookings} events scheduled (
+                {summary.activeBookings} active)
               </p>
             </div>
             <button
@@ -377,7 +397,8 @@ const DayDetailModal = ({
                                 </p>
                                 {financials.isFullyPaid ? (
                                   <p className="text-green-600 font-medium">
-                                    ✅ Fully Paid: {formatPrice(financials.paid)}
+                                    ✅ Fully Paid:{" "}
+                                    {formatPrice(financials.paid)}
                                   </p>
                                 ) : (
                                   <p className="text-orange-600">
@@ -392,6 +413,30 @@ const DayDetailModal = ({
                             )}
                           </div>
                         </div>
+
+                        {booking.customerDetails?.dietaryRequirements && (
+                          <div className="mb-4">
+                            <h4 className="font-medium text-gray-700 mb-2">
+                              Dietary Requirements
+                            </h4>
+                            <div className="bg-blue-50 border border-blue-200 rounded p-3">
+                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 text-sm">
+                                <div>
+                                  <strong>Dietary:</strong>{" "}
+                                  {formatDietaryRequirements(
+                                    booking.customerDetails?.dietaryRequirements
+                                  )}
+                                </div>
+                                <div>
+                                  <strong>Spice Level:</strong>{" "}
+                                  {formatSpiceLevel(
+                                    booking.customerDetails?.spiceLevel
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
 
                         {/* Special Instructions */}
                         {booking.customerDetails?.specialInstructions && (
@@ -445,21 +490,21 @@ const DayDetailModal = ({
                         )}
 
                         {/* Cancel button - only show for bookings that aren't completed or cancelled */}
-                        {booking.status !== "cancelled" && 
-                         booking.status !== "completed" && (
-                          <button
-                            onClick={() =>
-                              onStatusUpdate(
-                                booking._id,
-                                "cancelled",
-                                "Cancelled from day view"
-                              )
-                            }
-                            className="bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700"
-                          >
-                            ❌ Cancel
-                          </button>
-                        )}
+                        {booking.status !== "cancelled" &&
+                          booking.status !== "completed" && (
+                            <button
+                              onClick={() =>
+                                onStatusUpdate(
+                                  booking._id,
+                                  "cancelled",
+                                  "Cancelled from day view"
+                                )
+                              }
+                              className="bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700"
+                            >
+                              ❌ Cancel
+                            </button>
+                          )}
                       </div>
                     </div>
                   </div>
@@ -507,7 +552,9 @@ const DayDetailModal = ({
                       min="0"
                       max={selectedBooking.pricing?.total || 0}
                       value={paymentData.depositAmount}
-                      onChange={(e) => handleAmountChange(e.target.value, selectedBooking)}
+                      onChange={(e) =>
+                        handleAmountChange(e.target.value, selectedBooking)
+                      }
                       onFocus={(e) => e.target.select()}
                       className="w-full p-2 border border-gray-300 rounded-lg"
                       placeholder="Enter amount"
@@ -525,8 +572,11 @@ const DayDetailModal = ({
                     <p className="text-sm text-gray-600">
                       <strong>Balance Due:</strong>{" "}
                       {formatPrice(
-                        Math.max(0, (selectedBooking.pricing?.total || 0) -
-                        (parseFloat(paymentData.depositAmount) || 0))
+                        Math.max(
+                          0,
+                          (selectedBooking.pricing?.total || 0) -
+                            (parseFloat(paymentData.depositAmount) || 0)
+                        )
                       )}
                     </p>
                   </div>
