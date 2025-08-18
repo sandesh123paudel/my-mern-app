@@ -87,36 +87,29 @@ export const loginValidator = () => {
 export const bookingFormValidation = () => {
   return [
     // DEBUG: Temporarily disable menu validation to isolate the issue
-    body("menu")
-      .custom((value, { req }) => {
-        console.log("=== VALIDATION DEBUG ===");
-        console.log("Full request body:", JSON.stringify(req.body, null, 2));
-        console.log("Menu object:", JSON.stringify(value, null, 2));
-        console.log("isCustomOrder:", req.body.isCustomOrder);
-        console.log("========================");
-        
-        if (req.body.isCustomOrder) {
-          // For custom orders, just check if menu object exists
-          if (!value) {
-            throw new Error("Menu object is required");
-          }
-          
-          // Check location for custom orders
-          if (!value.locationId) {
-            console.log("Missing locationId in menu:", value);
-            throw new Error("Location is required for custom orders");
-          }
-          
-          console.log("Custom order validation passed");
-        } else {
-          // For regular orders
-          if (!value || !value.menuId) {
-            throw new Error("Menu ID is required for regular orders");
-          }
+    body("menu").custom((value, { req }) => {
+      if (req.body.isCustomOrder) {
+        // For custom orders, just check if menu object exists
+        if (!value) {
+          throw new Error("Menu object is required");
         }
-        
-        return true;
-      }),
+
+        // Check location for custom orders
+        if (!value.locationId) {
+          console.log("Missing locationId in menu:", value);
+          throw new Error("Location is required for custom orders");
+        }
+
+      
+      } else {
+        // For regular orders
+        if (!value || !value.menuId) {
+          throw new Error("Menu ID is required for regular orders");
+        }
+      }
+
+      return true;
+    }),
 
     // Customer details validation
     body("customerDetails.name")
@@ -221,7 +214,9 @@ export const bookingFormValidation = () => {
       .withMessage("Selected items must be an array")
       .custom((value, { req }) => {
         if (req.body.isCustomOrder && (!value || value.length === 0)) {
-          throw new Error("At least one item must be selected for custom orders");
+          throw new Error(
+            "At least one item must be selected for custom orders"
+          );
         }
         return true;
       }),

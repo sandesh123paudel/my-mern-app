@@ -31,7 +31,7 @@ const asyncHandler = (fn) => (req, res, next) => {
 // @access  Public
 const createBooking = asyncHandler(async (req, res) => {
   try {
-    console.log("Received booking request:", JSON.stringify(req.body, null, 2));
+  
 
     const isCustomOrder =
       req.body.isCustomOrder || req.body.menu?.menuId === null;
@@ -197,16 +197,12 @@ const createBooking = asyncHandler(async (req, res) => {
       })),
     };
 
-    console.log(
-      "Final booking data being saved:",
-      JSON.stringify(bookingData, null, 2)
-    );
+  
 
     // Create booking
     const booking = new Booking(bookingData);
     const savedBooking = await booking.save();
 
-    console.log("Booking saved successfully:", savedBooking.bookingReference);
 
     // Get location with bank details for customer email
     let locationWithBankDetails = null;
