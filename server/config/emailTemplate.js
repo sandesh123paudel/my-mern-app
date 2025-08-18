@@ -1,4 +1,4 @@
-// Admin notification email template
+// Admin notification email template for inquiries
 const ADMIN_INQUIRY_NOTIFICATION_TEMPLATE = `
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -208,7 +208,9 @@ const ADMIN_INQUIRY_NOTIFICATION_TEMPLATE = `
 </html>
 `;
 
-// Customer confirmation email template
+// Customer confirmation email template for inquiries
+// Replace your CUSTOMER_INQUIRY_CONFIRMATION_TEMPLATE with this corrected version:
+
 const CUSTOMER_INQUIRY_CONFIRMATION_TEMPLATE = `
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -289,13 +291,6 @@ const CUSTOMER_INQUIRY_CONFIRMATION_TEMPLATE = `
       display: flex;
       margin-bottom: 10px;
       align-items: center;
-    }
-    
-    .detail-icon {
-      width: 20px;
-      height: 20px;
-      margin-right: 10px;
-      color: #a4cd3d;
     }
     
     .detail-label {
@@ -458,7 +453,588 @@ const CUSTOMER_INQUIRY_CONFIRMATION_TEMPLATE = `
 </html>
 `;
 
+// Customer confirmation email template for bookings
+const CUSTOMER_BOOKING_CONFIRMATION_TEMPLATE = `
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <title>Booking Confirmation</title>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap" rel="stylesheet" type="text/css">
+  <style type="text/css">
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Open Sans', Arial, sans-serif;
+      background-color: #f8f9fa;
+      color: #333333;
+    }
+    
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background-color: #ffffff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #a4cd3d, #492a00);
+      padding: 40px 20px;
+      text-align: center;
+    }
+    
+    .header h1 {
+      color: #ffffff;
+      margin: 0;
+      font-size: 26px;
+      font-weight: 600;
+    }
+    
+    .header p {
+      color: #ffffff;
+      margin: 10px 0 0 0;
+      opacity: 0.9;
+    }
+    
+    .content {
+      padding: 30px 20px;
+    }
+    
+    .success-badge {
+      background-color: #a4cd3d;
+      color: #ffffff;
+      padding: 10px 20px;
+      border-radius: 25px;
+      font-size: 14px;
+      font-weight: 600;
+      display: inline-block;
+      margin-bottom: 25px;
+    }
+    
+    .booking-summary {
+      background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+      border-radius: 8px;
+      padding: 25px;
+      margin: 20px 0;
+      border-left: 5px solid #a4cd3d;
+    }
+    
+    .summary-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #492a00;
+      margin-bottom: 15px;
+    }
+    
+    .detail-row {
+      display: flex;
+      margin-bottom: 10px;
+      align-items: center;
+    }
+    
+    .detail-label {
+      font-weight: 600;
+      color: #492a00;
+      min-width: 120px;
+      margin-right: 10px;
+    }
+    
+    .detail-value {
+      color: #333333;
+      flex: 1;
+    }
+    
+    .amount-highlight {
+      background-color: #a4cd3d;
+      color: #ffffff;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
+      margin: 25px 0;
+      font-size: 24px;
+      font-weight: 600;
+    }
+    
+    .bank-details {
+      background-color: #fff8dc;
+      border: 2px solid #a4cd3d;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 25px 0;
+    }
+    
+    .bank-details h3 {
+      color: #492a00;
+      margin: 0 0 15px 0;
+      font-size: 16px;
+    }
+    
+    .bank-info {
+      background-color: #ffffff;
+      padding: 15px;
+      border-radius: 6px;
+      margin: 10px 0;
+    }
+    
+    .next-steps {
+      background-color: #f0f8ff;
+      border: 2px solid #a4cd3d;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 25px 0;
+    }
+    
+    .next-steps h3 {
+      color: #492a00;
+      margin: 0 0 15px 0;
+      font-size: 16px;
+    }
+    
+    .steps-list {
+      margin: 0;
+      padding-left: 20px;
+    }
+    
+    .steps-list li {
+      margin-bottom: 8px;
+      color: #333333;
+    }
+    
+    .contact-info {
+      background-color: #492a00;
+      color: #ffffff;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
+      margin: 25px 0;
+    }
+    
+    .contact-info h3 {
+      margin: 0 0 10px 0;
+      color: #a4cd3d;
+    }
+    
+    .footer {
+      background-color: #f8f9fa;
+      padding: 25px 20px;
+      text-align: center;
+      border-top: 1px solid #e9ecef;
+    }
+    
+    .footer p {
+      margin: 5px 0;
+      color: #6c757d;
+      font-size: 12px;
+    }
+    
+    .social-links {
+      margin: 15px 0;
+    }
+    
+    .social-links a {
+      display: inline-block;
+      margin: 0 5px;
+      color: #a4cd3d;
+      text-decoration: none;
+    }
+
+    .custom-order-badge {
+      background-color: #ff9800;
+      color: #ffffff;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-left: 10px;
+    }
+
+    .items-section {
+      background-color: #ffffff;
+      border: 1px solid #e9ecef;
+      border-radius: 6px;
+      padding: 15px;
+      margin: 20px 0;
+    }
+
+    .items-title {
+      font-weight: 600;
+      color: #492a00;
+      margin-bottom: 10px;
+    }
+
+    .item-list {
+      margin: 0;
+      padding-left: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🎉 Booking Confirmed!</h1>
+      <p>Thank you for your order</p>
+    </div>
+    
+    <div class="content">
+      <span class="success-badge">Booking Confirmed</span>
+      
+      <p>Dear <strong>{{customerName}}</strong>,</p>
+      <p>Thank you for your booking! We have successfully received your order and our team will process it shortly.</p>
+      
+      <div class="amount-highlight">
+        💰 Total Amount: $\{{ totalAmount }}
+      </div>
+      
+      <div class="booking-summary">
+        <div class="summary-title">📋 Your Booking Details</div>
+        
+        <div class="detail-row">
+          <span class="detail-label">📋 Booking Ref:</span>
+          <span class="detail-value">{{bookingReference}}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">📅 Event Date:</span>
+          <span class="detail-value">{{eventDate}}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">⏰ Event Time:</span>
+          <span class="detail-value">{{eventTime}}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">👥 Guests:</span>
+          <span class="detail-value">{{numberOfPeople}} people</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">🎉 Service:</span>
+          <span class="detail-value">
+            {{serviceName}}{{customOrderBadge}}
+          </span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">📍 Location:</span>
+          <span class="detail-value">{{locationName}}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">🚚 Delivery Type:</span>
+          <span class="detail-value">{{deliveryType}}</span>
+        </div>
+        {{deliveryAddressSection}}
+        <div class="detail-row">
+          <span class="detail-label">📞 Contact:</span>
+          <span class="detail-value">{{customerPhone}}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">⏰ Ordered:</span>
+          <span class="detail-value">{{submittedAt}}</span>
+        </div>
+      </div>
+      
+      {{selectedItemsSection}}
+      
+      {{specialInstructionsSection}}
+      
+      {{bankDetailsSection}}
+      
+      <div class="next-steps">
+        <h3>🚀 What Happens Next?</h3>
+        <ol class="steps-list">
+          <li>Make payment using the bank details above (if provided)</li>
+          <li>Our team will confirm your booking once payment is received</li>
+          <li>We'll contact you 24-48 hours before your event date</li>
+          <li>Enjoy your delicious meal on the event day!</li>
+        </ol>
+      </div>
+      
+      <div class="contact-info">
+        <h3>Need Assistance?</h3>
+        <p>📧 Email: {{supportEmail}}</p>
+        <p>📞 Phone: {{supportPhone}}</p>
+        <p>🕒 Business Hours: {{businessHours}}</p>
+      </div>
+      
+      <p style="margin-top: 30px;">We're excited to cater your event! If you have any questions or need to make changes to your booking, please contact us immediately.</p>
+      
+      <p style="color: #492a00; font-weight: 600;">Best regards,<br>The {{companyName}} Team</p>
+    </div>
+    
+    <div class="footer">
+      <p>This is an automated confirmation email.</p>
+      <div class="social-links">
+        <a href="{{websiteUrl}}">🌐 Website</a> |
+        <a href="{{facebookUrl}}">📘 Facebook</a> |
+        <a href="{{instagramUrl}}">📷 Instagram</a>
+      </div>
+      <p>© {{currentYear}} {{companyName}}. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>
+`;
+// Admin notification email template for bookings
+const ADMIN_BOOKING_NOTIFICATION_TEMPLATE = `
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <title>New Booking Received</title>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap" rel="stylesheet" type="text/css">
+  <style type="text/css">
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Open Sans', Arial, sans-serif;
+      background-color: #f8f9fa;
+      color: #333333;
+    }
+    
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background-color: #ffffff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #492a00, #a4cd3d);
+      padding: 30px 20px;
+      text-align: center;
+    }
+    
+    .header h1 {
+      color: #ffffff;
+      margin: 0;
+      font-size: 24px;
+      font-weight: 600;
+    }
+    
+    .content {
+      padding: 30px 20px;
+    }
+    
+    .alert-badge {
+      background-color: #a4cd3d;
+      color: #ffffff;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      display: inline-block;
+      margin-bottom: 20px;
+    }
+    
+    .booking-details {
+      background-color: #f8f9fa;
+      border-left: 4px solid #a4cd3d;
+      padding: 20px;
+      margin: 20px 0;
+    }
+    
+    .detail-row {
+      display: flex;
+      margin-bottom: 12px;
+      border-bottom: 1px solid #e9ecef;
+      padding-bottom: 8px;
+    }
+    
+    .detail-label {
+      font-weight: 600;
+      color: #492a00;
+      min-width: 140px;
+      margin-right: 10px;
+    }
+    
+    .detail-value {
+      color: #333333;
+      flex: 1;
+    }
+    
+    .amount-highlight {
+      background-color: #a4cd3d;
+      color: #ffffff;
+      padding: 15px;
+      border-radius: 6px;
+      text-align: center;
+      margin: 20px 0;
+      font-size: 18px;
+      font-weight: 600;
+    }
+    
+    .items-section {
+      background-color: #ffffff;
+      border: 2px solid #a4cd3d;
+      border-radius: 6px;
+      padding: 15px;
+      margin: 20px 0;
+    }
+    
+    .items-title {
+      font-weight: 600;
+      color: #492a00;
+      margin-bottom: 10px;
+    }
+    
+    .item-list {
+      margin: 0;
+      padding-left: 20px;
+    }
+    
+    .action-buttons {
+      text-align: center;
+      margin: 30px 0;
+    }
+    
+    .btn {
+      display: inline-block;
+      padding: 12px 24px;
+      margin: 0 10px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    
+    .btn-primary {
+      background-color: #a4cd3d;
+      color: #ffffff;
+    }
+    
+    .btn-secondary {
+      background-color: #492a00;
+      color: #ffffff;
+    }
+    
+    .footer {
+      background-color: #f8f9fa;
+      padding: 20px;
+      text-align: center;
+      border-top: 1px solid #e9ecef;
+    }
+    
+    .footer p {
+      margin: 0;
+      color: #6c757d;
+      font-size: 12px;
+    }
+    
+    .urgent {
+      color: #dc3545;
+      font-weight: 600;
+    }
+
+    .custom-order-badge {
+      background-color: #ff9800;
+      color: #ffffff;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-left: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🎉 New Booking Received</h1>
+    </div>
+    
+    <div class="content">
+      <span class="alert-badge">New Booking</span>
+      
+      <p>Hello Admin,</p>
+      <p>A new booking has been submitted. Please find the details below:</p>
+      
+      <div class="amount-highlight">
+        💰 Total Amount: $\{{totalAmount}}
+      </div>
+      
+      <div class="booking-details">
+        <div class="detail-row">
+          <span class="detail-label">Booking Reference:</span>
+          <span class="detail-value">{{bookingReference}}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Order Type:</span>
+          <span class="detail-value">
+            {{orderType}}{{customOrderBadge}}
+          </span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Customer Name:</span>
+          <span class="detail-value">{{customerName}}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Email:</span>
+          <span class="detail-value">{{customerEmail}}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Phone:</span>
+          <span class="detail-value">{{customerPhone}}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Event Date:</span>
+          <span class="detail-value {{eventDateUrgency}}">{{eventDate}}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Event Time:</span>
+          <span class="detail-value">{{eventTime}}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Number of People:</span>
+          <span class="detail-value">{{numberOfPeople}}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Service:</span>
+          <span class="detail-value">{{serviceName}}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Location:</span>
+          <span class="detail-value">{{locationName}}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Delivery Type:</span>
+          <span class="detail-value">{{deliveryType}}</span>
+        </div>
+        {{deliveryAddressSection}}
+        <div class="detail-row">
+          <span class="detail-label">Submitted At:</span>
+          <span class="detail-value">{{submittedAt}}</span>
+        </div>
+      </div>
+      
+      {{selectedItemsSection}}
+      
+      {{specialInstructionsSection}}
+      
+      <div class="action-buttons">
+        <a href="{{adminDashboardUrl}}" class="btn btn-primary">View in Dashboard</a>
+        <a href="mailto:{{customerEmail}}" class="btn btn-secondary">Contact Customer</a>
+      </div>
+    </div>
+    
+    <div class="footer">
+      <p>This is an automated notification from your booking management system.</p>
+      <p>Please process this booking promptly to ensure customer satisfaction.</p>
+    </div>
+  </div>
+</body>
+</html>
+`;
+
 module.exports = {
   ADMIN_INQUIRY_NOTIFICATION_TEMPLATE,
   CUSTOMER_INQUIRY_CONFIRMATION_TEMPLATE,
+  ADMIN_BOOKING_NOTIFICATION_TEMPLATE,
+  CUSTOMER_BOOKING_CONFIRMATION_TEMPLATE,
 };

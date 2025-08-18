@@ -1,11 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShoppingCart, Star, Users, ChefHat } from "lucide-react";
+import {
+  ShoppingCart,
+  Star,
+  Users,
+  ChefHat,
+  MapPin,
+  ArrowRight,
+} from "lucide-react";
 import { getMenus } from "../services/menuServices";
 import { getLocations } from "../services/locationServices";
 import { getServices } from "../services/serviceServices";
 import Loading from "../components/Loading";
-import MenuFilters from "../components/frontend/MenuFilters";
 import MenuSelectionModal from "../components/frontend/MenuSelectionModal";
 import CustomOrderModal from "../components/frontend/CustomOrderModel";
 import OrderConfirmationModal from "../components/frontend/OrderConfirmationModal";
@@ -24,35 +30,73 @@ const Menu = () => {
   const [selectedService, setSelectedService] = useState("");
   const [sortBy, setSortBy] = useState("default");
   const [loading, setLoading] = useState(true);
+  const [loadingMenus, setLoadingMenus] = useState(false);
   const navigate = useNavigate();
 
+  // Load initial data (locations and services ONLY - NO MENUS)
   useEffect(() => {
-    const loadData = async () => {
+    const loadInitialData = async () => {
       setLoading(true);
       try {
-        const [menusResult, locationsResult, servicesResult] =
-          await Promise.all([
-            getMenus({ isActive: true }),
-            getLocations(),
-            getServices(),
-          ]);
+        const [locationsResult, servicesResult] = await Promise.all([
+          getLocations(),
+          getServices(),
+        ]);
 
-        if (menusResult.success) setMenus(menusResult.data);
         if (locationsResult.success) setLocations(locationsResult.data);
         if (servicesResult.success) setServices(servicesResult.data);
+
+        // IMPORTANT: Do NOT load menus here - wait for location selection
+        setMenus([]); // Explicitly set menus to empty array
       } catch (error) {
-        console.error("Error loading menu data:", error);
+        console.error("Error loading initial data:", error);
       } finally {
         setLoading(false);
       }
     };
-    loadData();
+    loadInitialData();
   }, []);
+
+  // Load menus when location is selected
+  useEffect(() => {
+    const loadMenusForLocation = async () => {
+      if (!selectedLocation) {
+        setMenus([]);
+        return;
+      }
+
+      setLoadingMenus(true);
+      try {
+        const menusResult = await getMenus({
+          isActive: true,
+          locationId: selectedLocation,
+        });
+
+        if (menusResult.success) {
+          setMenus(menusResult.data);
+        } else {
+          setMenus([]);
+        }
+      } catch (error) {
+        console.error("Error loading menus for location:", error);
+        setMenus([]);
+      } finally {
+        setLoadingMenus(false);
+      }
+    };
+
+    loadMenusForLocation();
+  }, [selectedLocation]);
+
+  const handleLocationSelect = (locationId) => {
+    setSelectedLocation(locationId);
+    setSelectedService(""); // Reset service when location changes
+  };
 
   const handleProceedToConfirmation = (orderData) => {
     setOrderForConfirmation(orderData);
     setSelectedMenu(null);
-    setShowCustomOrderModal(false); // Close custom order modal
+    setShowCustomOrderModal(false);
   };
 
   const closeConfirmationModal = () => {
@@ -61,16 +105,15 @@ const Menu = () => {
 
   const handleBackFromConfirmation = () => {
     if (orderForConfirmation?.isCustomOrder) {
-      // If coming from custom order, go back to custom order modal
       setShowCustomOrderModal(true);
       setOrderForConfirmation(null);
     } else {
-      // If coming from regular menu, go back to menu selection
       setSelectedMenu(orderForConfirmation?.menu || null);
       setOrderForConfirmation(null);
     }
   };
 
+  // Filter services based on selected location
   const filteredServices = selectedLocation
     ? services.filter(
         (service) =>
@@ -78,25 +121,9 @@ const Menu = () => {
       )
     : [];
 
-  useEffect(() => {
-    if (selectedLocation && selectedService) {
-      const serviceExists = filteredServices.some(
-        (s) => s._id === selectedService
-      );
-      if (!serviceExists) {
-        setSelectedService("");
-      }
-    }
-  }, [selectedLocation, selectedService, filteredServices]);
-
+  // Filter menus based on selected service
   const getFilteredAndSortedMenus = () => {
     let filtered = [...menus];
-
-    if (selectedLocation) {
-      filtered = filtered.filter(
-        (menu) => (menu.locationId?._id || menu.locationId) === selectedLocation
-      );
-    }
 
     if (selectedService) {
       filtered = filtered.filter(
@@ -160,7 +187,7 @@ const Menu = () => {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
       >
-        <Loading message="Loading delicious menus..." size="large" />
+        <Loading message="Loading locations..." size="large" />
       </motion.div>
     );
   }
@@ -245,153 +272,338 @@ const Menu = () => {
               }}
               whileTap={{ scale: 0.95 }}
             >
-              EXPLORE OUR OFFERINGS
+              CREATE CUSTOM ORDER
             </motion.button>
           </motion.div>
         </div>
       </motion.section>
 
-      {/* Filters Section */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.3 }}
-      >
-        <MenuFilters
-          locations={locations}
-          services={services}
-          selectedLocation={selectedLocation}
-          setSelectedLocation={setSelectedLocation}
-          selectedService={selectedService}
-          setSelectedService={setSelectedService}
-          sortBy={sortBy}
-          setSortBy={setSortBy}
-          filteredServices={filteredServices}
-          menuCount={filteredMenus.length}
-        />
-      </motion.div>
-
-      {/* Menu Cards Section */}
-      <motion.section
-        className="py-16 bg-gray-50"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.6, delay: 0.5 }}
-      >
-        <div className="container mx-auto px-6">
-          <AnimatePresence mode="wait">
-            {filteredMenus.length === 0 ? (
-              <motion.div
-                key="no-menus"
-                className="text-center py-20"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ duration: 0.5 }}
+      {/* Location Selection Section */}
+      {!selectedLocation && (
+        <motion.section
+          className="py-16 bg-gray-50"
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+        >
+          <div className="container mx-auto px-6">
+            <motion.div
+              className="text-center mb-12"
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+            >
+              <h2
+                className="text-3xl md:text-4xl font-bold mb-4"
+                style={{ color: "var(--primary-brown)" }}
               >
-                <motion.div
-                  className="bg-white rounded-lg p-12 max-w-md mx-auto shadow-sm"
-                  whileHover={{ y: -5 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <motion.div
-                    className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6"
-                    style={{ backgroundColor: "var(--primary-green)" }}
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                  >
-                    <ShoppingCart className="w-8 h-8 text-white" />
-                  </motion.div>
-                  <motion.h3
-                    className="text-2xl font-bold mb-4"
-                    style={{ color: "var(--primary-brown)" }}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4 }}
-                  >
-                    No Menus Found
-                  </motion.h3>
-                  <motion.p
-                    className="text-gray-600 mb-6"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.6 }}
-                  >
-                    Try adjusting your filters or create a custom menu instead.
-                  </motion.p>
-                  <motion.button
-                    onClick={() => setShowCustomOrderModal(true)}
-                    className="px-6 py-3 text-white rounded-lg font-semibold transition-colors"
-                    style={{ backgroundColor: "#FF6B35" }}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.8 }}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    Create Custom Menu
-                  </motion.button>
-                </motion.div>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="menus-grid"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.5 }}
-              >
-                {/* Section Header */}
-                <motion.div
-                  className="text-center mb-12"
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6 }}
-                >
-                  <h2
-                    className="text-3xl md:text-4xl font-bold mb-4"
-                    style={{ color: "var(--primary-brown)" }}
-                  >
-                    Choose Your Perfect Menu
-                  </h2>
-                  <motion.p
-                    className="text-gray-600 max-w-2xl mx-auto"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.2 }}
-                  >
-                    Each package is carefully designed to provide an authentic
-                    Nepalese dining experience
-                  </motion.p>
-                </motion.div>
+                Choose Your Location
+              </h2>
+              <p className="text-gray-600 max-w-2xl mx-auto">
+                Select your preferred location to see available menu packages
+              </p>
+            </motion.div>
 
-                {/* Menu Grid */}
+            {/* --- MODIFIED CONTAINER --- */}
+            <motion.div
+              className="flex flex-wrap justify-center items-center gap-8 max-w-5xl mx-auto"
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+            >
+              {locations.map((location, index) => (
                 <motion.div
-                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
-                  variants={containerVariants}
-                  initial="hidden"
-                  animate="visible"
+                  key={location._id}
+                  variants={itemVariants}
+                  transition={{ delay: index * 0.1 }}
+                  // Added a fixed width to cards for better consistency in a flex layout
+                  className="bg-white rounded-lg shadow-md p-6 cursor-pointer hover:shadow-lg transition-all duration-300 w-full sm:w-80"
+                  onClick={() => handleLocationSelect(location._id)}
+                  whileHover={{ y: -5, scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                 >
-                  {filteredMenus.map((menu, index) => (
+                  <div className="text-center">
                     <motion.div
-                      key={menu._id}
-                      variants={itemVariants}
-                      transition={{ delay: index * 0.1 }}
-                      layout
+                      className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+                      style={{ backgroundColor: "var(--primary-green)" }}
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{
+                        delay: index * 0.2,
+                        type: "spring",
+                        stiffness: 200,
+                      }}
                     >
-                      <MenuCard
-                        menu={menu}
-                        onClick={() => setSelectedMenu(menu)}
-                      />
+                      <MapPin className="w-8 h-8 text-white" />
                     </motion.div>
-                  ))}
+                    <h3
+                      className="text-xl font-bold mb-2"
+                      style={{ color: "var(--primary-brown)" }}
+                    >
+                      {location.name}
+                    </h3>
+                    <p className="text-gray-600 text-sm mb-4">
+                      {location.city}, {location.state}
+                    </p>
+                    <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+                      <span>View Menus</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </div>
+                  </div>
                 </motion.div>
+              ))}
+            </motion.div>
+          </div>
+        </motion.section>
+      )}
+
+      {/* Selected Location Info & Service/Menu Filters */}
+      {selectedLocation && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="bg-gray-50 py-8"
+        >
+          <div className="container mx-auto px-6">
+            {/* Selected Location Display */}
+            <motion.div
+              className="flex items-center justify-between mb-8"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <div className="flex items-center gap-4">
+                <div
+                  className="w-12 h-12 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: "var(--primary-green)" }}
+                >
+                  <MapPin className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3
+                    className="text-xl font-bold"
+                    style={{ color: "var(--primary-brown)" }}
+                  >
+                    {
+                      locations.find((loc) => loc._id === selectedLocation)
+                        ?.name
+                    }
+                  </h3>
+                  <p className="text-gray-600">
+                    {
+                      locations.find((loc) => loc._id === selectedLocation)
+                        ?.city
+                    }
+                    ,{" "}
+                    {
+                      locations.find((loc) => loc._id === selectedLocation)
+                        ?.state
+                    }
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  setSelectedLocation("");
+                  setSelectedService("");
+                  setMenus([]);
+                }}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium transition-colors"
+              >
+                Change Location
+              </button>
+            </motion.div>
+
+            {/* Service Filter and Sort Options */}
+            {filteredServices.length > 0 && (
+              <motion.div
+                className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between mb-8"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+              >
+                <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Service Type
+                    </label>
+                    <select
+                      value={selectedService}
+                      onChange={(e) => setSelectedService(e.target.value)}
+                      className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">All Services</option>
+                      {filteredServices.map((service) => (
+                        <option key={service._id} value={service._id}>
+                          {service.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Sort By
+                    </label>
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value)}
+                      className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="default">Default</option>
+                      <option value="price-low">Price: Low to High</option>
+                      <option value="price-high">Price: High to Low</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="text-sm text-gray-600">
+                  {filteredMenus.length} menu
+                  {filteredMenus.length !== 1 ? "s" : ""} found
+                </div>
               </motion.div>
             )}
-          </AnimatePresence>
-        </div>
-      </motion.section>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Menu Cards Section */}
+      {selectedLocation && (
+        <motion.section
+          className="py-16 bg-white"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+        >
+          <div className="container mx-auto px-6">
+            {loadingMenus ? (
+              <div className="text-center py-20">
+                <Loading message="Loading menus..." size="medium" />
+              </div>
+            ) : (
+              <AnimatePresence mode="wait">
+                {filteredMenus.length === 0 ? (
+                  <motion.div
+                    key="no-menus"
+                    className="text-center py-20"
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ duration: 0.5 }}
+                  >
+                    <motion.div
+                      className="bg-gray-50 rounded-lg p-12 max-w-md mx-auto"
+                      whileHover={{ y: -5 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <motion.div
+                        className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6"
+                        style={{ backgroundColor: "var(--primary-green)" }}
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{
+                          delay: 0.2,
+                          type: "spring",
+                          stiffness: 200,
+                        }}
+                      >
+                        <ShoppingCart className="w-8 h-8 text-white" />
+                      </motion.div>
+                      <motion.h3
+                        className="text-2xl font-bold mb-4"
+                        style={{ color: "var(--primary-brown)" }}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.4 }}
+                      >
+                        No Menus Available
+                      </motion.h3>
+                      <motion.p
+                        className="text-gray-600 mb-6"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.6 }}
+                      >
+                        {selectedService
+                          ? "No menus found for the selected service. Try a different service or create a custom order."
+                          : "No menus available for this location yet. Create a custom order instead."}
+                      </motion.p>
+                      <motion.button
+                        onClick={() => setShowCustomOrderModal(true)}
+                        className="px-6 py-3 text-white rounded-lg font-semibold transition-colors"
+                        style={{ backgroundColor: "#FF6B35" }}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.8 }}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        Create Custom Order
+                      </motion.button>
+                    </motion.div>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="menus-grid"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.5 }}
+                  >
+                    {/* Section Header */}
+                    <motion.div
+                      className="text-center mb-12"
+                      initial={{ opacity: 0, y: 30 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.6 }}
+                    >
+                      <h2
+                        className="text-3xl md:text-4xl font-bold mb-4"
+                        style={{ color: "var(--primary-brown)" }}
+                      >
+                        Available Menu Packages
+                      </h2>
+                      <motion.p
+                        className="text-gray-600 max-w-2xl mx-auto"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.2 }}
+                      >
+                        Choose from our carefully curated menu packages for your
+                        event
+                      </motion.p>
+                    </motion.div>
+
+                    {/* Menu Grid */}
+                    <motion.div
+                      className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+                      variants={containerVariants}
+                      initial="hidden"
+                      animate="visible"
+                    >
+                      {filteredMenus.map((menu, index) => (
+                        <motion.div
+                          key={menu._id}
+                          variants={itemVariants}
+                          transition={{ delay: index * 0.1 }}
+                          layout
+                        >
+                          <MenuCard
+                            menu={menu}
+                            onClick={() => setSelectedMenu(menu)}
+                          />
+                        </motion.div>
+                      ))}
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            )}
+          </div>
+        </motion.section>
+      )}
 
       {/* Why Choose Us Section */}
       <motion.section
@@ -508,7 +720,7 @@ const Menu = () => {
             <motion.button
               onClick={() => {
                 navigate("/inquiry");
-                scrollTo(0, 0);
+                window.scrollTo(0, 0);
               }}
               className="px-8 py-4 bg-white font-bold text-lg rounded-lg shadow-lg transition-all duration-300"
               style={{ color: "var(--primary-green)" }}
@@ -549,6 +761,7 @@ const Menu = () => {
             menus={menus}
             onClose={() => setShowCustomOrderModal(false)}
             onProceedToConfirmation={handleProceedToConfirmation}
+            selectedLocationId={selectedLocation} // Pass selected location to custom order
           />
         )}
       </AnimatePresence>

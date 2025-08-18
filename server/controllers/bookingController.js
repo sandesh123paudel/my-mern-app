@@ -1,6 +1,15 @@
 const mongoose = require("mongoose");
 const Menu = require("../models/menusModel.js");
 const Booking = require("../models/bookingModel.js");
+const Location = require("../models/locationModel.js"); // Add this import
+const {
+  sendAdminBookingNotification,
+  sendCustomerBookingConfirmation,
+} = require("../utils/sendMail.js");
+const {
+  sendCustomerBookingSMS,
+  sendAdminBookingSMS,
+} = require("../utils/sendBookingSMS.js");
 
 // Helper function to send response
 const sendResponse = (res, statusCode, success, message, data = null) => {
@@ -196,12 +205,64 @@ const createBooking = asyncHandler(async (req, res) => {
 
     console.log("Booking saved successfully:", savedBooking.bookingReference);
 
+    // Get location with bank details for customer email
+    let locationWithBankDetails = null;
+    try {
+      const fullLocation = await Location.findById(location._id);
+      if (fullLocation && fullLocation.hasBankDetails()) {
+        locationWithBankDetails = fullLocation.formattedBankDetails;
+      }
+    } catch (error) {
+      console.warn("Could not fetch location bank details:", error.message);
+    }
+
+    // Send email notifications (don't wait for them to complete)
+    Promise.all([
+      sendAdminBookingNotification(savedBooking.toObject()),
+      sendCustomerBookingConfirmation(
+        savedBooking.toObject(),
+        locationWithBankDetails
+      ),
+    ])
+      .then((results) => {
+        console.log("📧 Booking email notifications sent:", {
+          admin: results[0].success
+            ? "✅ Success"
+            : `❌ Failed: ${results[0].error}`,
+          customer: results[1].success
+            ? "✅ Success"
+            : `❌ Failed: ${results[1].error}`,
+        });
+      })
+      .catch((error) => {
+        console.error("❌ Booking email notification error:", error);
+      });
+
+    // Send SMS notifications (don't wait for them to complete)
+    Promise.all([
+      sendAdminBookingSMS(savedBooking.toObject()),
+      sendCustomerBookingSMS(savedBooking.toObject()),
+    ])
+      .then((results) => {
+        console.log("📱 Booking SMS notifications sent:", {
+          admin: results[0].success
+            ? "✅ Success"
+            : `❌ Failed: ${results[0].error}`,
+          customer: results[1].success
+            ? "✅ Success"
+            : `❌ Failed: ${results[1].error}`,
+        });
+      })
+      .catch((error) => {
+        console.error("❌ Booking SMS notification error:", error);
+      });
+
     // Return booking reference for customer
     sendResponse(res, 201, true, "Booking created successfully", {
       bookingReference: savedBooking.bookingReference,
       message: isCustomOrder
-        ? "Your custom order has been submitted successfully. You will receive a confirmation email shortly."
-        : "Your booking has been submitted successfully. You will receive a confirmation email shortly.",
+        ? "Your custom order has been submitted successfully. You will receive a confirmation email and SMS shortly."
+        : "Your booking has been submitted successfully. You will receive a confirmation email and SMS shortly.",
     });
   } catch (error) {
     console.error("Create booking error:", error);
@@ -225,6 +286,7 @@ const createBooking = asyncHandler(async (req, res) => {
     });
   }
 });
+
 // @desc    Get all bookings for admin dashboard
 // @route   GET /api/bookings
 // @access  Private (Admin only)
@@ -337,9 +399,7 @@ const getAllBookings = asyncHandler(async (req, res) => {
   }
 });
 
-// @desc    Get booking by ID
-// @route   GET /api/bookings/:id
-// @access  Private (Admin only)
+// Rest of the controller methods remain the same...
 const getBookingById = asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
@@ -364,9 +424,6 @@ const getBookingById = asyncHandler(async (req, res) => {
   }
 });
 
-// @desc    Update booking status (Admin only)
-// @route   PATCH /api/bookings/:id/status
-// @access  Private (Admin only)
 const updateBookingStatus = asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
@@ -414,9 +471,6 @@ const updateBookingStatus = asyncHandler(async (req, res) => {
   }
 });
 
-// @desc    Update booking payment status (Admin only)
-// @route   PATCH /api/bookings/:id/payment
-// @access  Private (Admin only)
 const updatePaymentStatus = asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
@@ -458,9 +512,6 @@ const updatePaymentStatus = asyncHandler(async (req, res) => {
   }
 });
 
-// @desc    Update booking details (Admin only)
-// @route   PUT /api/bookings/:id
-// @access  Private (Admin only)
 const updateBooking = asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
@@ -522,9 +573,6 @@ const updateBooking = asyncHandler(async (req, res) => {
   }
 });
 
-// @desc    Get booking statistics for admin dashboard
-// @route   GET /api/bookings/stats
-// @access  Private (Admin only)
 const getBookingStats = asyncHandler(async (req, res) => {
   try {
     const {
@@ -598,20 +646,20 @@ const getBookingStats = asyncHandler(async (req, res) => {
               initialValue: {},
               in: {
                 $mergeObjects: [
-                  "$$value",
+                  "$value",
                   {
                     $arrayToObject: [
                       [
                         {
-                          k: "$$this",
+                          k: "$this",
                           v: {
                             $add: [
                               {
                                 $ifNull: [
                                   {
                                     $getField: {
-                                      field: "$$this",
-                                      input: "$$value",
+                                      field: "$this",
+                                      input: "$value",
                                     },
                                   },
                                   0,
@@ -672,9 +720,6 @@ const getBookingStats = asyncHandler(async (req, res) => {
   }
 });
 
-// @desc    Cancel booking (Admin only)
-// @route   DELETE /api/bookings/:id
-// @access  Private (Admin only)
 const cancelBooking = asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;

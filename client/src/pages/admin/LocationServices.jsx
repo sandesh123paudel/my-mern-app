@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Building } from "lucide-react";
+import { Building, CreditCard } from "lucide-react";
 import toast from "react-hot-toast";
 
 // Adjust path as needed
@@ -38,6 +38,7 @@ const LocationServices = () => {
       phone: "",
       email: "",
     },
+    bankDetails: null, // Will be initialized when needed
     isActive: true,
   });
 
@@ -95,6 +96,7 @@ const LocationServices = () => {
         phone: "",
         email: "",
       },
+      bankDetails: null,
       isActive: true,
     });
   };
@@ -115,20 +117,81 @@ const LocationServices = () => {
         phone: location.contactInfo?.phone || "",
         email: location.contactInfo?.email || "",
       },
+      bankDetails: location.bankDetails ? {
+        bankName: location.bankDetails.bankName || "",
+        accountName: location.bankDetails.accountName || "",
+        bsb: location.bankDetails.bsb || "",
+        accountNumber: location.bankDetails.accountNumber || "",
+        reference: location.bankDetails.reference || "",
+        isActive: location.bankDetails.isActive !== undefined ? location.bankDetails.isActive : true,
+      } : null,
       isActive: location.isActive,
     });
     setShowLocationForm(true);
   };
 
+  const validateLocationForm = () => {
+    if (!locationForm.name.trim()) {
+      toast.error("Location name is required");
+      return false;
+    }
+
+    if (!locationForm.city.trim()) {
+      toast.error("City is required");
+      return false;
+    }
+
+    // Validate bank details if provided
+    if (locationForm.bankDetails) {
+      const { bankName, accountName, bsb, accountNumber } = locationForm.bankDetails;
+      
+      // If any bank detail is provided, all required fields must be filled
+      if (bankName || accountName || bsb || accountNumber) {
+        if (!bankName) {
+          toast.error("Bank name is required when bank details are provided");
+          return false;
+        }
+        if (!accountName) {
+          toast.error("Account name is required when bank details are provided");
+          return false;
+        }
+        if (!bsb || !/^\d{6}$/.test(bsb)) {
+          toast.error("BSB must be exactly 6 digits");
+          return false;
+        }
+        if (!accountNumber || !/^\d{6,10}$/.test(accountNumber)) {
+          toast.error("Account number must be 6-10 digits");
+          return false;
+        }
+      }
+    }
+
+    return true;
+  };
+
   const handleSaveLocation = async () => {
+    if (!validateLocationForm()) {
+      return;
+    }
+
     setLoading(true);
 
     try {
+      // Clean up bank details - remove if all fields are empty
+      let formData = { ...locationForm };
+      
+      if (formData.bankDetails) {
+        const { bankName, accountName, bsb, accountNumber } = formData.bankDetails;
+        if (!bankName && !accountName && !bsb && !accountNumber) {
+          formData.bankDetails = null;
+        }
+      }
+
       let result;
       if (editingLocation) {
-        result = await updateLocation(editingLocation._id, locationForm);
+        result = await updateLocation(editingLocation._id, formData);
       } else {
-        result = await createLocation(locationForm);
+        result = await createLocation(formData);
       }
 
       if (result.success) {
@@ -142,29 +205,37 @@ const LocationServices = () => {
         setEditingLocation(null);
         resetLocationForm();
       } else {
-        toast.error(result.error || "Failed to save location");
+        if (result.errors && Array.isArray(result.errors)) {
+          result.errors.forEach(error => toast.error(error));
+        } else {
+          toast.error(result.error || "Failed to save location");
+        }
       }
     } catch (err) {
       toast.error("Failed to save location");
+      console.error("Save location error:", err);
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeleteLocation = async (locationId) => {
-    // Check if location has services
-    const hasServices = services.some(
-      (service) => service.locationId === locationId
+    // Check if location has active services
+    const hasActiveServices = services.some(
+      (service) => {
+        const serviceLocationId = service.locationId?._id || service.locationId;
+        return serviceLocationId === locationId && service.isActive;
+      }
     );
 
-    if (hasServices) {
+    if (hasActiveServices) {
       toast.error(
-        "Cannot delete location that has services. Please delete or reassign services first."
+        "Cannot delete location that has active services. Please deactivate or delete services first."
       );
       return;
     }
 
-    if (window.confirm("Are you sure you want to delete this location?")) {
+    if (window.confirm("Are you sure you want to delete this location? This action cannot be undone.")) {
       setLoading(true);
 
       try {
@@ -177,6 +248,7 @@ const LocationServices = () => {
         }
       } catch (err) {
         toast.error("Failed to delete location");
+        console.error("Delete location error:", err);
       } finally {
         setLoading(false);
       }
@@ -221,6 +293,16 @@ const LocationServices = () => {
   };
 
   const handleSaveService = async () => {
+    if (!serviceForm.name.trim()) {
+      toast.error("Service name is required");
+      return;
+    }
+
+    if (!serviceForm.locationId) {
+      toast.error("Please select a location for this service");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -242,10 +324,15 @@ const LocationServices = () => {
         setEditingService(null);
         resetServiceForm();
       } else {
-        toast.error(result.error || "Failed to save service");
+        if (result.errors && Array.isArray(result.errors)) {
+          result.errors.forEach(error => toast.error(error));
+        } else {
+          toast.error(result.error || "Failed to save service");
+        }
       }
     } catch (err) {
       toast.error("Failed to save service");
+      console.error("Save service error:", err);
     } finally {
       setLoading(false);
     }
@@ -269,6 +356,7 @@ const LocationServices = () => {
         }
       } catch (err) {
         toast.error("Failed to delete service");
+        console.error("Delete service error:", err);
       } finally {
         setLoading(false);
       }
@@ -281,7 +369,20 @@ const LocationServices = () => {
     resetServiceForm();
   };
 
-  if (loading) {
+  // Calculate statistics
+  const locationsWithBankDetails = locations.filter(location => 
+    location.bankDetails && 
+    location.bankDetails.bankName && 
+    location.bankDetails.accountName && 
+    location.bankDetails.bsb && 
+    location.bankDetails.accountNumber &&
+    location.bankDetails.isActive
+  ).length;
+
+  const activeLocations = locations.filter(location => location.isActive).length;
+  const activeServices = services.filter(service => service.isActive).length;
+
+  if (loading && locations.length === 0) {
     return (
       <InlineLoading message="Loading location & services..." size="large" />
     );
@@ -293,10 +394,52 @@ const LocationServices = () => {
         <h1 className="text-3xl font-bold mb-2">
           Location & Service Management
         </h1>
-        <p>
-          Manage your business locations and the services offered at each
-          location
+        <p className="text-gray-600">
+          Manage your business locations and the services offered at each location
         </p>
+        
+        {/* Statistics */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-center gap-2">
+              <Building className="text-blue-600" size={20} />
+              <div>
+                <p className="text-sm text-blue-600 font-medium">Total Locations</p>
+                <p className="text-2xl font-bold text-blue-800">{locations.length}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="flex items-center gap-2">
+              <Building className="text-green-600" size={20} />
+              <div>
+                <p className="text-sm text-green-600 font-medium">Active Locations</p>
+                <p className="text-2xl font-bold text-green-800">{activeLocations}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+            <div className="flex items-center gap-2">
+              <CreditCard className="text-purple-600" size={20} />
+              <div>
+                <p className="text-sm text-purple-600 font-medium">With Bank Details</p>
+                <p className="text-2xl font-bold text-purple-800">{locationsWithBankDetails}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-5 bg-orange-600 rounded"></div>
+              <div>
+                <p className="text-sm text-orange-600 font-medium">Active Services</p>
+                <p className="text-2xl font-bold text-orange-800">{activeServices}</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Tabs */}
