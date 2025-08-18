@@ -301,6 +301,14 @@ const sendAdminBookingNotification = async (bookingData) => {
         ? formatAddress(bookingData.address)
         : "";
 
+    // Format delivery address section
+    const deliveryAddressSection = deliveryAddress
+      ? `<div class="detail-row">
+           <span class="detail-label">Delivery Address:</span>
+           <span class="detail-value">${deliveryAddress}</span>
+         </div>`
+      : "";
+
     // Format selected items HTML
     let selectedItemsHtml = "";
     if (bookingData.selectedItems && bookingData.selectedItems.length > 0) {
@@ -309,8 +317,46 @@ const sendAdminBookingNotification = async (bookingData) => {
         .join("");
     }
 
-    // Format total amount properly
-    const totalAmount = formatCurrency(bookingData.pricing?.total || 0);
+    const selectedItemsSection = selectedItemsHtml
+      ? `<div class="items-section">
+           <div class="items-title">Selected Items:</div>
+           <ul class="item-list">${selectedItemsHtml}</ul>
+         </div>`
+      : "";
+
+    // Format special instructions
+    const specialInstructionsSection = bookingData.customerDetails
+      ?.specialInstructions
+      ? `<div class="message-section">
+           <div class="message-label">Special Instructions:</div>
+           <div>${bookingData.customerDetails.specialInstructions}</div>
+         </div>`
+      : "";
+
+    // Format dietary requirements
+    let dietaryHtml = "";
+    if (bookingData.customerDetails?.dietaryRequirements?.length > 0) {
+      dietaryHtml = bookingData.customerDetails.dietaryRequirements
+        .map(
+          (req) =>
+            `<li>${
+              req.charAt(0).toUpperCase() + req.slice(1).replace("-", " ")
+            }</li>`
+        )
+        .join("");
+    }
+
+    const dietarySection = dietaryHtml
+      ? `<div class="items-section">
+           <div class="items-title">Dietary Requirements:</div>
+           <ul class="item-list">${dietaryHtml}</ul>
+         </div>`
+      : "";
+
+    // Custom order badge
+    const customOrderBadge = bookingData.isCustomOrder
+      ? '<span class="custom-order-badge">Custom</span>'
+      : "";
 
     // Prepare template data
     const templateData = {
@@ -328,36 +374,39 @@ const sendAdminBookingNotification = async (bookingData) => {
       locationName: bookingData.menu?.locationName || "N/A",
       deliveryType: bookingData.deliveryType || "N/A",
       deliveryAddress: deliveryAddress,
-      totalAmount: totalAmount,
+      deliveryAddressSection: deliveryAddressSection,
+      totalAmount: formatCurrency(bookingData.pricing?.total || 0),
       submittedAt: submittedAt,
       specialInstructions:
         bookingData.customerDetails?.specialInstructions || "",
+      specialInstructionsSection: specialInstructionsSection,
       selectedItemsHtml: selectedItemsHtml,
-      selectedItems:
-        bookingData.selectedItems && bookingData.selectedItems.length > 0,
+      selectedItemsSection: selectedItemsSection,
+      dietarySection: dietarySection,
+      customOrderBadge: customOrderBadge,
       adminDashboardUrl:
-        process.env.ADMIN_DASHBOARD_URL || "https://www.mulchowkkitchen.com.au",
+        process.env.ADMIN_DASHBOARD_URL || "https://www.example.com",
     };
 
-    // Process conditionals first
-    let emailContent = processConditionals(
-      ADMIN_BOOKING_NOTIFICATION_TEMPLATE,
-      templateData
-    );
+    // Process the template
+    let emailContent = ADMIN_BOOKING_NOTIFICATION_TEMPLATE;
 
     // Replace all template variables
     Object.keys(templateData).forEach((key) => {
       const regex = new RegExp(`\\{\\{${key}\\}\\}`, "g");
-      emailContent = emailContent.replace(regex, templateData[key] || "");
+      emailContent = emailContent.replace(regex, templateData[key]);
     });
+
+    // Remove any remaining unmatched template tags
+    emailContent = emailContent.replace(/\{\{[^}]+\}\}/g, "");
 
     const mailOptions = {
       from: {
-        name: process.env.COMPANY_NAME || "MC Catering Services",
+        name: process.env.COMPANY_NAME || "Your Company",
         address: process.env.EMAIL,
       },
       to: process.env.ADMIN_EMAIL,
-      subject: `🎉 New Booking: ${bookingData.bookingReference} - $${totalAmount}`,
+      subject: `🎉 New Booking: ${bookingData.bookingReference} - $${templateData.totalAmount}`,
       html: emailContent,
       priority: eventDateUrgency === "urgent" ? "high" : "normal",
     };
@@ -381,7 +430,6 @@ const sendAdminBookingNotification = async (bookingData) => {
     };
   }
 };
-
 // Updated sendCustomerBookingConfirmation function
 const sendCustomerBookingConfirmation = async (
   bookingData,

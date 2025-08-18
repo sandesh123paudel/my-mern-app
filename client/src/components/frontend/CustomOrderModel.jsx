@@ -261,8 +261,11 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
       errors.push("Please select a service type");
     }
 
-    if (getAllSelectedItems().length === 0) {
+    const selectedItemsCount = getAllSelectedItems().length;
+    if (selectedItemsCount === 0) {
       errors.push("Please select at least one item for your custom order");
+    } else if (selectedItemsCount < 5) {
+      errors.push("Please select at least 5 items for your custom order");
     }
 
     return errors;
@@ -561,6 +564,12 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
       <div className="bg-white rounded-lg p-4 border border-gray-200">
         <h4 className="font-medium text-gray-900 mb-3">Order Summary</h4>
 
+        {selectedItems.length > 0 && selectedItems.length < 5 && (
+          <div className="text-xs text-red-500 mb-2">
+            Minimum 5 items required ({selectedItems.length}/5 selected)
+          </div>
+        )}
+
         <div className="space-y-2 text-sm">
           {selectedItems.length > 0 ? (
             <>
@@ -826,8 +835,13 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
             {/* Selected Items Summary */}
             <div className="mb-4 bg-gray-50 rounded-lg p-3">
               <h4 className="text-sm font-medium text-gray-700 mb-2">
-                Selected Items ({getAllSelectedItems().length}):
+                Selected Items ({getAllSelectedItems().length}/5 minimum):
               </h4>
+              {getAllSelectedItems().length < 5 && (
+                <p className="text-xs text-red-500 mb-2">
+                  Select {5 - getAllSelectedItems().length} more items
+                </p>
+              )}
               <div className="max-h-32 overflow-y-auto">
                 {getAllSelectedItems().length === 0 ? (
                   <p className="text-sm text-gray-500">No items selected yet</p>
@@ -863,13 +877,13 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
             {/* Continue Button */}
             <motion.button
               whileHover={{
-                scale: getAllSelectedItems().length === 0 || !selectedLocation || !selectedService ? 1 : 1.02,
+                scale: getAllSelectedItems().length < 5 || !selectedLocation || !selectedService ? 1 : 1.02,
               }}
               whileTap={{
-                scale: getAllSelectedItems().length === 0 || !selectedLocation || !selectedService ? 1 : 0.98,
+                scale: getAllSelectedItems().length < 5 || !selectedLocation || !selectedService ? 1 : 0.98,
               }}
               onClick={handlePlaceOrder}
-              disabled={getAllSelectedItems().length === 0 || !selectedLocation || !selectedService}
+              disabled={getAllSelectedItems().length < 5 || !selectedLocation || !selectedService}
               className="w-full bg-red-600 disabled:bg-gray-400 text-white py-3 rounded-lg font-semibold hover:bg-red-700 disabled:hover:bg-gray-400 transition-colors flex items-center justify-center gap-2"
             >
               <ShoppingCart size={18} />
