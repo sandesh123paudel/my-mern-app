@@ -1,12 +1,12 @@
-import express from "express";
-import {
+const express = require("express");
+const {
   createLocation,
   deleteLocation,
   getLocationById,
   getLocations,
   updateLocation,
-} from "../controllers/locationController.js";
-import userAuth from "../middlewares/auth.js";
+} = require("../controllers/locationController.js");
+const userAuth = require("../middlewares/auth.js");
 const locationRouter = express.Router();
 
 locationRouter.get("/", getLocations); // Get all locations
@@ -15,4 +15,4 @@ locationRouter.post("/", userAuth, createLocation); // POST create location
 locationRouter.put("/:id", userAuth, updateLocation); // PUT update location
 locationRouter.delete("/:id", userAuth, deleteLocation); // DELETE location (soft delete - set isActive to false)
 
-export default locationRouter;
+module.exports = locationRouter;

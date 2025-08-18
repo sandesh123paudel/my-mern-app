@@ -1,17 +1,8 @@
-import express from "express";
-import {
-  createBooking,
-  getAllBookings,
-  getBookingById,
-  updateBookingStatus,
-  updatePaymentStatus,
-  updateBooking,
-  getBookingStats,
-  cancelBooking,
-} from "../controllers/bookingController.js";
-import { bookingFormValidation } from "../middlewares/validator.js";
-import handleValidationErrors from "../utils/handleValidationErrors.js";
-import userAuth from "../middlewares/auth.js";
+const express = require("express");
+const { createBooking, getAllBookings, getBookingById, updateBookingStatus, updatePaymentStatus, updateBooking, getBookingStats, cancelBooking } = require("../controllers/bookingController.js");
+const { bookingFormValidation } = require("../middlewares/validator.js");
+const handleValidationErrors = require("../utils/handleValidationErrors.js");
+const userAuth = require("../middlewares/auth.js");
 
 const bookingRouter = express.Router();
 
@@ -32,4 +23,4 @@ bookingRouter.patch("/:id/payment", userAuth, updatePaymentStatus);
 bookingRouter.put("/:id", userAuth, updateBooking);
 bookingRouter.delete("/:id", userAuth, cancelBooking);
 
-export default bookingRouter;
+module.exports = bookingRouter;

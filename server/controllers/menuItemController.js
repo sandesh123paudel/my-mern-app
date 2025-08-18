@@ -1,11 +1,11 @@
-import mongoose from "mongoose";
-import Menu from "../models/menusModel.js";
-import MenuItem from "../models/menuItemModel.js";
+const mongoose = require("mongoose");
+const Menu = require("../models/menusModel.js");
+const MenuItem = require("../models/menuItemModel.js");
 
 // @desc    Get all menu items with optional filtering
 // @route   GET /api/menu-items?category=entree&isVegetarian=true
 // @access  Public
-export const getMenuItems = async (req, res) => {
+const getMenuItems = async (req, res) => {
   try {
     const { category, isVegetarian, isVegan } = req.query;
 
@@ -39,7 +39,7 @@ export const getMenuItems = async (req, res) => {
 // @desc    Get a single menu item by ID
 // @route   GET /api/menu-items/:id
 // @access  Public
-export const getMenuItemById = async (req, res) => {
+const getMenuItemById = async (req, res) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -73,7 +73,7 @@ export const getMenuItemById = async (req, res) => {
 // @desc    Create a new menu item (or reactivate an existing one)
 // @route   POST /api/menu-items
 // @access  Private/Admin
-export const createMenuItem = async (req, res) => {
+const createMenuItem = async (req, res) => {
   try {
     const { name } = req.body;
 
@@ -119,7 +119,7 @@ export const createMenuItem = async (req, res) => {
 // @desc    Update a menu item
 // @route   PUT /api/menu-items/:id
 // @access  Private/Admin
-export const updateMenuItem = async (req, res) => {
+const updateMenuItem = async (req, res) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -163,7 +163,7 @@ export const updateMenuItem = async (req, res) => {
 // @desc    Permanently delete a menu item after checking for usage
 // @route   DELETE /api/menu-items/:id
 // @access  Private/Admin
-export const deleteMenuItem = async (req, res) => {
+const deleteMenuItem = async (req, res) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -212,4 +212,12 @@ export const deleteMenuItem = async (req, res) => {
       message: error.message || "Server Error",
     });
   }
+};
+
+module.exports = {
+  getMenuItems,
+  getMenuItemById,
+  createMenuItem,
+  updateMenuItem,
+  deleteMenuItem,
 };

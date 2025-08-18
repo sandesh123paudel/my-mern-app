@@ -1,13 +1,13 @@
-import mongoose from "mongoose";
-import Menu from "../models/menusModel.js";
-import Service from "../models/ServiceModel.js";
-import MenuItem from "../models/menuItemModel.js";
-import Location from "../models/LocationModel.js";
+const mongoose = require("mongoose");
+const Menu = require("../models/menusModel.js");
+const Service = require("../models/ServiceModel.js");
+const MenuItem = require("../models/menuItemModel.js");
+const Location = require("../models/locationModel.js");
 
 // @desc    Get all menus with optional filtering and population
 // @route   GET /api/menus
 // @access  Public
-export const getMenus = async (req, res) => {
+const getMenus = async (req, res) => {
   try {
     const { locationId, serviceId, isActive } = req.query;
 
@@ -60,7 +60,7 @@ export const getMenus = async (req, res) => {
 // @desc    Get a single menu by ID with full population
 // @route   GET /api/menus/:id
 // @access  Public
-export const getMenuById = async (req, res) => {
+const getMenuById = async (req, res) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -131,7 +131,7 @@ export const getMenuById = async (req, res) => {
 // @desc    Create a new menu
 // @route   POST /api/menus
 // @access  Private/Admin
-export const createMenu = async (req, res) => {
+const createMenu = async (req, res) => {
   try {
     const { name, serviceId, locationId, categories } = req.body;
 
@@ -235,7 +235,7 @@ export const createMenu = async (req, res) => {
 // @desc    Update an existing menu
 // @route   PUT /api/menus/:id
 // @access  Private/Admin
-export const updateMenu = async (req, res) => {
+const updateMenu = async (req, res) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -336,7 +336,7 @@ export const updateMenu = async (req, res) => {
 // @desc    Delete a menu (soft delete by setting isActive to false)
 // @route   DELETE /api/menus/:id
 // @access  Private/Admin
-export const deleteMenu = async (req, res) => {
+const deleteMenu = async (req, res) => {
   const { id } = req.params;
 
   // Validate MongoDB ObjectId
@@ -374,7 +374,7 @@ export const deleteMenu = async (req, res) => {
 // @desc    Get menus by service ID
 // @route   GET /api/menus/service/:serviceId
 // @access  Public
-export const getMenusByService = async (req, res) => {
+const getMenusByService = async (req, res) => {
   const { serviceId } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(serviceId)) {
@@ -408,7 +408,7 @@ export const getMenusByService = async (req, res) => {
 // @desc    Get menus by location ID
 // @route   GET /api/menus/location/:locationId
 // @access  Public
-export const getMenusByLocation = async (req, res) => {
+const getMenusByLocation = async (req, res) => {
   const { locationId } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(locationId)) {
@@ -512,4 +512,14 @@ const validateMenuItems = async (categories) => {
       });
     });
   }
+};
+
+module.exports = {
+  getMenus,
+  getMenuById,
+  createMenu,
+  updateMenu,
+  deleteMenu,
+  getMenusByService,
+  getMenusByLocation,
 };

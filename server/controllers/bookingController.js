@@ -1,7 +1,6 @@
-import mongoose from "mongoose";
-import Menu from "../models/menusModel.js";
-import Booking from "../models/bookingModel.js";
-
+const mongoose = require("mongoose");
+const Menu = require("../models/menusModel.js");
+const Booking = require("../models/bookingModel.js");
 
 // Helper function to send response
 const sendResponse = (res, statusCode, success, message, data = null) => {
@@ -21,10 +20,10 @@ const asyncHandler = (fn) => (req, res, next) => {
 // @desc    Create new booking (Public - No auth required)
 // @route   POST /api/bookings
 // @access  Public
-export const createBooking = asyncHandler(async (req, res) => {
+const createBooking = asyncHandler(async (req, res) => {
   try {
     console.log("Received booking request:", JSON.stringify(req.body, null, 2));
-    
+
     const isCustomOrder =
       req.body.isCustomOrder || req.body.menu?.menuId === null;
 
@@ -45,7 +44,12 @@ export const createBooking = asyncHandler(async (req, res) => {
       try {
         location = await Location.findById(req.body.menu.locationId);
         if (!location || !location.isActive) {
-          return sendResponse(res, 404, false, "Location not found or inactive");
+          return sendResponse(
+            res,
+            404,
+            false,
+            "Location not found or inactive"
+          );
         }
       } catch (locationError) {
         console.error("Error finding location:", locationError);
@@ -70,7 +74,12 @@ export const createBooking = asyncHandler(async (req, res) => {
     } else {
       // Regular menu order - existing validation
       if (!req.body.menu?.menuId) {
-        return sendResponse(res, 400, false, "Valid menu ID is required for regular orders");
+        return sendResponse(
+          res,
+          400,
+          false,
+          "Valid menu ID is required for regular orders"
+        );
       }
 
       menu = await Menu.findById(req.body.menu.menuId)
@@ -103,30 +112,32 @@ export const createBooking = asyncHandler(async (req, res) => {
       const year = date.getFullYear().toString().substr(-2);
       const month = String(date.getMonth() + 1).padStart(2, "0");
       const day = String(date.getDate()).padStart(2, "0");
-      
+
       let attempts = 0;
       let reference;
       let isUnique = false;
-      
+
       while (!isUnique && attempts < 10) {
         const random = Math.floor(Math.random() * 1000)
           .toString()
           .padStart(3, "0");
         const prefix = isCustomOrder ? "CU" : "BK";
         reference = `${prefix}${year}${month}${day}${random}`;
-        
+
         // Check if reference already exists
-        const existingBooking = await Booking.findOne({ bookingReference: reference });
+        const existingBooking = await Booking.findOne({
+          bookingReference: reference,
+        });
         if (!existingBooking) {
           isUnique = true;
         }
         attempts++;
       }
-      
+
       if (!isUnique) {
         throw new Error("Could not generate unique booking reference");
       }
-      
+
       return reference;
     };
 
@@ -174,7 +185,10 @@ export const createBooking = asyncHandler(async (req, res) => {
       })),
     };
 
-    console.log("Final booking data being saved:", JSON.stringify(bookingData, null, 2));
+    console.log(
+      "Final booking data being saved:",
+      JSON.stringify(bookingData, null, 2)
+    );
 
     // Create booking
     const booking = new Booking(bookingData);
@@ -191,19 +205,21 @@ export const createBooking = asyncHandler(async (req, res) => {
     });
   } catch (error) {
     console.error("Create booking error:", error);
-    
+
     // Enhanced error handling
-    if (error.name === 'ValidationError') {
-      const errorMessages = Object.values(error.errors).map(err => err.message);
+    if (error.name === "ValidationError") {
+      const errorMessages = Object.values(error.errors).map(
+        (err) => err.message
+      );
       return sendResponse(res, 400, false, "Validation error", {
         errors: errorMessages,
       });
     }
-    
-    if (error.name === 'CastError') {
+
+    if (error.name === "CastError") {
       return sendResponse(res, 400, false, "Invalid ID format provided");
     }
-    
+
     sendResponse(res, 500, false, "Failed to create booking", {
       error: error.message,
     });
@@ -212,7 +228,7 @@ export const createBooking = asyncHandler(async (req, res) => {
 // @desc    Get all bookings for admin dashboard
 // @route   GET /api/bookings
 // @access  Private (Admin only)
-export const getAllBookings = asyncHandler(async (req, res) => {
+const getAllBookings = asyncHandler(async (req, res) => {
   try {
     const {
       page = 1,
@@ -324,7 +340,7 @@ export const getAllBookings = asyncHandler(async (req, res) => {
 // @desc    Get booking by ID
 // @route   GET /api/bookings/:id
 // @access  Private (Admin only)
-export const getBookingById = asyncHandler(async (req, res) => {
+const getBookingById = asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -351,7 +367,7 @@ export const getBookingById = asyncHandler(async (req, res) => {
 // @desc    Update booking status (Admin only)
 // @route   PATCH /api/bookings/:id/status
 // @access  Private (Admin only)
-export const updateBookingStatus = asyncHandler(async (req, res) => {
+const updateBookingStatus = asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
     const { status, adminNotes } = req.body;
@@ -401,7 +417,7 @@ export const updateBookingStatus = asyncHandler(async (req, res) => {
 // @desc    Update booking payment status (Admin only)
 // @route   PATCH /api/bookings/:id/payment
 // @access  Private (Admin only)
-export const updatePaymentStatus = asyncHandler(async (req, res) => {
+const updatePaymentStatus = asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
     const { paymentStatus, depositAmount } = req.body;
@@ -445,7 +461,7 @@ export const updatePaymentStatus = asyncHandler(async (req, res) => {
 // @desc    Update booking details (Admin only)
 // @route   PUT /api/bookings/:id
 // @access  Private (Admin only)
-export const updateBooking = asyncHandler(async (req, res) => {
+const updateBooking = asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -509,7 +525,7 @@ export const updateBooking = asyncHandler(async (req, res) => {
 // @desc    Get booking statistics for admin dashboard
 // @route   GET /api/bookings/stats
 // @access  Private (Admin only)
-export const getBookingStats = asyncHandler(async (req, res) => {
+const getBookingStats = asyncHandler(async (req, res) => {
   try {
     const {
       locationId,
@@ -659,7 +675,7 @@ export const getBookingStats = asyncHandler(async (req, res) => {
 // @desc    Cancel booking (Admin only)
 // @route   DELETE /api/bookings/:id
 // @access  Private (Admin only)
-export const cancelBooking = asyncHandler(async (req, res) => {
+const cancelBooking = asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
     const { reason } = req.body;
@@ -693,7 +709,7 @@ export const cancelBooking = asyncHandler(async (req, res) => {
   }
 });
 
-export default {
+module.exports = {
   createBooking,
   getAllBookings,
   getBookingById,

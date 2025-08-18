@@ -1,13 +1,13 @@
-import express from "express";
-import {
+const express = require("express");
+const {
   createService,
   deleteService,
   getServiceById,
   getServices,
   getServicesByLocation,
   updateService,
-} from "../controllers/serviceController.js";
-import userAuth from "../middlewares/auth.js";
+} = require("../controllers/serviceController.js");
+const userAuth = require("../middlewares/auth.js");
 
 // You would import your authentication middleware here
 // import { protect, admin } from "../middleware/authMiddleware.js";
@@ -35,4 +35,4 @@ serviceRouter.put("/:id", userAuth, updateService);
 // DELETE /api/services/:id -> Deactivate a service (soft delete)
 serviceRouter.delete("/:id", userAuth, deleteService);
 
-export default serviceRouter;
+module.exports = serviceRouter;

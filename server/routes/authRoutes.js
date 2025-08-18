@@ -1,14 +1,14 @@
-import express from "express";
-import { loginValidator } from "../middlewares/validator.js";
-import {
+const express = require("express");
+const { loginValidator } = require("../middlewares/validator.js");
+const {
   createSuperAdmin,
   getUserData,
   isAuthenticated,
   loginUser,
   logout,
-} from "../controllers/authController.js";
-import handleValidationErrors from "../utils/handleValidationErrors.js";
-import userAuth from "../middlewares/auth.js";
+} = require("../controllers/authController.js");
+const handleValidationErrors = require("../utils/handleValidationErrors.js");
+const userAuth = require("../middlewares/auth.js");
 const authRouter = express.Router();
 
 // Create Super Admin Route
@@ -20,4 +20,4 @@ authRouter.post("/logout", userAuth, logout);
 authRouter.get("/is-auth", userAuth, isAuthenticated);
 authRouter.get("/data", userAuth, getUserData);
 
-export default authRouter;
+module.exports = authRouter;

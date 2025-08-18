@@ -1,15 +1,15 @@
-import express from "express";
-import cors from "cors";
-import mongoose from "mongoose";
-import "dotenv/config";
-import inquiryRouter from "./routes/inquiryRoutes.js";
-import authRouter from "./routes/authRoutes.js";
-import cookieParser from "cookie-parser";
-import locationRouter from "./routes/locationRoutes.js";
-import serviceRouter from "./routes/serviceRoutes.js";
-import menuItemRouter from "./routes/menuItemRoutes.js";
-import menuRouter from "./routes/menuRoutes.js";
-import bookingRouter from "./routes/bookingRoutes.js";
+const express = require("express");
+const cors = require("cors");
+const mongoose = require("mongoose");
+require("dotenv/config");
+const inquiryRouter = require("./routes/inquiryRoutes.js");
+const authRouter = require("./routes/authRoutes.js");
+const cookieParser = require("cookie-parser");
+const locationRouter = require("./routes/locationRoutes.js");
+const serviceRouter = require("./routes/serviceRoutes.js");
+const menuItemRouter = require("./routes/menuItemRoutes.js");
+const menuRouter = require("./routes/menuRoutes.js");
+const bookingRouter = require("./routes/bookingRoutes.js");
 
 const app = express();
 const port = process.env.PORT || 4000;

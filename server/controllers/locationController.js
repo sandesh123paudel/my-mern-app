@@ -1,11 +1,12 @@
-import mongoose from "mongoose";
-import Location from "../models/LocationModel.js";
-import Service from "../models/ServiceModel.js";
+const mongoose = require("mongoose");
+
+const Service = require("../models/ServiceModel.js");
+const Location = require("../models/locationModel.js");
 
 // @desc    Get all active locations
 // @route   GET /api/locations
 // @access  Public
-export const getLocations = async (req, res) => {
+const getLocations = async (req, res) => {
   try {
     const locations = await Location.find().sort({
       createdAt: -1,
@@ -26,7 +27,7 @@ export const getLocations = async (req, res) => {
 // @desc    Get a single location with its active services
 // @route   GET /api/locations/:id
 // @access  Public
-export const getLocationById = async (req, res) => {
+const getLocationById = async (req, res) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -69,7 +70,7 @@ export const getLocationById = async (req, res) => {
 // @desc    Create a new location
 // @route   POST /api/locations
 // @access  Private/Admin
-export const createLocation = async (req, res) => {
+const createLocation = async (req, res) => {
   try {
     const { name, city } = req.body;
 
@@ -132,7 +133,7 @@ export const createLocation = async (req, res) => {
 // @desc    Update an existing location
 // @route   PUT /api/locations/:id
 // @access  Private/Admin
-export const updateLocation = async (req, res) => {
+const updateLocation = async (req, res) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -178,7 +179,7 @@ export const updateLocation = async (req, res) => {
 // @desc    Deactivate a location (soft delete)
 // @route   DELETE /api/locations/:id
 // @access  Private/Admin
-export const deleteLocation = async (req, res) => {
+const deleteLocation = async (req, res) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -223,4 +224,12 @@ export const deleteLocation = async (req, res) => {
       message: error.message || "Server error",
     });
   }
+};
+
+module.exports = {
+  getLocations,
+  getLocationById,
+  createLocation,
+  updateLocation,
+  deleteLocation,
 };

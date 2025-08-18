@@ -1,12 +1,12 @@
-import express from "express";
-import {
+const express = require("express");
+const {
   createMenuItem,
   deleteMenuItem,
   getMenuItemById,
   getMenuItems,
   updateMenuItem,
-} from "../controllers/menuItemController.js";
-import userAuth from "../middlewares/auth.js";
+} = require("../controllers/menuItemController.js");
+const userAuth = require("../middlewares/auth.js");
 const menuItemRouter = express.Router();
 
 // --- Public Routes ---
@@ -18,4 +18,4 @@ menuItemRouter.post("/", userAuth, createMenuItem);
 menuItemRouter.put("/:id", userAuth, updateMenuItem);
 menuItemRouter.delete("/:id", userAuth, deleteMenuItem);
 
-export default menuItemRouter;
+module.exports = menuItemRouter;

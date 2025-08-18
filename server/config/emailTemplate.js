@@ -1,5 +1,5 @@
 // Admin notification email template
-export const ADMIN_INQUIRY_NOTIFICATION_TEMPLATE = `
+const ADMIN_INQUIRY_NOTIFICATION_TEMPLATE = `
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
@@ -209,7 +209,7 @@ export const ADMIN_INQUIRY_NOTIFICATION_TEMPLATE = `
 `;
 
 // Customer confirmation email template
-export const CUSTOMER_INQUIRY_CONFIRMATION_TEMPLATE = `
+const CUSTOMER_INQUIRY_CONFIRMATION_TEMPLATE = `
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
@@ -458,5 +458,7 @@ export const CUSTOMER_INQUIRY_CONFIRMATION_TEMPLATE = `
 </html>
 `;
 
-
-
+module.exports = {
+  ADMIN_INQUIRY_NOTIFICATION_TEMPLATE,
+  CUSTOMER_INQUIRY_CONFIRMATION_TEMPLATE,
+};

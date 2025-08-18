@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+const mongoose = require("mongoose");
 
 // Schema for selected menu items
 const selectedItemSchema = new mongoose.Schema(
@@ -359,20 +359,22 @@ bookingSchema.pre("save", async function (next) {
     if (this.menu.menuId !== null && this.menu.menuId !== undefined) {
       this.menu.menuId = null;
     }
-    
+
     // For custom orders, serviceId can be null or a valid ObjectId
     // Location is always required and already validated by schema
-    
+
     // Ensure at least one item is selected for custom orders
     if (!this.selectedItems || this.selectedItems.length === 0) {
-      return next(new Error("At least one item must be selected for custom orders"));
+      return next(
+        new Error("At least one item must be selected for custom orders")
+      );
     }
   } else {
     // For regular orders, menuId is required
     if (!this.menu.menuId) {
       return next(new Error("Menu ID is required for regular orders"));
     }
-    
+
     // For regular orders, serviceId is required
     if (!this.menu.serviceId) {
       return next(new Error("Service ID is required for regular orders"));
@@ -490,4 +492,4 @@ bookingSchema.set("toObject", { virtuals: true });
 
 const Booking = mongoose.model("Booking", bookingSchema);
 
-export default Booking;
+module.exports = Booking;

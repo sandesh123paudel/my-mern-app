@@ -1,5 +1,5 @@
-import express from "express";
-import {
+const express = require("express");
+const {
   getMenus,
   getMenuById,
   createMenu,
@@ -7,8 +7,8 @@ import {
   deleteMenu,
   getMenusByService,
   getMenusByLocation,
-} from "../controllers/menuController.js";
-import userAuth from "../middlewares/auth.js"; // Adjust path as needed
+} = require("../controllers/menuController.js");
+const userAuth = require("../middlewares/auth.js"); // Adjust path as needed
 
 const menuRouter = express.Router();
 
@@ -35,4 +35,4 @@ menuRouter.put("/:id", userAuth, updateMenu);
 // Delete menu (soft delete)
 menuRouter.delete("/:id", userAuth, deleteMenu);
 
-export default menuRouter;
+module.exports = menuRouter;

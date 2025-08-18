@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+const mongoose = require("mongoose");
 
 const menuSchema = new mongoose.Schema(
   {
@@ -205,4 +205,4 @@ const menuSchema = new mongoose.Schema(
 menuSchema.index({ name: 1, serviceId: 1 }, { unique: true });
 const Menu = mongoose.models.Menu || mongoose.model("Menu", menuSchema);
 
-export default Menu;
+module.exports = Menu;

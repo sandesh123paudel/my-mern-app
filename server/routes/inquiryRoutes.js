@@ -1,13 +1,13 @@
-import express from "express";
-import {
+const express = require("express");
+const {
   getInquiries,
   submitInquiry,
   updateInquiryStatus,
   deleteInquiry,
-} from "../controllers/inquiryController.js";
-import { inquiryFormValidation } from "../middlewares/validator.js";
-import handleValidationErrors from "../utils/handleValidationErrors.js";
-import userAuth from "../middlewares/auth.js";
+} = require("../controllers/inquiryController.js");
+const { inquiryFormValidation } = require("../middlewares/validator.js");
+const handleValidationErrors = require("../utils/handleValidationErrors.js");
+const userAuth = require("../middlewares/auth.js");
 
 const inquiryRouter = express.Router();
 
@@ -25,4 +25,4 @@ inquiryRouter.get("/inquiries", getInquiries);
 inquiryRouter.put("/inquiries/:id/status", userAuth, updateInquiryStatus);
 inquiryRouter.delete("/inquiries/:id", userAuth, deleteInquiry);
 
-export default inquiryRouter;
+module.exports = inquiryRouter;

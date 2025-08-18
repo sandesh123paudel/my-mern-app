@@ -1,6 +1,6 @@
-import UserModel from "../models/userModel.js";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
+const UserModel = require("../models/userModel.js");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
 // Generate JWT token
 const generateToken = (userId) => {
@@ -20,7 +20,7 @@ const setTokenCookie = (res, token) => {
 };
 
 // Create superadmin
-export const createSuperAdmin = async (req, res) => {
+const createSuperAdmin = async (req, res) => {
   try {
     const existing = await UserModel.findOne({ email: "admin@mccatering.com" });
     if (existing) {
@@ -55,7 +55,7 @@ export const createSuperAdmin = async (req, res) => {
 };
 
 // Login user (admin or superadmin)
-export const loginUser = async (req, res) => {
+const loginUser = async (req, res) => {
   const { email, password } = req.body;
 
   try {
@@ -98,7 +98,7 @@ export const loginUser = async (req, res) => {
 };
 
 //Check if the user is authenticated or not
-export const isAuthenticated = async (req, res) => {
+const isAuthenticated = async (req, res) => {
   try {
     return res.json({ success: true });
   } catch (error) {
@@ -106,7 +106,7 @@ export const isAuthenticated = async (req, res) => {
   }
 };
 
-export const getUserData = async (req, res) => {
+const getUserData = async (req, res) => {
   try {
     const userId = req.userId;
 
@@ -131,7 +131,7 @@ export const getUserData = async (req, res) => {
   }
 };
 
-export const logout = async (req, res) => {
+const logout = async (req, res) => {
   try {
     res.clearCookie("token", {
       httpOnly: true,
@@ -144,4 +144,12 @@ export const logout = async (req, res) => {
   } catch (error) {
     return res.json({ success: false, message: error.message });
   }
+};
+
+module.exports = {
+  createSuperAdmin,
+  loginUser,
+  isAuthenticated,
+  getUserData,
+  logout,
 };

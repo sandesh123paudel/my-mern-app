@@ -1,8 +1,12 @@
 // controllers/inquiryController.js
-import InquiryModel from "../models/InquiryModel.js";
-import { sendAdminInquiryNotification, sendCustomerInquiryConfirmation } from "../utils/sendMail.js";
+const InquiryModel = require("../models/InquiryModel.js");
+const {
+  sendAdminInquiryNotification,
+  sendCustomerInquiryConfirmation,
+} = require("../utils/sendMail.js");
+const { sendSMS } = require("../utils/sendSMS.js");
 
-export const submitInquiry = async (req, res) => {
+const submitInquiry = async (req, res) => {
   try {
     const {
       name,
@@ -46,15 +50,53 @@ export const submitInquiry = async (req, res) => {
     // Send email notifications (don't wait for them to complete)
     Promise.all([
       sendAdminInquiryNotification(newInquiry.toObject()),
-      sendCustomerInquiryConfirmation(newInquiry.toObject())
-    ]).then((results) => {
-      console.log('Email notifications sent:', {
-        admin: results[0].success ? 'Success' : 'Failed',
-        customer: results[1].success ? 'Success' : 'Failed'
+      sendCustomerInquiryConfirmation(newInquiry.toObject()),
+    ])
+      .then((results) => {
+        console.log("📧 Email notifications sent:", {
+          admin: results[0].success ? "✅ Success" : "❌ Failed",
+          customer: results[1].success ? "✅ Success" : "❌ Failed",
+        });
+      })
+      .catch((error) => {
+        console.error("❌ Email notification error:", error);
       });
-    }).catch((error) => {
-      console.error('Email notification error:', error);
-    });
+
+    // Send SMS notification to customer
+    if (contact) {
+      // Format event date for SMS
+      const eventDateFormatted = new Date(eventDate).toLocaleDateString(
+        "en-AU",
+        {
+          day: "numeric",
+          month: "short",
+        }
+      );
+
+      // Create SMS message
+      const smsMessage = `Hi ${name}! Your inquiry for ${serviceType} on ${eventDateFormatted} has been received. We'll contact you within 24hrs. - ${
+        process.env.COMPANY_NAME || "Our Team"
+      }`;
+
+      // Send SMS asynchronously
+      sendSMS(contact, smsMessage, `inquiry_${newInquiry._id}`)
+        .then((smsResult) => {
+          if (smsResult.success) {
+            console.log("📱 SMS sent successfully to customer:", {
+              to: contact,
+              messageId: smsResult.messageId,
+              cost: smsResult.cost,
+            });
+          } else {
+            console.error("❌ SMS send failed:", smsResult.error);
+          }
+        })
+        .catch((smsError) => {
+          console.error("❌ SMS service error:", smsError);
+        });
+    } else {
+      console.warn("⚠️ No contact number provided, skipping SMS notification");
+    }
 
     res.status(201).json({
       success: true,
@@ -83,7 +125,7 @@ export const submitInquiry = async (req, res) => {
   }
 };
 
-export const getInquiries = async (req, res) => {
+const getInquiries = async (req, res) => {
   try {
     const { page = 1, limit = 10, status, search } = req.query;
 
@@ -108,7 +150,7 @@ export const getInquiries = async (req, res) => {
         { venue: searchRegex },
         { serviceType: searchRegex },
       ];
-      
+
       if (!isNaN(searchNumber)) {
         searchConditions.push({ contact: searchNumber });
       }
@@ -149,7 +191,7 @@ export const getInquiries = async (req, res) => {
   }
 };
 
-export const updateInquiryStatus = async (req, res) => {
+const updateInquiryStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
@@ -193,7 +235,7 @@ export const updateInquiryStatus = async (req, res) => {
   }
 };
 
-export const deleteInquiry = async (req, res) => {
+const deleteInquiry = async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -221,4 +263,11 @@ export const deleteInquiry = async (req, res) => {
           : "Internal server error",
     });
   }
+};
+
+module.exports = {
+  submitInquiry,
+  getInquiries,
+  updateInquiryStatus,
+  deleteInquiry,
 };

@@ -1,12 +1,12 @@
-import mongoose from "mongoose";
-import Service from "../models/ServiceModel.js";
-import Menu from "../models/MenusModel.js";
-import Location from "../models/LocationModel.js";
+const mongoose = require("mongoose");
+const Service = require("../models/ServiceModel.js");
+const Menu = require("../models/menusModel.js");
+const Location = require("../models/locationModel.js");
 
 // @desc    Get all active services
 // @route   GET /api/services
 // @access  Public
-export const getServices = async (req, res) => {
+const getServices = async (req, res) => {
   try {
     const services = await Service.find()
       .populate("locationId", "name city")
@@ -28,7 +28,7 @@ export const getServices = async (req, res) => {
 // @desc    Get active services by location ID
 // @route   GET /api/services/location/:locationId
 // @access  Public
-export const getServicesByLocation = async (req, res) => {
+const getServicesByLocation = async (req, res) => {
   const { locationId } = req.params;
 
   // Check for valid MongoDB ObjectId
@@ -63,7 +63,7 @@ export const getServicesByLocation = async (req, res) => {
 // @desc    Get a single service with its active menus
 // @route   GET /api/services/:id
 // @access  Public
-export const getServiceById = async (req, res) => {
+const getServiceById = async (req, res) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -98,7 +98,7 @@ export const getServiceById = async (req, res) => {
 // @desc    Create a new service
 // @route   POST /api/services
 // @access  Private/Admin
-export const createService = async (req, res) => {
+const createService = async (req, res) => {
   const { name, locationId } = req.body;
 
   if (!mongoose.Types.ObjectId.isValid(locationId)) {
@@ -159,7 +159,7 @@ export const createService = async (req, res) => {
 // @desc    Update a service
 // @route   PUT /api/services/:id
 // @access  Private/Admin
-export const updateService = async (req, res) => {
+const updateService = async (req, res) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -215,7 +215,7 @@ export const updateService = async (req, res) => {
 // @desc    Deactivate a service (soft delete)
 // @route   DELETE /api/services/:id
 // @access  Private/Admin
-export const deleteService = async (req, res) => {
+const deleteService = async (req, res) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -248,4 +248,13 @@ export const deleteService = async (req, res) => {
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
+};
+
+module.exports = {
+  getServices,
+  getServicesByLocation,
+  getServiceById,
+  createService,
+  updateService,
+  deleteService,
 };
