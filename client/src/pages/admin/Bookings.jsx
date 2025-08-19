@@ -224,13 +224,20 @@ const AdminBookings = () => {
       // Define status priority (lower number = higher priority)
       const getStatusPriority = (status) => {
         switch (status) {
-          case "pending": return 1;
-          case "confirmed": return 2;
-          case "preparing": return 3;
-          case "ready": return 4;
-          case "completed": return 5;
-          case "cancelled": return 6;
-          default: return 7;
+          case "pending":
+            return 1;
+          case "confirmed":
+            return 2;
+          case "preparing":
+            return 3;
+          case "ready":
+            return 4;
+          case "completed":
+            return 5;
+          case "cancelled":
+            return 6;
+          default:
+            return 7;
         }
       };
 
@@ -392,9 +399,11 @@ const AdminBookings = () => {
       (booking) => booking.isCustomOrder
     ).length;
     const regular = total - custom;
-    
+
     // Only include revenue from non-cancelled bookings
-    const activeBookings = allBookings.filter(booking => booking.status !== "cancelled");
+    const activeBookings = allBookings.filter(
+      (booking) => booking.status !== "cancelled"
+    );
     const totalRevenue = activeBookings.reduce(
       (sum, booking) => sum + (booking.pricing?.total || 0),
       0
@@ -427,10 +436,8 @@ const AdminBookings = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-amber-800">
-            Bookings Calendar
-          </h1>
-          <p className="text-amber-600 mt-1">
+          <h1 className="text-3xl font-bold ">Bookings Calendar</h1>
+          <p className=" mt-1">
             Manage regular menu bookings and custom orders
           </p>
         </div>
@@ -442,7 +449,7 @@ const AdminBookings = () => {
               <span>Custom: {summaryStats.custom}</span>
             </div>
           </div>
-          
+
           {/* Export Button */}
           <button
             onClick={() => setShowExportPanel(!showExportPanel)}
@@ -451,7 +458,7 @@ const AdminBookings = () => {
             <Download className="w-4 h-4" />
             Export
           </button>
-          
+
           <button
             onClick={() => fetchMonthBookings()}
             className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"

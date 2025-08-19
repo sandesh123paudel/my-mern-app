@@ -4,6 +4,8 @@ import { AppContext } from "../../context/AppContext";
 import { InlineLoading } from "../../components/Loading";
 import { getBookingStats, getAllBookings } from "../../services/bookingService";
 import { getInquiries } from "../../services/inquiryService";
+import { getLocationById } from "../../services/locationServices";
+import { getServiceById } from "../../services/serviceServices";
 import axios from "axios";
 
 const AdminDashboard = () => {
@@ -29,6 +31,61 @@ const AdminDashboard = () => {
   useEffect(() => {
     fetchDashboardData();
   }, [timeframe]);
+
+  // Helper function to resolve venue/service names
+  const resolveInquiryNames = async (inquiries) => {
+    try {
+      const resolvedInquiries = await Promise.all(
+        inquiries.map(async (inquiry) => {
+          let venueName = "Unknown Venue";
+          let serviceName = "Unknown Service";
+
+          try {
+            // Handle venue - check if already populated or needs fetching
+            if (inquiry.venue) {
+              if (typeof inquiry.venue === "object" && inquiry.venue.name) {
+                venueName = inquiry.venue.name;
+              } else {
+                const venueResult = await getLocationById(inquiry.venue);
+                if (venueResult.success && venueResult.data) {
+                  venueName = venueResult.data.name;
+                }
+              }
+            }
+
+            // Handle service - check if already populated or needs fetching
+            if (inquiry.serviceType) {
+              if (typeof inquiry.serviceType === "object" && inquiry.serviceType.name) {
+                serviceName = inquiry.serviceType.name;
+              } else {
+                const serviceResult = await getServiceById(inquiry.serviceType);
+                if (serviceResult.success && serviceResult.data) {
+                  serviceName = serviceResult.data.name;
+                }
+              }
+            }
+          } catch (error) {
+            console.error("Error resolving names for inquiry:", inquiry._id, error);
+          }
+
+          return {
+            ...inquiry,
+            venueName,
+            serviceName,
+          };
+        })
+      );
+
+      return resolvedInquiries;
+    } catch (error) {
+      console.error("Error resolving inquiry names:", error);
+      return inquiries.map(inquiry => ({
+        ...inquiry,
+        venueName: "Unknown Venue",
+        serviceName: "Unknown Service",
+      }));
+    }
+  };
 
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -69,7 +126,7 @@ const AdminDashboard = () => {
         page: 1,
       });
 
-      // Fetch other counts (you may need to implement these endpoints)
+      // Fetch other counts
       const [usersRes] = await Promise.all([
         axios
           .get(backendUrl + "/api/admin/users/count")
@@ -93,24 +150,28 @@ const AdminDashboard = () => {
             }))
           : [];
 
-        // Format recent inquiries
-        const recentInquiries = recentInquiriesResult.success
-          ? recentInquiriesResult.data.slice(0, 5).map((inquiry) => ({
-              id: inquiry._id,
-              customerName: inquiry.name || "Unknown",
-              email: inquiry.email,
-              eventDate: inquiry.eventDate,
-              numberOfPeople: inquiry.numberOfPeople,
-              venue: inquiry.venue,
-              serviceType: inquiry.serviceType,
-              status: inquiry.status || "pending",
-              date: inquiry.createdAt,
-            }))
-          : [];
+        // Process recent inquiries with name resolution
+        let recentInquiries = [];
+        if (recentInquiriesResult.success && recentInquiriesResult.data.length > 0) {
+          const rawInquiries = recentInquiriesResult.data.slice(0, 5);
+          const resolvedInquiries = await resolveInquiryNames(rawInquiries);
+          
+          recentInquiries = resolvedInquiries.map((inquiry) => ({
+            id: inquiry._id,
+            customerName: inquiry.name || "Unknown",
+            email: inquiry.email,
+            eventDate: inquiry.eventDate,
+            numberOfPeople: inquiry.numberOfPeople,
+            venue: inquiry.venueName, // Use resolved name
+            serviceType: inquiry.serviceName, // Use resolved name
+            status: inquiry.status || "pending",
+            date: inquiry.createdAt,
+          }));
+        }
 
         setStats({
           totalInquiries: recentInquiriesResult.success
-            ? recentInquiriesResult.pagination?.totalCount ||
+            ? recentInquiriesResult.pagination?.total ||
               recentInquiriesResult.data.length
             : 0,
           totalBookings: bookingStats.totalBookings || 0,
@@ -132,24 +193,28 @@ const AdminDashboard = () => {
           page: 1,
         });
 
-        const recentInquiries = recentInquiriesResult.success
-          ? recentInquiriesResult.data.slice(0, 5).map((inquiry) => ({
-              id: inquiry._id,
-              customerName: inquiry.name || "Unknown",
-              email: inquiry.email,
-              eventDate: inquiry.eventDate,
-              numberOfPeople: inquiry.numberOfPeople,
-              venue: inquiry.venue,
-              serviceType: inquiry.serviceType,
-              status: inquiry.status || "pending",
-              date: inquiry.createdAt,
-            }))
-          : [];
+        let recentInquiries = [];
+        if (recentInquiriesResult.success && recentInquiriesResult.data.length > 0) {
+          const rawInquiries = recentInquiriesResult.data.slice(0, 5);
+          const resolvedInquiries = await resolveInquiryNames(rawInquiries);
+          
+          recentInquiries = resolvedInquiries.map((inquiry) => ({
+            id: inquiry._id,
+            customerName: inquiry.name || "Unknown",
+            email: inquiry.email,
+            eventDate: inquiry.eventDate,
+            numberOfPeople: inquiry.numberOfPeople,
+            venue: inquiry.venueName, // Use resolved name
+            serviceType: inquiry.serviceName, // Use resolved name
+            status: inquiry.status || "pending",
+            date: inquiry.createdAt,
+          }));
+        }
 
         setStats((prev) => ({
           ...prev,
           totalInquiries: recentInquiriesResult.success
-            ? recentInquiriesResult.pagination?.totalCount ||
+            ? recentInquiriesResult.pagination?.total ||
               recentInquiriesResult.data.length
             : 0,
           totalUsers: usersRes.data.count || 0,
@@ -212,7 +277,7 @@ const AdminDashboard = () => {
       pending: "text-yellow-600 bg-yellow-100",
       reviewed: "text-blue-600 bg-blue-100",
       responded: "text-green-600 bg-green-100",
-      closed: "text-gray-600 bg-gray-100",
+      archived: "text-gray-600 bg-gray-100",
     };
     return colors[status] || "text-gray-600 bg-gray-100";
   };
@@ -524,10 +589,8 @@ const AdminDashboard = () => {
                       </div>
                       <div className="text-xs text-gray-500">
                         Event:{" "}
-                        {new Date(inquiry.eventDate).toLocaleDateString(
-                          "en-AU"
-                        )}{" "}
-                        • {inquiry.numberOfPeople} people
+                        {inquiry.eventDate ? new Date(inquiry.eventDate).toLocaleDateString("en-AU") : "Not specified"}{" "}
+                        • {inquiry.numberOfPeople || 0} people
                       </div>
                       <div className="text-xs text-gray-500">
                         {formatDate(inquiry.date)}
@@ -545,8 +608,7 @@ const AdminDashboard = () => {
               <div className="text-center text-blue-600">
                 <p className="text-lg">No recent inquiries to display</p>
                 <p className="text-sm mt-2">
-                  Inquiries will appear here once customers start contacting
-                  you.
+                  Inquiries will appear here once customers start contacting you.
                 </p>
               </div>
             )}
@@ -605,9 +667,7 @@ const AdminDashboard = () => {
       {/* Quick Actions */}
       <div className="bg-white rounded-lg shadow-md border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200 bg-amber-50">
-          <h2 className="text-lg font-semibold text-amber-800">
-            Quick Actions
-          </h2>
+          <h2 className="text-lg font-semibold text-amber-800">Quick Actions</h2>
         </div>
         <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
