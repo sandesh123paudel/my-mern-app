@@ -16,7 +16,7 @@ import MenuSelectionModal from "../components/frontend/MenuSelectionModal";
 import CustomOrderModal from "../components/frontend/CustomOrderModel";
 import OrderConfirmationModal from "../components/frontend/OrderConfirmationModal";
 import MenuCard from "../components/frontend/MenuCard";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const Menu = () => {
   const [menus, setMenus] = useState([]);
@@ -87,6 +87,14 @@ const Menu = () => {
 
     loadMenusForLocation();
   }, [selectedLocation]);
+
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.state?.preSelectedLocationId) {
+      setSelectedLocation(location.state.preSelectedLocationId);
+    }
+  }, [location.state]);
 
   const handleLocationSelect = (locationId) => {
     setSelectedLocation(locationId);

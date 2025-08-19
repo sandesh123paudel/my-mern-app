@@ -392,6 +392,19 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
       </div>
     );
   };
+  const validateDeliveryTime = (dateTimeString) => {
+    if (!dateTimeString) return false;
+
+    const selectedDate = new Date(dateTimeString);
+    const now = new Date();
+
+    // Check if date is in the past
+    if (selectedDate <= now) return false;
+
+    // Check time is between 11 AM (11) and 8 PM (20)
+    const hours = selectedDate.getHours();
+    return hours >= 11 && hours < 20;
+  };
 
   const validateForm = () => {
     const errors = [];
@@ -417,9 +430,9 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
         errors.push("Delivery date must be in the future");
       }
 
-      // Check if it's Monday (0 = Sunday, 1 = Monday)
-      if (deliveryDate.getDay() === 1) {
-        errors.push("Delivery and pickup are not available on Mondays");
+      const hours = deliveryDate.getHours();
+      if (hours < 11 || hours >= 20) {
+        errors.push("Please select a time between 11 AM and 8 PM");
       }
     }
 
@@ -450,7 +463,6 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
 
     return errors;
   };
-
   const handleFinalSubmit = async (e) => {
     e.preventDefault();
 
@@ -612,7 +624,7 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
         <div className="bg-green-600 text-white p-3 sm:p-4 rounded-t-xl flex-shrink-0">
           <div className="flex items-center justify-between mb-2">
             <button
-              onClick={onBack || onClose}
+              onClick={onClose}
               className="flex items-center gap-2 text-white/90 hover:text-white transition-colors"
             >
               <ArrowLeft size={18} />
@@ -1009,10 +1021,10 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
                   Delivery Information
                 </h3>
 
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-sm text-red-700">
-                    <strong>Note:</strong> Pickup and Delivery are not available
-                    on Mondays.
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-700">
+                    <strong>Note:</strong> Pickup and Delivery times are between
+                    11 AM and 8 PM.
                   </p>
                 </div>
 
@@ -1055,11 +1067,23 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     {formData.deliveryType} Date & Time *
                   </label>
+                  <p className="text-xs text-gray-500 mb-2">
+                    Available times: 11 AM - 8 PM (7 days a week)
+                  </p>
                   <input
                     type="datetime-local"
                     name="deliveryDate"
                     value={formData.deliveryDate}
-                    onChange={handleInputChange}
+                    onChange={(e) => {
+                      if (validateDeliveryTime(e.target.value)) {
+                        handleInputChange(e);
+                      } else {
+                        toast.error(
+                          "Please select a time between 11 AM and 8 PM"
+                        );
+                      }
+                    }}
+                    min={new Date().toISOString().slice(0, 16)} // Ensures future dates only
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                     required
                   />
@@ -1145,7 +1169,6 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                         >
                           <option value="Australia">Australia</option>
-                       
                         </select>
                       </div>
                     </div>
