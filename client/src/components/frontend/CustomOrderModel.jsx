@@ -80,7 +80,7 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
   const [selectedLocation, setSelectedLocation] = useState("");
   const [selectedService, setSelectedService] = useState("");
   const [loading, setLoading] = useState(true);
-  
+
   // Simple dietary requirements state
   const [hasDietaryRequirements, setHasDietaryRequirements] = useState(false);
   const [dietaryRequirements, setDietaryRequirements] = useState([]);
@@ -100,7 +100,9 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
         ]);
 
         if (locationsResult.success) {
-          const activeLocations = locationsResult.data.filter(loc => loc.isActive);
+          const activeLocations = locationsResult.data.filter(
+            (loc) => loc.isActive
+          );
           setLocations(activeLocations);
           // Auto-select first location if only one available
           if (activeLocations.length === 1) {
@@ -109,7 +111,9 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
         }
 
         if (servicesResult.success) {
-          const activeServices = servicesResult.data.filter(service => service.isActive);
+          const activeServices = servicesResult.data.filter(
+            (service) => service.isActive
+          );
           setServices(activeServices);
         }
 
@@ -197,8 +201,9 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
   // Get filtered services based on selected location
   const getFilteredServices = () => {
     if (!selectedLocation) return [];
-    return services.filter(service => 
-      (service.locationId?._id || service.locationId) === selectedLocation
+    return services.filter(
+      (service) =>
+        (service.locationId?._id || service.locationId) === selectedLocation
     );
   };
 
@@ -238,9 +243,9 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
 
   // Handle dietary requirement selection
   const handleDietaryRequirementToggle = (requirement) => {
-    setDietaryRequirements(prev => 
+    setDietaryRequirements((prev) =>
       prev.includes(requirement)
-        ? prev.filter(req => req !== requirement)
+        ? prev.filter((req) => req !== requirement)
         : [...prev, requirement]
     );
   };
@@ -280,8 +285,12 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
     }
 
     // Get selected location and service details
-    const selectedLocationObj = locations.find(loc => loc._id === selectedLocation);
-    const selectedServiceObj = services.find(service => service._id === selectedService);
+    const selectedLocationObj = locations.find(
+      (loc) => loc._id === selectedLocation
+    );
+    const selectedServiceObj = services.find(
+      (service) => service._id === selectedService
+    );
 
     // Create order details in the same format as menu selection
     const orderDetails = {
@@ -311,7 +320,10 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
       hasDietaryRequirements,
     };
 
-    console.log("Custom Order Details being sent:", JSON.stringify(orderDetails, null, 2));
+    console.log(
+      "Custom Order Details being sent:",
+      JSON.stringify(orderDetails, null, 2)
+    );
     onProceedToConfirmation(orderDetails);
   };
 
@@ -446,7 +458,7 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
           🍽️ Dietary Requirements
         </h3>
-        
+
         {/* Initial Question */}
         <div className="mb-4">
           <p className="text-sm font-medium text-gray-700 mb-3">
@@ -494,16 +506,20 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
                   { value: "vegetarian", label: "🌱 Vegetarian" },
                   { value: "vegan", label: "🌿 Vegan" },
                   { value: "gluten-free", label: "🚫 Gluten-Free" },
-                  { value: "halal-friendly", label: "☪️ Halal-Friendly" }
+                  { value: "halal-friendly", label: "☪️ Halal-Friendly" },
                 ].map((option) => (
                   <label key={option.value} className="flex items-center">
                     <input
                       type="checkbox"
                       checked={dietaryRequirements.includes(option.value)}
-                      onChange={() => handleDietaryRequirementToggle(option.value)}
+                      onChange={() =>
+                        handleDietaryRequirementToggle(option.value)
+                      }
                       className="w-4 h-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
                     />
-                    <span className="ml-2 text-sm text-gray-700">{option.label}</span>
+                    <span className="ml-2 text-sm text-gray-700">
+                      {option.label}
+                    </span>
                   </label>
                 ))}
               </div>
@@ -519,7 +535,7 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
                   { value: "mild", label: "🌶️ Mild" },
                   { value: "medium", label: "🌶️🌶️ Medium" },
                   { value: "hot", label: "🌶️🌶️🌶️ Hot" },
-                  { value: "extra-hot", label: "🌶️🌶️🌶️🌶️ Extra Hot" }
+                  { value: "extra-hot", label: "🌶️🌶️🌶️🌶️ Extra Hot" },
                 ].map((option) => (
                   <label key={option.value} className="flex items-center">
                     <input
@@ -530,7 +546,9 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
                       onChange={(e) => setSpiceLevel(e.target.value)}
                       className="w-4 h-4 text-green-600 focus:ring-green-500 border-gray-300"
                     />
-                    <span className="ml-2 text-sm text-gray-700">{option.label}</span>
+                    <span className="ml-2 text-sm text-gray-700">
+                      {option.label}
+                    </span>
                   </label>
                 ))}
               </div>
@@ -539,12 +557,18 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
             {/* Summary */}
             {(dietaryRequirements.length > 0 || spiceLevel !== "medium") && (
               <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                <h4 className="font-medium text-green-800 mb-1">Your Preferences:</h4>
+                <h4 className="font-medium text-green-800 mb-1">
+                  Your Preferences:
+                </h4>
                 <div className="text-sm text-green-700">
                   {dietaryRequirements.length > 0 && (
-                    <p><strong>Dietary:</strong> {dietaryRequirements.join(", ")}</p>
+                    <p>
+                      <strong>Dietary:</strong> {dietaryRequirements.join(", ")}
+                    </p>
                   )}
-                  <p><strong>Spice Level:</strong> {spiceLevel}</p>
+                  <p>
+                    <strong>Spice Level:</strong> {spiceLevel}
+                  </p>
                 </div>
               </div>
             )}
@@ -629,7 +653,7 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-green-600 text-white p-3 sm:p-4 rounded-t-xl flex-shrink-0">
+        <div className="bg-primary-green text-white p-3 sm:p-4 rounded-t-xl flex-shrink-0">
           <div className="flex items-center justify-between mb-2">
             <button
               onClick={onClose}
@@ -659,7 +683,10 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
             {selectedLocation && (
               <div className="flex items-center gap-1">
                 <MapPin size={14} />
-                <span>{locations.find(loc => loc._id === selectedLocation)?.name || "Location"}</span>
+                <span>
+                  {locations.find((loc) => loc._id === selectedLocation)
+                    ?.name || "Location"}
+                </span>
               </div>
             )}
           </div>
@@ -684,7 +711,7 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">
                     Select Location & Service
                   </h3>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Location Selection */}
                     <div>
@@ -692,7 +719,10 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
                         Location *
                       </label>
                       <div className="relative">
-                        <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                        <MapPin
+                          className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                          size={18}
+                        />
                         <select
                           value={selectedLocation}
                           onChange={(e) => handleLocationChange(e.target.value)}
@@ -715,7 +745,10 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
                         Service Type *
                       </label>
                       <div className="relative">
-                        <Briefcase className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                        <Briefcase
+                          className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                          size={18}
+                        />
                         <select
                           value={selectedService}
                           onChange={(e) => setSelectedService(e.target.value)}
@@ -724,7 +757,9 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
                           required
                         >
                           <option value="">
-                            {!selectedLocation ? "Select location first" : "Select a service"}
+                            {!selectedLocation
+                              ? "Select location first"
+                              : "Select a service"}
                           </option>
                           {getFilteredServices().map((service) => (
                             <option key={service._id} value={service._id}>
@@ -735,7 +770,8 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
                       </div>
                       {!selectedLocation && (
                         <p className="text-xs text-gray-500 mt-1">
-                          Please select a location first to see available services
+                          Please select a location first to see available
+                          services
                         </p>
                       )}
                     </div>
@@ -754,15 +790,26 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
                           <div className="text-gray-400 mb-2">
                             <ShoppingCart size={48} className="mx-auto" />
                           </div>
-                          <p className="text-gray-600">No menu items available...</p>
+                          <p className="text-gray-600">
+                            No menu items available...
+                          </p>
                         </div>
                       </div>
                     ) : (
                       <>
-                        {renderCategoryContent("entree", itemsByCategory?.entree)}
+                        {renderCategoryContent(
+                          "entree",
+                          itemsByCategory?.entree
+                        )}
                         {renderCategoryContent("mains", itemsByCategory?.mains)}
-                        {renderCategoryContent("desserts", itemsByCategory?.desserts)}
-                        {renderCategoryContent("addons", itemsByCategory?.addons)}
+                        {renderCategoryContent(
+                          "desserts",
+                          itemsByCategory?.desserts
+                        )}
+                        {renderCategoryContent(
+                          "addons",
+                          itemsByCategory?.addons
+                        )}
                       </>
                     )}
                   </>
@@ -776,7 +823,8 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
                         Select Location & Service
                       </h3>
                       <p className="text-gray-600">
-                        Please select a location and service type to view available menu items
+                        Please select a location and service type to view
+                        available menu items
                       </p>
                     </div>
                   </div>
@@ -877,13 +925,27 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
             {/* Continue Button */}
             <motion.button
               whileHover={{
-                scale: getAllSelectedItems().length < 5 || !selectedLocation || !selectedService ? 1 : 1.02,
+                scale:
+                  getAllSelectedItems().length < 5 ||
+                  !selectedLocation ||
+                  !selectedService
+                    ? 1
+                    : 1.02,
               }}
               whileTap={{
-                scale: getAllSelectedItems().length < 5 || !selectedLocation || !selectedService ? 1 : 0.98,
+                scale:
+                  getAllSelectedItems().length < 5 ||
+                  !selectedLocation ||
+                  !selectedService
+                    ? 1
+                    : 0.98,
               }}
               onClick={handlePlaceOrder}
-              disabled={getAllSelectedItems().length < 5 || !selectedLocation || !selectedService}
+              disabled={
+                getAllSelectedItems().length < 5 ||
+                !selectedLocation ||
+                !selectedService
+              }
               className="w-full bg-red-600 disabled:bg-gray-400 text-white py-3 rounded-lg font-semibold hover:bg-red-700 disabled:hover:bg-gray-400 transition-colors flex items-center justify-center gap-2"
             >
               <ShoppingCart size={18} />

@@ -621,7 +621,7 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-green-600 text-white p-3 sm:p-4 rounded-t-xl flex-shrink-0">
+        <div className="bg-primary-green text-white p-3 sm:p-4 rounded-t-xl flex-shrink-0">
           <div className="flex items-center justify-between mb-2">
             <button
               onClick={onClose}

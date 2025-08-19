@@ -190,8 +190,6 @@ const HeroSection = () => {
 
               {/* Location Selection Buttons - Top Right */}
               <motion.div
-               
-              
                 className="absolute top-4 right-4 z-30 flex gap-2"
                 initial={{ opacity: 0, x: 20 }}
                 whileInView={{ opacity: 1, x: 0 }}
@@ -284,7 +282,7 @@ const HeroSection = () => {
 
               {/* Play/Pause Button - Moved to bottom left */}
               <motion.button
-                className="absolute bottom-4 left-4 w-10 h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-all duration-300 z-20"
+                className="absolute bottom-4 right-4 w-10 h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-all duration-300 z-20"
                 onClick={() => setIsAutoPlaying(!isAutoPlaying)}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
