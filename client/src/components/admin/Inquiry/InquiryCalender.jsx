@@ -1,15 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 
 const InquiryCalendar = ({ inquiries, onDateSelect, selectedDate }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [calendarDays, setCalendarDays] = useState([]);
 
   const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
   ];
 
-  const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   useEffect(() => {
     generateCalendar();
@@ -38,7 +48,7 @@ const InquiryCalendar = ({ inquiries, onDateSelect, selectedDate }) => {
         day,
         date,
         inquiries: inquiriesOnDay,
-        inquiryCount: inquiriesOnDay.length
+        inquiryCount: inquiriesOnDay.length,
       });
     }
 
@@ -46,13 +56,14 @@ const InquiryCalendar = ({ inquiries, onDateSelect, selectedDate }) => {
   };
 
   const getInquiriesForDate = (date) => {
-    return inquiries.filter(inquiry => {
-      if (!inquiry.createdAt) return false;
-      const inquiryDate = new Date(inquiry.createdAt);
+    return inquiries.filter((inquiry) => {
+      // Use eventDate instead of createdAt
+      if (!inquiry.eventDate) return false;
+      const eventDate = new Date(inquiry.eventDate);
       return (
-        inquiryDate.getDate() === date.getDate() &&
-        inquiryDate.getMonth() === date.getMonth() &&
-        inquiryDate.getFullYear() === date.getFullYear()
+        eventDate.getDate() === date.getDate() &&
+        eventDate.getMonth() === date.getMonth() &&
+        eventDate.getFullYear() === date.getFullYear()
       );
     });
   };
@@ -61,6 +72,10 @@ const InquiryCalendar = ({ inquiries, onDateSelect, selectedDate }) => {
     const newMonth = new Date(currentMonth);
     newMonth.setMonth(currentMonth.getMonth() + direction);
     setCurrentMonth(newMonth);
+  };
+
+  const goToToday = () => {
+    setCurrentMonth(new Date());
   };
 
   const isToday = (date) => {
@@ -84,24 +99,42 @@ const InquiryCalendar = ({ inquiries, onDateSelect, selectedDate }) => {
   };
 
   const getInquiryCountColor = (count) => {
-    if (count === 0) return '';
-    if (count <= 2) return 'bg-green-100 text-green-800';
-    if (count <= 5) return 'bg-amber-100 text-amber-800';
-    return 'bg-red-100 text-red-800';
+    if (count === 0) return "";
+    if (count <= 2)
+      return "bg-green-100 text-green-800 border border-green-200";
+    if (count <= 5)
+      return "bg-amber-100 text-amber-800 border border-amber-200";
+    return "bg-red-100 text-red-800 border border-red-200";
+  };
+
+  const getStatusCounts = (inquiries) => {
+    const counts = { pending: 0, responded: 0, archived: 0 };
+    inquiries.forEach((inquiry) => {
+      const status = inquiry.status || "pending";
+      counts[status] = (counts[status] || 0) + 1;
+    });
+    return counts;
   };
 
   return (
     <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold text-green-800">
-          Inquiry Calendar
-        </h3>
+        <h3 className="text-lg font-semibold text-green-800">Event Calendar</h3>
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigateMonth(-1)}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Previous month"
           >
             ←
+          </button>
+          <button
+            onClick={goToToday}
+            className="px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 transition-colors"
+            title="Go to current month"
+          >
+            Today
           </button>
           <h4 className="text-lg font-medium min-w-[200px] text-center">
             {months[currentMonth.getMonth()]} {currentMonth.getFullYear()}
@@ -109,14 +142,16 @@ const InquiryCalendar = ({ inquiries, onDateSelect, selectedDate }) => {
           <button
             onClick={() => navigateMonth(1)}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Next month"
           >
             →
           </button>
         </div>
       </div>
 
+      {/* Days of week header */}
       <div className="grid grid-cols-7 gap-1 mb-4">
-        {daysOfWeek.map(day => (
+        {daysOfWeek.map((day) => (
           <div
             key={day}
             className="p-2 text-center text-sm font-medium text-gray-600 bg-gray-50 rounded"
@@ -126,17 +161,33 @@ const InquiryCalendar = ({ inquiries, onDateSelect, selectedDate }) => {
         ))}
       </div>
 
+      {/* Calendar grid */}
       <div className="grid grid-cols-7 gap-1">
         {calendarDays.map((dayInfo, index) => (
           <div
             key={index}
             className={`
-              min-h-[60px] p-1 border border-gray-200 rounded cursor-pointer transition-colors
-              ${dayInfo ? 'hover:bg-gray-50' : ''}
-              ${dayInfo && isToday(dayInfo.date) ? 'bg-blue-50 border-blue-300' : ''}
-              ${dayInfo && isSelectedDate(dayInfo.date) ? 'bg-green-50 border-green-400' : ''}
+              min-h-[80px] p-1 border border-gray-200 rounded cursor-pointer transition-all duration-200
+              ${dayInfo ? "hover:bg-gray-50 hover:shadow-sm" : ""}
+              ${
+                dayInfo && isToday(dayInfo.date)
+                  ? "bg-blue-50 border-blue-300"
+                  : ""
+              }
+              ${
+                dayInfo && isSelectedDate(dayInfo.date)
+                  ? "bg-green-50 border-green-400 shadow-md"
+                  : ""
+              }
             `}
             onClick={() => dayInfo && onDateSelect(dayInfo.date)}
+            title={
+              dayInfo
+                ? `${
+                    dayInfo.inquiryCount
+                  } event(s) on ${dayInfo.date.toLocaleDateString()}`
+                : ""
+            }
           >
             {dayInfo && (
               <div className="h-full flex flex-col">
@@ -144,11 +195,57 @@ const InquiryCalendar = ({ inquiries, onDateSelect, selectedDate }) => {
                   {dayInfo.day}
                 </div>
                 {dayInfo.inquiryCount > 0 && (
-                  <div className={`
-                    text-xs px-1 py-0.5 rounded text-center font-medium
-                    ${getInquiryCountColor(dayInfo.inquiryCount)}
-                  `}>
-                    {dayInfo.inquiryCount} inquiry{dayInfo.inquiryCount !== 1 ? 's' : ''}
+                  <div className="flex-1 space-y-1">
+                    <div
+                      className={`
+                      text-xs px-1 py-0.5 rounded text-center font-medium
+                      ${getInquiryCountColor(dayInfo.inquiryCount)}
+                    `}
+                    >
+                      {dayInfo.inquiryCount} event
+                      {dayInfo.inquiryCount !== 1 ? "s" : ""}
+                    </div>
+
+                    {/* Status indicators */}
+                    {dayInfo.inquiryCount <= 3 && (
+                      <div className="space-y-0.5">
+                        {(() => {
+                          const statusCounts = getStatusCounts(
+                            dayInfo.inquiries
+                          );
+                          return Object.entries(statusCounts)
+                            .filter(([_, count]) => count > 0)
+                            .map(([status, count]) => (
+                              <div
+                                key={status}
+                                className={`
+                                  text-xs px-1 rounded text-center
+                                  ${
+                                    status === "pending"
+                                      ? "bg-amber-200 text-amber-800"
+                                      : ""
+                                  }
+                                  ${
+                                    status === "responded"
+                                      ? "bg-green-200 text-green-800"
+                                      : ""
+                                  }
+                                  ${
+                                    status === "archived"
+                                      ? "bg-gray-200 text-gray-800"
+                                      : ""
+                                  }
+                                `}
+                                title={`${count} ${status} inquiry${
+                                  count !== 1 ? "s" : ""
+                                }`}
+                              >
+                                {count} {status.charAt(0).toUpperCase()}
+                              </div>
+                            ));
+                        })()}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -157,26 +254,44 @@ const InquiryCalendar = ({ inquiries, onDateSelect, selectedDate }) => {
         ))}
       </div>
 
-      <div className="mt-4 flex items-center gap-4 text-xs">
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-blue-50 border border-blue-300 rounded"></div>
-          <span>Today</span>
+      {/* Legend */}
+      <div className="mt-4 space-y-2">
+        <div className="text-xs font-medium text-gray-600 mb-2">Legend:</div>
+        <div className="flex flex-wrap items-center gap-4 text-xs">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-blue-50 border border-blue-300 rounded"></div>
+            <span>Today</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-green-50 border border-green-400 rounded"></div>
+            <span>Selected</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-green-100 border border-green-200 rounded"></div>
+            <span>1-2 events</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-amber-100 border border-amber-200 rounded"></div>
+            <span>3-5 events</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-red-100 border border-red-200 rounded"></div>
+            <span>5+ events</span>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-green-50 border border-green-400 rounded"></div>
-          <span>Selected</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-green-100 rounded"></div>
-          <span>1-2 inquiries</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-amber-100 rounded"></div>
-          <span>3-5 inquiries</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-red-100 rounded"></div>
-          <span>5+ inquiries</span>
+        <div className="flex flex-wrap items-center gap-4 text-xs">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-amber-200 rounded"></div>
+            <span>P = Pending</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-green-200 rounded"></div>
+            <span>R = Responded</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-gray-200 rounded"></div>
+            <span>A = Archived</span>
+          </div>
         </div>
       </div>
     </div>

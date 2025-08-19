@@ -1,6 +1,7 @@
-import { body } from "express-validator";
+const { body } = require("express-validator");
+const mongoose = require("mongoose");
 
-export const inquiryFormValidation = () => {
+exports.inquiryFormValidation = () => {
   return [
     body("name")
       .notEmpty()
@@ -50,14 +51,22 @@ export const inquiryFormValidation = () => {
     body("venue")
       .notEmpty()
       .withMessage("Venue is required")
-      .trim()
-      .isLength({ min: 2 })
-      .withMessage("Venue must be at least 2 characters long"),
+      .custom((value) => {
+        if (!mongoose.Types.ObjectId.isValid(value)) {
+          throw new Error("Invalid venue ID format");
+        }
+        return true;
+      }),
 
     body("serviceType")
       .notEmpty()
       .withMessage("Service type is required")
-      .trim(),
+      .custom((value) => {
+        if (!mongoose.Types.ObjectId.isValid(value)) {
+          throw new Error("Invalid service type ID format");
+        }
+        return true;
+      }),
 
     body("message")
       .optional()
@@ -67,7 +76,7 @@ export const inquiryFormValidation = () => {
   ];
 };
 
-export const loginValidator = () => {
+exports.loginValidator = () => {
   return [
     body("email")
       .trim()
@@ -84,7 +93,7 @@ export const loginValidator = () => {
   ];
 };
 
-export const bookingFormValidation = () => {
+exports.bookingFormValidation = () => {
   return [
     // DEBUG: Temporarily disable menu validation to isolate the issue
     body("menu").custom((value, { req }) => {
@@ -99,8 +108,6 @@ export const bookingFormValidation = () => {
           console.log("Missing locationId in menu:", value);
           throw new Error("Location is required for custom orders");
         }
-
-      
       } else {
         // For regular orders
         if (!value || !value.menuId) {

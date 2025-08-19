@@ -17,13 +17,17 @@ export const getServices = async () => {
 
 export const getServicesByLocation = async (locationId) => {
   try {
-    const response = await axios.get(`${backendUrl}/api/services/location/${locationId}`);
+    const response = await axios.get(
+      `${backendUrl}/api/services/location/${locationId}`
+    );
     return { success: true, data: response.data.data };
   } catch (error) {
     console.error("Error fetching services by location:", error);
     return {
       success: false,
-      error: error.response?.data?.message || "Failed to fetch services for location",
+      error:
+        error.response?.data?.message ||
+        "Failed to fetch services for location",
     };
   }
 };
@@ -43,7 +47,10 @@ export const getServiceById = async (id) => {
 
 export const createService = async (serviceData) => {
   try {
-    const response = await axios.post(`${backendUrl}/api/services`, serviceData);
+    const response = await axios.post(
+      `${backendUrl}/api/services`,
+      serviceData
+    );
     return { success: true, data: response.data.data };
   } catch (error) {
     console.error("Error creating service:", error);
@@ -56,7 +63,10 @@ export const createService = async (serviceData) => {
 
 export const updateService = async (id, serviceData) => {
   try {
-    const response = await axios.put(`${backendUrl}/api/services/${id}`, serviceData);
+    const response = await axios.put(
+      `${backendUrl}/api/services/${id}`,
+      serviceData
+    );
     return { success: true, data: response.data.data };
   } catch (error) {
     console.error("Error updating service:", error);

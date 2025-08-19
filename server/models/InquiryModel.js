@@ -30,14 +30,14 @@ const inquirySchema = new mongoose.Schema({
     min: [1, "Number of people must be at least 1"],
   },
   venue: {
-    type: String,
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Location',
     required: [true, "Venue is required"],
-    trim: true,
   },
   serviceType: {
-    type: String,
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Service',
     required: [true, "Service type is required"],
-    trim: true,
   },
   message: {
     type: String,
@@ -72,6 +72,13 @@ inquirySchema.pre(["updateOne", "findOneAndUpdate"], function (next) {
   this.set({ updatedAt: Date.now() });
   next();
 });
+
+// Add index for better query performance
+inquirySchema.index({ email: 1, eventDate: 1 });
+inquirySchema.index({ venue: 1 });
+inquirySchema.index({ serviceType: 1 });
+inquirySchema.index({ status: 1 });
+inquirySchema.index({ createdAt: -1 });
 
 const InquiryModel = mongoose.model("Inquiry", inquirySchema);
 module.exports = InquiryModel;

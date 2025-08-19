@@ -15,8 +15,15 @@ export const getInquiries = async (params = {}) => {
     if (params.status && params.status !== 'all') queryParams.append('status', params.status);
     if (params.search) queryParams.append('search', params.search);
     
+    // 🔥 FIX: Add venue and serviceType parameters
+    if (params.venue && params.venue !== 'all') queryParams.append('venue', params.venue);
+    if (params.serviceType && params.serviceType !== 'all') queryParams.append('serviceType', params.serviceType);
+    
     const queryString = queryParams.toString();
     const url = `${backendUrl}/api/inquiry/inquiries${queryString ? `?${queryString}` : ''}`;
+    
+    console.log("🔗 Final API URL:", url); // Debug log
+    console.log("📤 Sending params:", Object.fromEntries(queryParams)); // Debug log
     
     const response = await axios.get(url);
     return { success: true, data: response.data.data, pagination: response.data.pagination };
@@ -84,4 +91,3 @@ export const deleteInquiry = async (inquiryId) => {
     };
   }
 };
-//

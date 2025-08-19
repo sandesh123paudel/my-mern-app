@@ -146,6 +146,10 @@ const logout = async (req, res) => {
   }
 };
 
+const createAdmin = async (req, res) => {
+  
+};
+
 module.exports = {
   createSuperAdmin,
   loginUser,

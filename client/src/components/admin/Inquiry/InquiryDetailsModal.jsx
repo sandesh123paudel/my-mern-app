@@ -1,11 +1,107 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import {
   updateInquiryStatus,
   deleteInquiry,
 } from "../../../services/inquiryService";
+import { getLocationById } from "../../../services/locationServices";
+import { getServiceById } from "../../../services/serviceServices";
 
 const InquiryDetailsModal = ({ isOpen, inquiry, onClose, onUpdate }) => {
+  const [locationName, setLocationName] = useState("");
+  const [serviceName, setServiceName] = useState("");
+  const [loadingLocationName, setLoadingLocationName] = useState(false);
+  const [loadingServiceName, setLoadingServiceName] = useState(false);
+
+  // Fetch location and service names when inquiry changes
+  useEffect(() => {
+    if (inquiry) {
+      fetchLocationName();
+      fetchServiceName();
+    }
+  }, [inquiry]);
+
+  const fetchLocationName = async () => {
+    if (!inquiry?.venue) {
+      setLocationName("Not specified");
+      return;
+    }
+
+    // Check if venue is already populated (has name property)
+    if (typeof inquiry.venue === "object" && inquiry.venue.name) {
+      setLocationName(inquiry.venue.name);
+      return;
+    }
+
+    // Venue is an ID, need to fetch
+    try {
+      setLoadingLocationName(true);
+      let venueId;
+      if (typeof inquiry.venue === "object" && inquiry.venue !== null) {
+        venueId =
+          inquiry.venue._id || inquiry.venue.id || inquiry.venue.toString();
+      } else {
+        venueId = String(inquiry.venue);
+      }
+
+      const result = await getLocationById(venueId);
+      if (result.success && result.data) {
+        setLocationName(result.data.name || "Unknown location");
+      } else {
+        setLocationName("Unknown location");
+        console.error("Error fetching location:", result.error);
+      }
+    } catch (error) {
+      setLocationName("Unknown location");
+      console.error("Error fetching location:", error);
+    } finally {
+      setLoadingLocationName(false);
+    }
+  };
+
+  const fetchServiceName = async () => {
+    if (!inquiry?.serviceType) {
+      setServiceName("Not specified");
+      return;
+    }
+
+    // Check if service is already populated (has name property)
+    if (typeof inquiry.serviceType === "object" && inquiry.serviceType.name) {
+      setServiceName(inquiry.serviceType.name);
+      return;
+    }
+
+    // Service is an ID, need to fetch
+    try {
+      setLoadingServiceName(true);
+      let serviceId;
+      if (
+        typeof inquiry.serviceType === "object" &&
+        inquiry.serviceType !== null
+      ) {
+        serviceId =
+          inquiry.serviceType._id ||
+          inquiry.serviceType.id ||
+          inquiry.serviceType.toString();
+      } else {
+        serviceId = String(inquiry.serviceType);
+      }
+
+      const result = await getServiceById(serviceId);
+      if (result.success && result.data) {
+        setServiceName(result.data.name || "Unknown service");
+      } else {
+        setServiceName("Unknown service");
+        console.error("Error fetching service:", result.error);
+      }
+    } catch (error) {
+      setServiceName("Unknown service");
+      console.error("Error fetching service:", error);
+    } finally {
+      setLoadingServiceName(false);
+    }
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case "pending":
@@ -114,7 +210,11 @@ const InquiryDetailsModal = ({ isOpen, inquiry, onClose, onUpdate }) => {
                 Venue
               </label>
               <p className="text-gray-900">
-                {inquiry.venue || "Not specified"}
+                {loadingLocationName ? (
+                  <span className="text-blue-600">Loading...</span>
+                ) : (
+                  locationName
+                )}
               </p>
             </div>
             <div>
@@ -122,7 +222,11 @@ const InquiryDetailsModal = ({ isOpen, inquiry, onClose, onUpdate }) => {
                 Service Type
               </label>
               <p className="text-gray-900">
-                {inquiry.serviceType || "Not specified"}
+                {loadingServiceName ? (
+                  <span className="text-blue-600">Loading...</span>
+                ) : (
+                  serviceName
+                )}
               </p>
             </div>
             <div>

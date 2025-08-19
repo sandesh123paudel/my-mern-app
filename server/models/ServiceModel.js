@@ -25,5 +25,8 @@ const serviceSchema = new mongoose.Schema(
 // Compound index to ensure unique service names per location
 serviceSchema.index({ name: 1, locationId: 1 }, { unique: true });
 
-const Service = mongoose.model("Service", serviceSchema);
+// Check if model already exists before creating it
+const Service =
+  mongoose.models.Service || mongoose.model("Service", serviceSchema);
+
 module.exports = Service;

@@ -1,10 +1,13 @@
 // controllers/inquiryController.js
 const InquiryModel = require("../models/InquiryModel.js");
+const LocationModel = require("../models/locationModel.js"); // Add this import
+const ServiceModel = require("../models/serviceModel.js"); // Add this import
 const {
   sendAdminInquiryNotification,
   sendCustomerInquiryConfirmation,
 } = require("../utils/sendMail.js");
 const { sendSMS } = require("../utils/sendSMS.js");
+const mongoose = require("mongoose");
 
 const submitInquiry = async (req, res) => {
   try {
@@ -18,6 +21,41 @@ const submitInquiry = async (req, res) => {
       serviceType,
       message,
     } = req.body;
+
+    // Validate venue and serviceType IDs
+    if (!mongoose.Types.ObjectId.isValid(venue)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid venue ID",
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(serviceType)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid service type ID",
+      });
+    }
+
+    // Check if venue and service exist
+    const [venueExists, serviceExists] = await Promise.all([
+      LocationModel.findById(venue),
+      ServiceModel.findById(serviceType),
+    ]);
+
+    if (!venueExists) {
+      return res.status(400).json({
+        success: false,
+        message: "Selected venue not found",
+      });
+    }
+
+    if (!serviceExists) {
+      return res.status(400).json({
+        success: false,
+        message: "Selected service not found",
+      });
+    }
 
     const eventDateOnly = new Date(new Date(req.body.eventDate).toDateString());
 
@@ -39,18 +77,23 @@ const submitInquiry = async (req, res) => {
       contact: contact,
       eventDate: new Date(new Date(eventDate).toDateString()),
       numberOfPeople: parseInt(numberOfPeople),
-      venue: venue.trim(),
-      serviceType: serviceType.trim(),
+      venue: venue, // Store as ObjectId
+      serviceType: serviceType, // Store as ObjectId
       message: message ? message.trim() : "",
     };
 
     const newInquiry = new InquiryModel(inquiryData);
     await newInquiry.save();
 
+    // Populate the inquiry with venue and service details for notifications
+    const populatedInquiry = await InquiryModel.findById(newInquiry._id)
+      .populate("venue", "name")
+      .populate("serviceType", "name locationId");
+
     // Send email notifications (don't wait for them to complete)
     Promise.all([
-      sendAdminInquiryNotification(newInquiry.toObject()),
-      sendCustomerInquiryConfirmation(newInquiry.toObject()),
+      sendAdminInquiryNotification(populatedInquiry.toObject()),
+      sendCustomerInquiryConfirmation(populatedInquiry.toObject()),
     ])
       .then((results) => {
         console.log("📧 Email notifications sent:", {
@@ -73,8 +116,10 @@ const submitInquiry = async (req, res) => {
         }
       );
 
-      // Create SMS message
-      const smsMessage = `Hi ${name}! Your inquiry for ${serviceType} on ${eventDateFormatted} has been received. We'll contact you within 24hrs. - ${
+      // Create SMS message using service name instead of ID
+      const smsMessage = `Hi ${name}! Your inquiry for ${
+        populatedInquiry.serviceType.name
+      } on ${eventDateFormatted} has been received. We'll contact you within 24hrs. - ${
         process.env.COMPANY_NAME || "Our Team"
       }`;
 
@@ -101,7 +146,7 @@ const submitInquiry = async (req, res) => {
     res.status(201).json({
       success: true,
       message: "Inquiry submitted successfully! We'll get back to you soon.",
-      data: newInquiry,
+      data: populatedInquiry,
     });
   } catch (error) {
     console.error("Error submitting inquiry:", error);
@@ -127,7 +172,14 @@ const submitInquiry = async (req, res) => {
 
 const getInquiries = async (req, res) => {
   try {
-    const { page = 1, limit = 10, status, search } = req.query;
+    const {
+      page = 1,
+      limit = 10,
+      status,
+      search,
+      venue,
+      serviceType,
+    } = req.query;
 
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
@@ -139,6 +191,20 @@ const getInquiries = async (req, res) => {
       query.status = status;
     }
 
+    // Filter by venue if provided
+    if (venue && venue !== "all" && mongoose.Types.ObjectId.isValid(venue)) {
+      query.venue = venue;
+    }
+
+    // Filter by service type if provided
+    if (
+      serviceType &&
+      serviceType !== "all" &&
+      mongoose.Types.ObjectId.isValid(serviceType)
+    ) {
+      query.serviceType = serviceType;
+    }
+
     if (search && search.trim()) {
       const searchRegex = new RegExp(search.trim(), "i");
       const searchNumber = parseInt(search.trim());
@@ -147,12 +213,28 @@ const getInquiries = async (req, res) => {
         { name: searchRegex },
         { email: searchRegex },
         { message: searchRegex },
-        { venue: searchRegex },
-        { serviceType: searchRegex },
       ];
 
       if (!isNaN(searchNumber)) {
         searchConditions.push({ contact: searchNumber });
+      }
+
+      // Search in populated venue and service names
+      const [matchingVenues, matchingServices] = await Promise.all([
+        LocationModel.find({ name: searchRegex }).select("_id"),
+        ServiceModel.find({ name: searchRegex }).select("_id"),
+      ]);
+
+      if (matchingVenues.length > 0) {
+        searchConditions.push({
+          venue: { $in: matchingVenues.map((v) => v._id) },
+        });
+      }
+
+      if (matchingServices.length > 0) {
+        searchConditions.push({
+          serviceType: { $in: matchingServices.map((s) => s._id) },
+        });
       }
 
       query.$or = searchConditions;
@@ -162,6 +244,8 @@ const getInquiries = async (req, res) => {
     const totalPages = Math.ceil(totalItems / limitNum);
 
     const inquiries = await InquiryModel.find(query)
+      .populate("venue", "name")
+      .populate("serviceType", "name locationId")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limitNum);
@@ -191,10 +275,56 @@ const getInquiries = async (req, res) => {
   }
 };
 
+const getInquiryById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid inquiry ID",
+      });
+    }
+
+    const inquiry = await InquiryModel.findById(id)
+      .populate("venue", "name address phone email")
+      .populate("serviceType", "name description locationId");
+
+    if (!inquiry) {
+      return res.status(404).json({
+        success: false,
+        message: "Inquiry not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: inquiry,
+    });
+  } catch (error) {
+    console.error("Error fetching inquiry:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching inquiry",
+      error:
+        process.env.NODE_ENV === "development"
+          ? error.message
+          : "Internal server error",
+    });
+  }
+};
+
 const updateInquiryStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid inquiry ID",
+      });
+    }
 
     const validStatuses = ["pending", "responded", "archived"];
     if (!validStatuses.includes(status)) {
@@ -208,7 +338,9 @@ const updateInquiryStatus = async (req, res) => {
       id,
       { status, updatedAt: new Date() },
       { new: true, runValidators: true }
-    );
+    )
+      .populate("venue", "name")
+      .populate("serviceType", "name locationId");
 
     if (!inquiry) {
       return res.status(404).json({
@@ -239,6 +371,13 @@ const deleteInquiry = async (req, res) => {
   try {
     const { id } = req.params;
 
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid inquiry ID",
+      });
+    }
+
     const inquiry = await InquiryModel.findByIdAndDelete(id);
 
     if (!inquiry) {
@@ -265,9 +404,115 @@ const deleteInquiry = async (req, res) => {
   }
 };
 
+// Get inquiry statistics
+const getInquiryStats = async (req, res) => {
+  try {
+    const stats = await InquiryModel.aggregate([
+      {
+        $group: {
+          _id: "$status",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const totalInquiries = await InquiryModel.countDocuments();
+
+    // Get popular venues and services
+    const [popularVenues, popularServices] = await Promise.all([
+      InquiryModel.aggregate([
+        {
+          $group: {
+            _id: "$venue",
+            count: { $sum: 1 },
+          },
+        },
+        {
+          $lookup: {
+            from: "locations",
+            localField: "_id",
+            foreignField: "_id",
+            as: "venueInfo",
+          },
+        },
+        {
+          $unwind: "$venueInfo",
+        },
+        {
+          $project: {
+            _id: 1,
+            count: 1,
+            name: "$venueInfo.name",
+          },
+        },
+        {
+          $sort: { count: -1 },
+        },
+        {
+          $limit: 5,
+        },
+      ]),
+      InquiryModel.aggregate([
+        {
+          $group: {
+            _id: "$serviceType",
+            count: { $sum: 1 },
+          },
+        },
+        {
+          $lookup: {
+            from: "services",
+            localField: "_id",
+            foreignField: "_id",
+            as: "serviceInfo",
+          },
+        },
+        {
+          $unwind: "$serviceInfo",
+        },
+        {
+          $project: {
+            _id: 1,
+            count: 1,
+            name: "$serviceInfo.name",
+          },
+        },
+        {
+          $sort: { count: -1 },
+        },
+        {
+          $limit: 5,
+        },
+      ]),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        total: totalInquiries,
+        statusBreakdown: stats,
+        popularVenues,
+        popularServices,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching inquiry stats:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching inquiry statistics",
+      error:
+        process.env.NODE_ENV === "development"
+          ? error.message
+          : "Internal server error",
+    });
+  }
+};
+
 module.exports = {
   submitInquiry,
   getInquiries,
+  getInquiryById,
   updateInquiryStatus,
   deleteInquiry,
+  getInquiryStats,
 };

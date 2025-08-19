@@ -80,8 +80,8 @@ const sendAdminInquiryNotification = async (inquiryData) => {
       .replace(/{{contact}}/g, inquiryData.contact)
       .replace(/{{eventDate}}/g, formatDate(inquiryData.eventDate))
       .replace(/{{numberOfPeople}}/g, inquiryData.numberOfPeople)
-      .replace(/{{venue}}/g, inquiryData.venue)
-      .replace(/{{serviceType}}/g, inquiryData.serviceType)
+      .replace(/{{venue}}/g, inquiryData.venue.name)
+      .replace(/{{serviceType}}/g, inquiryData.serviceType.name)
       .replace(/{{submittedAt}}/g, formatDate(inquiryData.createdAt))
       .replace(/{{eventDateUrgency}}/g, eventDateUrgency)
       .replace(
@@ -143,8 +143,8 @@ const sendCustomerInquiryConfirmation = async (inquiryData) => {
       .replace(/{{contact}}/g, inquiryData.contact)
       .replace(/{{eventDate}}/g, formatDate(inquiryData.eventDate))
       .replace(/{{numberOfPeople}}/g, inquiryData.numberOfPeople)
-      .replace(/{{venue}}/g, inquiryData.venue)
-      .replace(/{{serviceType}}/g, inquiryData.serviceType)
+      .replace(/{{venue}}/g, inquiryData.venue.name)
+      .replace(/{{serviceType}}/g, inquiryData.serviceType.name)
       .replace(/{{submittedAt}}/g, formatDate(inquiryData.createdAt))
       .replace(
         /{{companyName}}/g,

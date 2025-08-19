@@ -1,8 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
+import { getLocations } from "../services/locationServices"; // Adjust the import path as needed
+import { getServicesByLocation } from "../services/serviceServices"; // Adjust the import path as needed
 
 const InquiryForm = () => {
   const navigate = useNavigate();
@@ -18,16 +20,83 @@ const InquiryForm = () => {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [locations, setLocations] = useState([]);
+  const [services, setServices] = useState([]);
+  const [loadingLocations, setLoadingLocations] = useState(true);
+  const [loadingServices, setLoadingServices] = useState(false);
 
   // Your Express API Endpoint
   const API_ENDPOINT = import.meta.env.VITE_BACKEND_URL;
 
+  // Load locations on component mount
+  useEffect(() => {
+    const fetchLocations = async () => {
+      try {
+        setLoadingLocations(true);
+        const result = await getLocations();
+        if (result.success) {
+          setLocations(result.data);
+        } else {
+          toast.error("Failed to load locations");
+          console.error("Error loading locations:", result.error);
+        }
+      } catch (error) {
+        toast.error("Failed to load locations");
+        console.error("Error loading locations:", error);
+      } finally {
+        setLoadingLocations(false);
+      }
+    };
+
+    fetchLocations();
+  }, []);
+
+  // Load services when venue changes
+  useEffect(() => {
+    const fetchServices = async () => {
+      if (!formData.venue) {
+        setServices([]);
+        return;
+      }
+
+      try {
+        setLoadingServices(true);
+        const result = await getServicesByLocation(formData.venue);
+        if (result.success) {
+          setServices(result.data);
+        } else {
+          toast.error("Failed to load services for selected location");
+          console.error("Error loading services:", result.error);
+          setServices([]);
+        }
+      } catch (error) {
+        toast.error("Failed to load services");
+        console.error("Error loading services:", error);
+        setServices([]);
+      } finally {
+        setLoadingServices(false);
+      }
+    };
+
+    fetchServices();
+  }, [formData.venue]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+
+    // If venue is changed, reset service type
+    if (name === "venue") {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+        serviceType: "", // Reset service type when venue changes
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
   };
 
   const resetForm = () => {
@@ -41,6 +110,7 @@ const InquiryForm = () => {
       serviceType: "",
       message: "",
     });
+    setServices([]);
   };
 
   const handleSubmit = async (e) => {
@@ -223,11 +293,16 @@ const InquiryForm = () => {
                 value={formData.venue}
                 onChange={handleChange}
                 required
-                disabled={isSubmitting}
+                disabled={isSubmitting || loadingLocations}
               >
-                <option value="">Select a venue</option>
-                <option value="sydney">Sydney</option>
-                <option value="canberra">Canberra</option>
+                <option value="">
+                  {loadingLocations ? "Loading locations..." : "Select a venue"}
+                </option>
+                {locations.map((location) => (
+                  <option key={location._id} value={location._id}>
+                    {location.name}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="w-full">
@@ -238,12 +313,31 @@ const InquiryForm = () => {
                 value={formData.serviceType}
                 onChange={handleChange}
                 required
-                disabled={isSubmitting}
+                disabled={isSubmitting || loadingServices || !formData.venue}
               >
-                <option value="">Select a service</option>
-                <option value="catering">Catering</option>
-                <option value="function">Function</option>
+                <option value="">
+                  {!formData.venue
+                    ? "Select a venue first"
+                    : loadingServices
+                    ? "Loading services..."
+                    : "Select a service"}
+                </option>
+                {services.map((service) => (
+                  <option key={service._id} value={service._id}>
+                    {service.name}
+                  </option>
+                ))}
               </select>
+              {!formData.venue && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Please select a venue to see available services
+                </p>
+              )}
+              {formData.venue && services.length === 0 && !loadingServices && (
+                <p className="text-xs text-orange-500 mt-1">
+                  No services available for this location
+                </p>
+              )}
             </div>
           </div>
 

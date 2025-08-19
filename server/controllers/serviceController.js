@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
-const Service = require("../models/ServiceModel.js");
 const Menu = require("../models/menusModel.js");
 const Location = require("../models/locationModel.js");
+const Service = require("../models/serviceModel.js");
 
 // @desc    Get all active services
 // @route   GET /api/services
