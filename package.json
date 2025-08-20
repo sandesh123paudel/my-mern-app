@@ -7,7 +7,7 @@
     "install-server": "cd server && npm install", 
     "install-all": "npm run install-client && npm run install-server",
     "build": "cd client && npm run build",
-    "build-and-move": "cd client && npm run build && mv dist ../server/",
+    "build-and-move": "cd client && npm run build && rm -rf ../server/dist && mv dist ../server/",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "client": "cd client && npm run dev",
     "server": "cd server && npm start"

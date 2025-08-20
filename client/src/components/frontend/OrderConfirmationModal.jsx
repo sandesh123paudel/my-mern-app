@@ -475,11 +475,7 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
     setIsSubmitting(true);
 
     try {
-      console.log("=== ORDER SUBMISSION DEBUG ===");
-      console.log("Original orderData:", JSON.stringify(orderData, null, 2));
-      console.log("Is custom order:", orderData?.isCustomOrder);
-      console.log("Selected location:", selectedLocation);
-      console.log("Selected service:", selectedService);
+    
 
       // Prepare final order data
       let finalOrderData = { ...orderData };
@@ -502,7 +498,6 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
           serviceName: selectedServiceObj?.name || "Selected Service",
         };
 
-        console.log("Updated menu info for custom order:", finalOrderData.menu);
       }
 
       // Construct booking data with proper structure
@@ -561,10 +556,7 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
         isCustomOrder: finalOrderData?.isCustomOrder || false,
       };
 
-      console.log(
-        "Final booking data being submitted:",
-        JSON.stringify(bookingData, null, 2)
-      );
+  
 
       // Call the booking service
       const result = await createBooking(bookingData);

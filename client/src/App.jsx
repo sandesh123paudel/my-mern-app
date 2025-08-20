@@ -4,6 +4,7 @@ import InquiryForm from "./pages/InquiryForm";
 import Home from "./pages/Home";
 import About from "./pages/About";
 import Menu from "./pages/Menu";
+import NotFound from "./components/404";
 import Footer from "./components/Footer";
 import { Toaster } from "react-hot-toast";
 import Login from "./pages/Login";
@@ -147,6 +148,18 @@ const App = () => {
           <Route path="users" element={<AdminUsers />} />
           <Route path="menu" element={<AdminMenu />} />
         </Route>
+
+        {/* 404 Catch-all Route */}
+        <Route
+          path="*"
+          element={
+            <>
+              <Header />
+              <NotFound />
+              <Footer />
+            </>
+          }
+        />
       </Routes>
     </div>
   );

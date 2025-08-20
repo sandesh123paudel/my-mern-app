@@ -24,7 +24,7 @@ const InquiryCard = ({ inquiry, onViewDetails }) => {
       if (inquiry.venue) {
         // Check if venue is already populated (has name property)
         if (typeof inquiry.venue === "object" && inquiry.venue.name) {
-          console.log("Venue already populated:", inquiry.venue.name);
+          
           setLocationName(inquiry.venue.name);
         } else {
           // Venue is an ID, need to fetch
@@ -36,12 +36,11 @@ const InquiryCard = ({ inquiry, onViewDetails }) => {
             venueId = String(inquiry.venue);
           }
 
-          console.log("Fetching venue with ID:", venueId);
 
+          
           try {
             const result = await getLocationById(venueId);
-            console.log("Location API result:", result);
-
+         
             if (result.success && result.data) {
               setLocationName(result.data.name || "Unknown location");
             } else {
@@ -52,7 +51,6 @@ const InquiryCard = ({ inquiry, onViewDetails }) => {
               }));
             }
           } catch (error) {
-            console.error("Location fetch error:", error);
             setLocationName("Error loading location");
             setErrors((prev) => ({ ...prev, location: error.message }));
           }
@@ -68,7 +66,7 @@ const InquiryCard = ({ inquiry, onViewDetails }) => {
           typeof inquiry.serviceType === "object" &&
           inquiry.serviceType.name
         ) {
-          console.log("Service already populated:", inquiry.serviceType.name);
+
           setServiceName(inquiry.serviceType.name);
         } else {
           // Service is an ID, need to fetch
@@ -85,12 +83,12 @@ const InquiryCard = ({ inquiry, onViewDetails }) => {
             serviceId = String(inquiry.serviceType);
           }
 
-          console.log("Fetching service with ID:", serviceId);
 
+          
           try {
             const result = await getServiceById(serviceId);
-            console.log("Service API result:", result);
 
+            
             if (result.success && result.data) {
               setServiceName(result.data.name || "Unknown service");
             } else {
@@ -101,17 +99,17 @@ const InquiryCard = ({ inquiry, onViewDetails }) => {
               }));
             }
           } catch (error) {
-            console.error("Service fetch error:", error);
+
             setServiceName("Error loading service");
             setErrors((prev) => ({ ...prev, service: error.message }));
           }
         }
       } else {
-        console.log("No serviceType found in inquiry");
+
         setServiceName("Not specified");
       }
     } catch (error) {
-      console.error("Error in fetchDisplayNames:", error);
+
       setLocationName("Error loading");
       setServiceName("Error loading");
       setErrors({ general: error.message });

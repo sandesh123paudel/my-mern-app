@@ -1,5 +1,5 @@
 // controllers/inquiryController.js
-const InquiryModel = require("../models/InquiryModel.js");
+const InquiryModel = require("../models/inquiryModel.js");
 const LocationModel = require("../models/locationModel.js"); // Add this import
 const ServiceModel = require("../models/serviceModel.js"); // Add this import
 const {

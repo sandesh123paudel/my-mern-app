@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const Menu = require("../models/menusModel.js");
-const Service = require("../models/ServiceModel.js");
+const Service = require("../models/serviceModel.js");
 const MenuItem = require("../models/menuItemModel.js");
 const Location = require("../models/locationModel.js");
 

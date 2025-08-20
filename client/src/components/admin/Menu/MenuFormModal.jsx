@@ -51,13 +51,11 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
   // Load initial data and set filtered services if editing
   useEffect(() => {
     if (isOpen && menu && formData.locationId && services.length > 0) {
-      console.log("Setting up filtered services for editing..."); // Debug log
       const locationServices = services.filter(
         (service) =>
           (service.locationId?._id || service.locationId) ===
           formData.locationId
       );
-      console.log("Filtered services:", locationServices); // Debug log
       setFilteredServices(locationServices);
     }
   }, [isOpen, menu, formData.locationId, services]);
@@ -65,13 +63,11 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
   // Load menu data when editing
   useEffect(() => {
     if (menu) {
-      console.log("Loading menu for editing:", menu); // Debug log
 
       // Helper function to extract ID from populated or non-populated field
       const extractId = (field) => {
         if (!field) return "";
         const id = typeof field === "object" ? field._id : field;
-        console.log("Extracting ID from field:", field, "-> ID:", id); // Debug log
         return id;
       };
 
@@ -79,7 +75,6 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
       const extractItemIds = (items) => {
         if (!Array.isArray(items)) return [];
         const ids = items.map((item) => extractId(item));
-        console.log("Extracting item IDs:", items, "-> IDs:", ids); // Debug log
         return ids;
       };
 
@@ -90,12 +85,7 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
           ...group,
           items: extractItemIds(group.items),
         }));
-        console.log(
-          "Processing selection groups:",
-          selectionGroups,
-          "-> Processed:",
-          processed
-        ); // Debug log
+      
         return processed;
       };
 
@@ -108,12 +98,7 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
           includedItems: extractItemIds(category.includedItems),
           selectionGroups: processSelectionGroups(category.selectionGroups),
         };
-        console.log(
-          "Processing category data:",
-          category,
-          "-> Processed:",
-          processed
-        ); // Debug log
+    
         return processed;
       };
 
@@ -134,7 +119,6 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
         isActive: menu.isActive ?? true,
       };
 
-      console.log("Setting form data:", formData); // Debug log
       setFormData(formData);
     } else {
       resetForm();

@@ -1,6 +1,8 @@
-# Dependencies
+# dependencies
 node_modules/
 */node_modules/
+
+# Other files...
 
 # Build outputs
 client/dist/

@@ -13,12 +13,16 @@ const menuRouter = require("./routes/menuRoutes.js");
 const bookingRouter = require("./routes/bookingRoutes.js");
 
 const app = express();
-const port = process.env.PORT || 4000;
+const port = process.env.PORT || 9000;
 
 // Updated CORS for production
-const allowedOrigins = process.env.NODE_ENV === 'production' 
-  ? [process.env.CLIENT_URL || "https://yourdomain.com"] 
-  : ["http://localhost:5173"];
+const allowedOrigins =
+  process.env.NODE_ENV === "production"
+    ? [
+        process.env.CLIENT_URL || "https://mccatering.com.au",
+        "https://www.mccatering.com.au",
+      ]
+    : ["http://localhost:5173"];
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
@@ -35,13 +39,13 @@ app.use("/api/menus", menuRouter);
 app.use("/api/bookings", bookingRouter);
 
 // Serve static files from Vite build in production
-if (process.env.NODE_ENV === 'production') {
+if (process.env.NODE_ENV === "production") {
   // Serve static files from the dist folder
-  app.use(express.static(path.join(__dirname, 'dist')));
-  
+  app.use(express.static(path.join(__dirname, "dist")));
+
   // Handle React Router - send all non-API requests to index.html
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(__dirname, "dist", "index.html"));
   });
 } else {
   // Development route
@@ -54,10 +58,12 @@ mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {
     console.log("DB Connected");
-    app.listen(port, () => {
-      console.log(`Server running on http://localhost:${port}`);
+    const server = app.listen(port, () => {
+      console.log(`Server running on port ${port}`);
+      console.log(`Environment: ${process.env.NODE_ENV}`);
+      console.log(`Allowed origins: ${allowedOrigins}`);
     });
   })
   .catch((error) => {
-    console.log(error);
+    console.log("Database connection error:", error);
   });

@@ -33,6 +33,7 @@ const InquiryForm = () => {
     const fetchLocations = async () => {
       try {
         setLoadingLocations(true);
+
         const result = await getLocations();
         if (result.success) {
           setLocations(result.data);

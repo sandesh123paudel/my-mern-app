@@ -320,10 +320,7 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
       hasDietaryRequirements,
     };
 
-    console.log(
-      "Custom Order Details being sent:",
-      JSON.stringify(orderDetails, null, 2)
-    );
+   
     onProceedToConfirmation(orderDetails);
   };
 

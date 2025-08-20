@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const Service = require("../models/ServiceModel.js");
+const Service = require("../models/serviceModel.js");
 const Location = require("../models/locationModel.js");
 
 // Helper function to validate bank details

@@ -65,7 +65,6 @@ const AdminInquiries = () => {
         (key) => params[key] === undefined && delete params[key]
       );
 
-      console.log("Frontend - Sending API params:", params); // Debug log
 
       const result = await getInquiries(params);
 
