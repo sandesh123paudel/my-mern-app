@@ -117,11 +117,10 @@ const submitInquiry = async (req, res) => {
       );
 
       // Create SMS message using service name instead of ID
-      const smsMessage = `Hi ${name}! Your inquiry for ${
-        populatedInquiry.serviceType.name
-      } on ${eventDateFormatted} has been received. We'll contact you within 24hrs. - ${
-        process.env.COMPANY_NAME || "Our Team"
-      }`;
+      const smsMessage = `Hi ${name}! Thanks for your enquiry! We've received it. Please check your email shortly for more details.
+- ${process.env.COMPANY_NAME || "Our Team"}`;
+
+      const adminMessage = `New inquiry received from ${name}  for ${populatedInquiry.serviceType.name} in ${populatedInquiry.venue.name} on ${eventDateFormatted}. Customer contact: ${contact}.`;
 
       // Send SMS asynchronously
       sendSMS(contact, smsMessage, `inquiry_${newInquiry._id}`)
@@ -134,6 +133,24 @@ const submitInquiry = async (req, res) => {
             });
           } else {
             console.error("❌ SMS send failed:", smsResult.error);
+          }
+        })
+        .catch((smsError) => {
+          console.error("❌ SMS service error:", smsError);
+        });
+      // Send SMS to admin if configured
+      sendSMS(
+        process.env.SMS_ADMIN_PHONE,
+        adminMessage,
+        `admin_inquiry_${newInquiry._id}`
+      )
+        .then((smsResult) => {
+          if (smsResult.success) {
+            console.log("📱 SMS sent successfully to admin:", {
+              to: process.env.SMS_ADMIN_PHONE,
+              messageId: smsResult.messageId,
+              cost: smsResult.cost,
+            });
           }
         })
         .catch((smsError) => {

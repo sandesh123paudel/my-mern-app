@@ -55,7 +55,10 @@ const AdminDashboard = () => {
 
             // Handle service - check if already populated or needs fetching
             if (inquiry.serviceType) {
-              if (typeof inquiry.serviceType === "object" && inquiry.serviceType.name) {
+              if (
+                typeof inquiry.serviceType === "object" &&
+                inquiry.serviceType.name
+              ) {
                 serviceName = inquiry.serviceType.name;
               } else {
                 const serviceResult = await getServiceById(inquiry.serviceType);
@@ -65,7 +68,11 @@ const AdminDashboard = () => {
               }
             }
           } catch (error) {
-            console.error("Error resolving names for inquiry:", inquiry._id, error);
+            console.error(
+              "Error resolving names for inquiry:",
+              inquiry._id,
+              error
+            );
           }
 
           return {
@@ -79,7 +86,7 @@ const AdminDashboard = () => {
       return resolvedInquiries;
     } catch (error) {
       console.error("Error resolving inquiry names:", error);
-      return inquiries.map(inquiry => ({
+      return inquiries.map((inquiry) => ({
         ...inquiry,
         venueName: "Unknown Venue",
         serviceName: "Unknown Service",
@@ -152,10 +159,13 @@ const AdminDashboard = () => {
 
         // Process recent inquiries with name resolution
         let recentInquiries = [];
-        if (recentInquiriesResult.success && recentInquiriesResult.data.length > 0) {
+        if (
+          recentInquiriesResult.success &&
+          recentInquiriesResult.data.length > 0
+        ) {
           const rawInquiries = recentInquiriesResult.data.slice(0, 5);
           const resolvedInquiries = await resolveInquiryNames(rawInquiries);
-          
+
           recentInquiries = resolvedInquiries.map((inquiry) => ({
             id: inquiry._id,
             customerName: inquiry.name || "Unknown",
@@ -194,10 +204,13 @@ const AdminDashboard = () => {
         });
 
         let recentInquiries = [];
-        if (recentInquiriesResult.success && recentInquiriesResult.data.length > 0) {
+        if (
+          recentInquiriesResult.success &&
+          recentInquiriesResult.data.length > 0
+        ) {
           const rawInquiries = recentInquiriesResult.data.slice(0, 5);
           const resolvedInquiries = await resolveInquiryNames(rawInquiries);
-          
+
           recentInquiries = resolvedInquiries.map((inquiry) => ({
             id: inquiry._id,
             customerName: inquiry.name || "Unknown",
@@ -289,19 +302,19 @@ const AdminDashboard = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-amber-800">Dashboard</h1>
+        <h1 className="text-3xl font-bold ">Dashboard</h1>
         <div className="flex items-center gap-4">
           <select
             value={timeframe}
             onChange={(e) => setTimeframe(e.target.value)}
-            className="px-3 py-2 border border-amber-300 rounded-lg text-amber-700 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+            className="px-3 py-2 border border-primary-brown rounded-lg  bg-white focus:outline-none focus:ring-2 focus:ring-primary-brown"
           >
             <option value="week">Last 7 Days</option>
             <option value="month">Last 30 Days</option>
             <option value="year">Last Year</option>
             <option value="all">All Time</option>
           </select>
-          <div className="text-sm text-amber-600">
+          <div className="text-sm">
             Welcome back! Here's what's happening with MC Catering.
           </div>
         </div>
@@ -589,7 +602,11 @@ const AdminDashboard = () => {
                       </div>
                       <div className="text-xs text-gray-500">
                         Event:{" "}
-                        {inquiry.eventDate ? new Date(inquiry.eventDate).toLocaleDateString("en-AU") : "Not specified"}{" "}
+                        {inquiry.eventDate
+                          ? new Date(inquiry.eventDate).toLocaleDateString(
+                              "en-AU"
+                            )
+                          : "Not specified"}{" "}
                         • {inquiry.numberOfPeople || 0} people
                       </div>
                       <div className="text-xs text-gray-500">
@@ -608,7 +625,8 @@ const AdminDashboard = () => {
               <div className="text-center text-blue-600">
                 <p className="text-lg">No recent inquiries to display</p>
                 <p className="text-sm mt-2">
-                  Inquiries will appear here once customers start contacting you.
+                  Inquiries will appear here once customers start contacting
+                  you.
                 </p>
               </div>
             )}
@@ -667,7 +685,9 @@ const AdminDashboard = () => {
       {/* Quick Actions */}
       <div className="bg-white rounded-lg shadow-md border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200 bg-amber-50">
-          <h2 className="text-lg font-semibold text-amber-800">Quick Actions</h2>
+          <h2 className="text-lg font-semibold text-amber-800">
+            Quick Actions
+          </h2>
         </div>
         <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
