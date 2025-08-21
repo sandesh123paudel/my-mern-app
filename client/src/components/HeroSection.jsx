@@ -188,11 +188,11 @@ const HeroSection = () => {
                 style={{ backgroundImage: `url(${slides[0].image})` }}
               />
 
-              {/* Location Selection Buttons - Top Right */}
+              {/* Location Selection Buttons - Responsive positioning */}
               <motion.div
-                className="absolute top-4 right-4 z-30 flex gap-2"
-                initial={{ opacity: 0, x: 20 }}
-                whileInView={{ opacity: 1, x: 0 }}
+                className="absolute top-4 left-1/2 -translate-x-1/2 md:top-4 md:right-4 md:left-auto md:translate-x-0 z-30 flex flex-col sm:flex-row gap-2"
+                initial={{ opacity: 0, y: -20 }}
+                whileInView={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6, duration: 0.8 }}
                 viewport={{ once: true }}
               >
@@ -201,12 +201,12 @@ const HeroSection = () => {
                     <motion.button
                       key={location._id}
                       onClick={() => handleLocationSelect(location._id)}
-                      className="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-300 shadow-lg backdrop-blur-sm bg-[#FF6B35] text-white hover:bg-primary-green"
+                      className="flex items-center justify-center gap-2 px-3 py-2 sm:px-4 rounded-lg font-semibold text-xs sm:text-sm transition-all duration-300 shadow-lg backdrop-blur-sm bg-[#FF6B35] text-white hover:bg-primary-green min-w-0 whitespace-nowrap"
                       whileHover={{ scale: 1.05, y: -2 }}
                       whileTap={{ scale: 0.95 }}
                     >
-                      <MapPin className="w-4 h-4" />
-                      {location.name}
+                      <MapPin className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                      <span className="truncate">{location.name}</span>
                     </motion.button>
                   ))}
               </motion.div>
@@ -240,18 +240,18 @@ const HeroSection = () => {
                       {/* Overlay Gradient */}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
 
-                      {/* Slide Content */}
+                      {/* Slide Content - Mobile optimized */}
                       <motion.div
-                        className="absolute bottom-6 left-6 text-white"
+                        className="absolute bottom-4 left-4 right-4 md:bottom-6 md:left-6 md:right-auto text-white"
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.3, duration: 0.6 }}
                       >
-                        <div className="bg-primary-brown backdrop-blur-sm rounded-lg p-4 inline-block">
-                          <h3 className="text-2xl md:text-3xl text-primary-green font-bold mb-2">
+                        <div className="backdrop-blur-sm bg-black/20 rounded-lg p-3 md:p-4 w-full md:w-auto md:max-w-md">
+                          <h3 className="text-xl md:text-2xl lg:text-3xl text-primary-green font-bold mb-2 leading-tight">
                             {slides[currentSlide].title}
                           </h3>
-                          <p className="text-white/90 max-w-md">
+                          <p className="text-white/90 text-sm md:text-base leading-relaxed">
                             {slides[currentSlide].subtitle}
                           </p>
                         </div>
@@ -261,45 +261,45 @@ const HeroSection = () => {
                 </AnimatePresence>
               </div>
 
-              {/* Navigation Arrows */}
+              {/* Navigation Arrows - Mobile optimized */}
               <motion.button
-                className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-all duration-300 z-20"
+                className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 w-10 h-10 md:w-12 md:h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-all duration-300 z-20"
                 onClick={() => paginate(-1)}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
               >
-                <ChevronLeft className="w-6 h-6" />
+                <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
               </motion.button>
 
               <motion.button
-                className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-all duration-300 z-20"
+                className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 w-10 h-10 md:w-12 md:h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-all duration-300 z-20"
                 onClick={() => paginate(1)}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
               >
-                <ChevronRight className="w-6 h-6" />
+                <ChevronRight className="w-5 h-5 md:w-6 md:h-6" />
               </motion.button>
 
-              {/* Play/Pause Button - Moved to bottom left */}
+              {/* Play/Pause Button - Mobile optimized */}
               <motion.button
-                className="absolute bottom-4 right-4 w-10 h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-all duration-300 z-20"
+                className="absolute bottom-4 right-4 w-8 h-8 md:w-10 md:h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-all duration-300 z-20"
                 onClick={() => setIsAutoPlaying(!isAutoPlaying)}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
               >
                 {isAutoPlaying ? (
-                  <Pause className="w-5 h-5" />
+                  <Pause className="w-4 h-4 md:w-5 md:h-5" />
                 ) : (
-                  <Play className="w-5 h-5 ml-0.5" />
+                  <Play className="w-4 h-4 md:w-5 md:h-5 ml-0.5" />
                 )}
               </motion.button>
 
-              {/* Slide Indicators - Bottom center */}
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+              {/* Slide Indicators - Mobile optimized */}
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 md:gap-2 z-20">
                 {slides.map((_, index) => (
                   <motion.button
                     key={index}
-                    className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                    className={`w-2.5 h-2.5 md:w-3 md:h-3 rounded-full transition-all duration-300 ${
                       index === currentSlide
                         ? "bg-white scale-125"
                         : "bg-white/50 hover:bg-white/70"
