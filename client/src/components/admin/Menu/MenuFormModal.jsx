@@ -63,7 +63,6 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
   // Load menu data when editing
   useEffect(() => {
     if (menu) {
-
       // Helper function to extract ID from populated or non-populated field
       const extractId = (field) => {
         if (!field) return "";
@@ -85,7 +84,7 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
           ...group,
           items: extractItemIds(group.items),
         }));
-      
+
         return processed;
       };
 
@@ -98,7 +97,7 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
           includedItems: extractItemIds(category.includedItems),
           selectionGroups: processSelectionGroups(category.selectionGroups),
         };
-    
+
         return processed;
       };
 
@@ -689,7 +688,7 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 top-[-25px] bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-4xl w-full p-6 overflow-y-auto max-h-[95vh]">
         <div className="flex items-center justify-between border-b pb-4 mb-6">
           <h2 className="text-2xl font-bold text-gray-800">

@@ -766,7 +766,6 @@ const Menu = () => {
         )}
         {showCustomOrderModal && (
           <CustomOrderModal
-            menus={menus}
             onClose={() => setShowCustomOrderModal(false)}
             onProceedToConfirmation={handleProceedToConfirmation}
             selectedLocationId={selectedLocation} // Pass selected location to custom order

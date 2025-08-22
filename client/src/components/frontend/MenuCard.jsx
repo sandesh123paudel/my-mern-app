@@ -355,7 +355,7 @@ const MenuCard = ({ menu, onClick }) => {
           />
 
           {/* Button Content */}
-          <span className="relative z-10">Customize Menu</span>
+          <span className="relative z-10">Order Package</span>
           <motion.div
             className="relative z-10"
             animate={{ x: [0, 3, 0] }}

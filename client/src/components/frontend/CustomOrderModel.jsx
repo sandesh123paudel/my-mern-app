@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -10,130 +10,173 @@ import {
   Plus,
   Minus,
   Users,
-  MapPin,
-  Briefcase,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { getLocations } from "../../services/locationServices";
-import { getServices } from "../../services/serviceServices";
+import { getMenus } from "../../services/menuServices";
 
-// This function processes all menus to get a unique, consolidated list of items
-const getAllItems = (menus) => {
-  const categories = {
+const CustomOrderModal = ({ onClose, onProceedToConfirmation }) => {
+  const [selections, setSelections] = useState({});
+  const [peopleCount, setPeopleCount] = useState("15");
+  const [loading, setLoading] = useState(true);
+  const [menus, setMenus] = useState([]);
+  const [itemsByCategory, setItemsByCategory] = useState({
     entree: { includedItems: [], selectionGroups: [] },
     mains: { includedItems: [], selectionGroups: [] },
     desserts: { includedItems: [], selectionGroups: [] },
     addons: { includedItems: [], selectionGroups: [] },
-  };
-
-  const itemMap = new Map();
-
-  menus.forEach((menu) => {
-    Object.entries(menu.categories || {}).forEach(
-      ([categoryName, categoryData]) => {
-        if (categoryData?.enabled) {
-          // Collect included items
-          (categoryData.includedItems || []).forEach((item) => {
-            if (!itemMap.has(item._id)) {
-              itemMap.set(item._id, { ...item, category: categoryName });
-              categories[categoryName].includedItems.push(item);
-            }
-          });
-
-          // Collect items from selection groups
-          (categoryData.selectionGroups || []).forEach((group) => {
-            (group.items || []).forEach((item) => {
-              if (!itemMap.has(item._id)) {
-                itemMap.set(item._id, {
-                  ...item,
-                  category: categoryName,
-                  groupName: group.name,
-                });
-                // For custom order, we can treat all selections as a single group per category
-                const singleGroup = categories[categoryName].selectionGroups[0];
-                if (!singleGroup) {
-                  categories[categoryName].selectionGroups.push({
-                    name: `Available ${categoryName}`,
-                    selectionType: "multiple",
-                    items: [item],
-                  });
-                } else {
-                  singleGroup.items.push(item);
-                }
-              }
-            });
-          });
-        }
-      }
-    );
   });
 
-  return categories;
-};
-
-const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
-  const [selections, setSelections] = useState({});
-  const [peopleCount, setPeopleCount] = useState("15");
-  const [itemsByCategory, setItemsByCategory] = useState({});
-  const [locations, setLocations] = useState([]);
-  const [services, setServices] = useState([]);
-  const [selectedLocation, setSelectedLocation] = useState("");
-  const [selectedService, setSelectedService] = useState("");
-  const [loading, setLoading] = useState(true);
-
-  // Simple dietary requirements state
-  const [hasDietaryRequirements, setHasDietaryRequirements] = useState(false);
-  const [dietaryRequirements, setDietaryRequirements] = useState([]);
-  const [spiceLevel, setSpiceLevel] = useState("medium");
-
+  // Fetch ALL menus directly in the modal
   useEffect(() => {
-    const loadData = async () => {
+    const loadAllMenus = async () => {
       setLoading(true);
+      document.body.classList.add("no-scroll");
+
       try {
-        // Add the "no-scroll" class to the body
-        document.body.classList.add("no-scroll");
+        // Fetch ALL active menus (no location filtering)
+        const menusResult = await getMenus({
+          isActive: true,
+        });
 
-        // Load locations and services
-        const [locationsResult, servicesResult] = await Promise.all([
-          getLocations(),
-          getServices(),
-        ]);
-
-        if (locationsResult.success) {
-          const activeLocations = locationsResult.data.filter(
-            (loc) => loc.isActive
-          );
-          setLocations(activeLocations);
-          // Auto-select first location if only one available
-          if (activeLocations.length === 1) {
-            setSelectedLocation(activeLocations[0]._id);
-          }
+        if (menusResult.success && menusResult.data) {
+          setMenus(menusResult.data);
+          processMenuItems(menusResult.data);
+        } else {
+          setMenus([]);
+          console.error("Failed to load menus:", menusResult);
         }
-
-        if (servicesResult.success) {
-          const activeServices = servicesResult.data.filter(
-            (service) => service.isActive
-          );
-          setServices(activeServices);
-        }
-
-        // Process menus to get a list of all available items
-        setItemsByCategory(getAllItems(menus));
       } catch (error) {
-        console.error("Error loading data:", error);
-        toast.error("Error loading locations and services");
+        console.error("Error loading menus:", error);
+        toast.error("Failed to load menu items");
+        setMenus([]);
       } finally {
         setLoading(false);
       }
     };
 
-    loadData();
+    loadAllMenus();
 
-    // Clean up the effect by removing the class when the modal is unmounted
+    // Cleanup
     return () => {
       document.body.classList.remove("no-scroll");
     };
-  }, [menus]);
+  }, []);
+
+  // Process menu items from all menus
+  const processMenuItems = useCallback((allMenus) => {
+    if (!allMenus || !Array.isArray(allMenus) || allMenus.length === 0) {
+      setItemsByCategory({
+        entree: { includedItems: [], selectionGroups: [] },
+        mains: { includedItems: [], selectionGroups: [] },
+        desserts: { includedItems: [], selectionGroups: [] },
+        addons: { includedItems: [], selectionGroups: [] },
+      });
+      return;
+    }
+
+    const categories = {
+      entree: { includedItems: [], selectionGroups: [] },
+      mains: { includedItems: [], selectionGroups: [] },
+      desserts: { includedItems: [], selectionGroups: [] },
+      addons: { includedItems: [], selectionGroups: [] },
+    };
+
+    const itemMap = new Map();
+
+    try {
+      allMenus.forEach((menu) => {
+        if (!menu || typeof menu !== "object" || !menu.categories) {
+          return;
+        }
+
+        Object.entries(menu.categories).forEach(
+          ([categoryName, categoryData]) => {
+            // Check if category exists in our structure and is valid
+            if (
+              !categories[categoryName] ||
+              !categoryData ||
+              typeof categoryData !== "object"
+            ) {
+              return;
+            }
+
+            // Only process if enabled (default to true if not specified)
+            const isEnabled = categoryData.enabled !== false;
+            if (!isEnabled) return;
+
+            // Process included items
+            if (Array.isArray(categoryData.includedItems)) {
+              categoryData.includedItems.forEach((item) => {
+                if (
+                  item &&
+                  typeof item === "object" &&
+                  item._id &&
+                  item.name &&
+                  typeof item.price === "number" &&
+                  !itemMap.has(item._id)
+                ) {
+                  itemMap.set(item._id, { ...item, category: categoryName });
+                  categories[categoryName].includedItems.push(item);
+                }
+              });
+            }
+
+            // Process selection groups
+            if (Array.isArray(categoryData.selectionGroups)) {
+              categoryData.selectionGroups.forEach((group) => {
+                if (
+                  group &&
+                  typeof group === "object" &&
+                  Array.isArray(group.items)
+                ) {
+                  group.items.forEach((item) => {
+                    if (
+                      item &&
+                      typeof item === "object" &&
+                      item._id &&
+                      item.name &&
+                      typeof item.price === "number" &&
+                      !itemMap.has(item._id)
+                    ) {
+                      itemMap.set(item._id, {
+                        ...item,
+                        category: categoryName,
+                        groupName: group.name || "Unnamed Group",
+                      });
+
+                      let singleGroup =
+                        categories[categoryName].selectionGroups[0];
+                      if (!singleGroup) {
+                        singleGroup = {
+                          name: `Available ${categoryName}`,
+                          selectionType: "multiple",
+                          items: [],
+                        };
+                        categories[categoryName].selectionGroups.push(
+                          singleGroup
+                        );
+                      }
+                      singleGroup.items.push(item);
+                    }
+                  });
+                }
+              });
+            }
+          }
+        );
+      });
+
+      setItemsByCategory(categories);
+    } catch (error) {
+      console.error("Error processing menu items:", error);
+      setItemsByCategory({
+        entree: { includedItems: [], selectionGroups: [] },
+        mains: { includedItems: [], selectionGroups: [] },
+        desserts: { includedItems: [], selectionGroups: [] },
+        addons: { includedItems: [], selectionGroups: [] },
+      });
+    }
+  }, []);
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat("en-AU", {
@@ -198,23 +241,18 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
     return allSelected;
   };
 
-  // Get filtered services based on selected location
-  const getFilteredServices = () => {
-    if (!selectedLocation) return [];
-    return services.filter(
-      (service) =>
-        (service.locationId?._id || service.locationId) === selectedLocation
-    );
+  // Count items from main categories (excluding addons)
+  const getMainCategoryItemsCount = () => {
+    const mainCategories = ["entree", "mains", "desserts"];
+    let count = 0;
+
+    mainCategories.forEach((category) => {
+      count += (selections[category] || []).length;
+    });
+
+    return count;
   };
 
-  // Handle location change
-  const handleLocationChange = (locationId) => {
-    setSelectedLocation(locationId);
-    // Reset service selection when location changes
-    setSelectedService("");
-  };
-
-  // People count handlers
   const incrementPeople = () => {
     const current = parseInt(peopleCount) || 0;
     setPeopleCount(String(current + 1));
@@ -231,46 +269,22 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
     setPeopleCount(value);
   };
 
-  // Handle dietary requirements toggle
-  const handleDietaryToggle = (hasRequirements) => {
-    setHasDietaryRequirements(hasRequirements);
-    if (!hasRequirements) {
-      // Reset dietary requirements when user selects "No"
-      setDietaryRequirements([]);
-      setSpiceLevel("medium");
-    }
-  };
-
-  // Handle dietary requirement selection
-  const handleDietaryRequirementToggle = (requirement) => {
-    setDietaryRequirements((prev) =>
-      prev.includes(requirement)
-        ? prev.filter((req) => req !== requirement)
-        : [...prev, requirement]
-    );
-  };
-
-  // Validation
   const validateCustomOrder = () => {
     const errors = [];
 
     if (!peopleCount || parseInt(peopleCount) < 15) {
-      errors.push("Please enter a min number of people");
+      errors.push("Please enter a minimum number of 15 people");
     }
 
-    if (!selectedLocation) {
-      errors.push("Please select a location");
-    }
-
-    if (!selectedService) {
-      errors.push("Please select a service type");
-    }
-
-    const selectedItemsCount = getAllSelectedItems().length;
-    if (selectedItemsCount === 0) {
-      errors.push("Please select at least one item for your custom order");
-    } else if (selectedItemsCount < 5) {
-      errors.push("Please select at least 5 items for your custom order");
+    const mainCategoryItemsCount = getMainCategoryItemsCount();
+    if (mainCategoryItemsCount === 0) {
+      errors.push(
+        "Please select at least one item from entree, mains, or desserts"
+      );
+    } else if (mainCategoryItemsCount < 6) {
+      errors.push(
+        `Please select at least 6 items from entree, mains, or desserts (${mainCategoryItemsCount}/6 selected)`
+      );
     }
 
     return errors;
@@ -284,25 +298,17 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
       return;
     }
 
-    // Get selected location and service details
-    const selectedLocationObj = locations.find(
-      (loc) => loc._id === selectedLocation
-    );
-    const selectedServiceObj = services.find(
-      (service) => service._id === selectedService
-    );
-
-    // Create order details in the same format as menu selection
+    // Create order details without location/service (will be handled in confirmation modal)
     const orderDetails = {
-      menuId: null, // No menu ID for custom orders
+      menuId: null,
       menu: {
-        menuId: null, // Explicitly set to null for custom orders
+        menuId: null,
         name: "Custom Order",
-        price: 0, // Custom orders are based on individual item prices
-        locationId: selectedLocation,
-        locationName: selectedLocationObj?.name || "Selected Location",
-        serviceId: selectedService,
-        serviceName: selectedServiceObj?.name || "Selected Service",
+        price: 0,
+        locationId: null, // Will be set in confirmation modal
+        locationName: null,
+        serviceId: null,
+        serviceName: null,
       },
       peopleCount: parseInt(peopleCount),
       selectedItems: getAllSelectedItems(),
@@ -311,20 +317,14 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
         addonsPrice: calculateTotalPrice(),
         total: calculateTotalPrice(),
       },
-      selectedAddons: [], // Custom orders don't have traditional addons
+      selectedAddons: [],
       selections: selections,
-      isCustomOrder: true, // Flag to identify custom orders
-      // Include dietary requirements
-      dietaryRequirements: hasDietaryRequirements ? dietaryRequirements : [],
-      spiceLevel: hasDietaryRequirements ? spiceLevel : "medium",
-      hasDietaryRequirements,
+      isCustomOrder: true,
     };
 
-   
     onProceedToConfirmation(orderDetails);
   };
 
-  // Render dietary info badges inline
   const renderInlineDietaryInfo = (item) => {
     const badges = [];
 
@@ -373,7 +373,6 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
       return null;
     }
 
-    // Combine all selectable items from the category for the custom menu
     const selectableItems = [
       ...categoryData.includedItems,
       ...(categoryData.selectionGroups?.[0]?.items || []),
@@ -448,134 +447,6 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
     );
   };
 
-  // Simple Dietary Requirements Component
-  const renderDietaryRequirements = () => {
-    return (
-      <div className="mb-8 bg-white rounded-lg p-6 border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          🍽️ Dietary Requirements
-        </h3>
-
-        {/* Initial Question */}
-        <div className="mb-4">
-          <p className="text-sm font-medium text-gray-700 mb-3">
-            Do you have any dietary requirements or spice preferences?
-          </p>
-          <div className="flex gap-4">
-            <label className="flex items-center">
-              <input
-                type="radio"
-                name="hasDietary"
-                checked={hasDietaryRequirements === true}
-                onChange={() => handleDietaryToggle(true)}
-                className="w-4 h-4 text-green-600 focus:ring-green-500 border-gray-300"
-              />
-              <span className="ml-2 text-sm text-gray-700">Yes</span>
-            </label>
-            <label className="flex items-center">
-              <input
-                type="radio"
-                name="hasDietary"
-                checked={hasDietaryRequirements === false}
-                onChange={() => handleDietaryToggle(false)}
-                className="w-4 h-4 text-green-600 focus:ring-green-500 border-gray-300"
-              />
-              <span className="ml-2 text-sm text-gray-700">No</span>
-            </label>
-          </div>
-        </div>
-
-        {/* Show dietary options only if user selected "Yes" */}
-        {hasDietaryRequirements && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="space-y-4"
-          >
-            {/* Dietary Requirements */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Select your dietary requirements:
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { value: "vegetarian", label: "🌱 Vegetarian" },
-                  { value: "vegan", label: "🌿 Vegan" },
-                  { value: "gluten-free", label: "🚫 Gluten-Free" },
-                  { value: "halal-friendly", label: "☪️ Halal-Friendly" },
-                ].map((option) => (
-                  <label key={option.value} className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={dietaryRequirements.includes(option.value)}
-                      onChange={() =>
-                        handleDietaryRequirementToggle(option.value)
-                      }
-                      className="w-4 h-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-                    />
-                    <span className="ml-2 text-sm text-gray-700">
-                      {option.label}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Spice Level */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Spice Level Preference:
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { value: "mild", label: "🌶️ Mild" },
-                  { value: "medium", label: "🌶️🌶️ Medium" },
-                  { value: "hot", label: "🌶️🌶️🌶️ Hot" },
-                  { value: "extra-hot", label: "🌶️🌶️🌶️🌶️ Extra Hot" },
-                ].map((option) => (
-                  <label key={option.value} className="flex items-center">
-                    <input
-                      type="radio"
-                      name="spiceLevel"
-                      value={option.value}
-                      checked={spiceLevel === option.value}
-                      onChange={(e) => setSpiceLevel(e.target.value)}
-                      className="w-4 h-4 text-green-600 focus:ring-green-500 border-gray-300"
-                    />
-                    <span className="ml-2 text-sm text-gray-700">
-                      {option.label}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Summary */}
-            {(dietaryRequirements.length > 0 || spiceLevel !== "medium") && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                <h4 className="font-medium text-green-800 mb-1">
-                  Your Preferences:
-                </h4>
-                <div className="text-sm text-green-700">
-                  {dietaryRequirements.length > 0 && (
-                    <p>
-                      <strong>Dietary:</strong> {dietaryRequirements.join(", ")}
-                    </p>
-                  )}
-                  <p>
-                    <strong>Spice Level:</strong> {spiceLevel}
-                  </p>
-                </div>
-              </div>
-            )}
-          </motion.div>
-        )}
-      </div>
-    );
-  };
-
-  // Price breakdown for sidebar
   const renderPriceBreakdown = () => {
     const selectedItems = getAllSelectedItems();
     const numPeople = parseInt(peopleCount) || 0;
@@ -585,16 +456,9 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
       <div className="bg-white rounded-lg p-4 border border-gray-200">
         <h4 className="font-medium text-gray-900 mb-3">Order Summary</h4>
 
-        {selectedItems.length > 0 && selectedItems.length < 5 && (
-          <div className="text-xs text-red-500 mb-2">
-            Minimum 5 items required ({selectedItems.length}/5 selected)
-          </div>
-        )}
-
         <div className="space-y-2 text-sm">
           {selectedItems.length > 0 ? (
             <>
-              {/* Individual items breakdown */}
               <div className="max-h-32 overflow-y-auto space-y-1 mb-2">
                 {selectedItems.map((item, index) => (
                   <div key={index} className="flex justify-between text-xs">
@@ -633,6 +497,12 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
       </div>
     );
   };
+
+  // Check if we have any items to display
+  const hasAnyItems = Object.values(itemsByCategory).some(
+    (category) =>
+      category.includedItems.length > 0 || category.selectionGroups.length > 0
+  );
 
   return (
     <motion.div
@@ -677,15 +547,6 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
               <Users size={14} />
               <span>{peopleCount} people</span>
             </div>
-            {selectedLocation && (
-              <div className="flex items-center gap-1">
-                <MapPin size={14} />
-                <span>
-                  {locations.find((loc) => loc._id === selectedLocation)
-                    ?.name || "Location"}
-                </span>
-              </div>
-            )}
           </div>
         </div>
 
@@ -696,136 +557,34 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
               <div className="flex items-center justify-center h-64">
                 <div className="text-center">
                   <div className="text-gray-400 mb-2">
+                    <ShoppingCart size={48} className="mx-auto animate-pulse" />
+                  </div>
+                  <p className="text-gray-600">Loading menu items...</p>
+                </div>
+              </div>
+            ) : !hasAnyItems ? (
+              <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                  <div className="text-gray-400 mb-2">
                     <ShoppingCart size={48} className="mx-auto" />
                   </div>
-                  <p className="text-gray-600">Loading...</p>
+                  <p className="text-gray-600 mb-4">
+                    No menu items available...
+                  </p>
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="px-4 py-2 bg-primary-brown text-white rounded-lg hover:bg-primary-green"
+                  >
+                    Refresh Page
+                  </button>
                 </div>
               </div>
             ) : (
               <>
-                {/* Location and Service Selection */}
-                <div className="mb-8 bg-white rounded-lg p-6 border border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                    Select Location & Service
-                  </h3>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Location Selection */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Location *
-                      </label>
-                      <div className="relative">
-                        <MapPin
-                          className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                          size={18}
-                        />
-                        <select
-                          value={selectedLocation}
-                          onChange={(e) => handleLocationChange(e.target.value)}
-                          className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 appearance-none bg-white"
-                          required
-                        >
-                          <option value="">Select a location</option>
-                          {locations.map((location) => (
-                            <option key={location._id} value={location._id}>
-                              {location.name} - {location.city}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Service Selection */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Service Type *
-                      </label>
-                      <div className="relative">
-                        <Briefcase
-                          className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                          size={18}
-                        />
-                        <select
-                          value={selectedService}
-                          onChange={(e) => setSelectedService(e.target.value)}
-                          className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 appearance-none bg-white"
-                          disabled={!selectedLocation}
-                          required
-                        >
-                          <option value="">
-                            {!selectedLocation
-                              ? "Select location first"
-                              : "Select a service"}
-                          </option>
-                          {getFilteredServices().map((service) => (
-                            <option key={service._id} value={service._id}>
-                              {service.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      {!selectedLocation && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          Please select a location first to see available
-                          services
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Dietary Requirements Section */}
-                {renderDietaryRequirements()}
-
-                {/* Menu Items - Only show if location and service are selected */}
-                {selectedLocation && selectedService ? (
-                  <>
-                    {Object.keys(itemsByCategory).length === 0 ? (
-                      <div className="flex items-center justify-center h-64">
-                        <div className="text-center">
-                          <div className="text-gray-400 mb-2">
-                            <ShoppingCart size={48} className="mx-auto" />
-                          </div>
-                          <p className="text-gray-600">
-                            No menu items available...
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        {renderCategoryContent(
-                          "entree",
-                          itemsByCategory?.entree
-                        )}
-                        {renderCategoryContent("mains", itemsByCategory?.mains)}
-                        {renderCategoryContent(
-                          "desserts",
-                          itemsByCategory?.desserts
-                        )}
-                        {renderCategoryContent(
-                          "addons",
-                          itemsByCategory?.addons
-                        )}
-                      </>
-                    )}
-                  </>
-                ) : (
-                  <div className="flex items-center justify-center h-64">
-                    <div className="text-center">
-                      <div className="text-green-500 mb-4">
-                        <MapPin size={48} className="mx-auto" />
-                      </div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                        Select Location & Service
-                      </h3>
-                      <p className="text-gray-600">
-                        Please select a location and service type to view
-                        available menu items
-                      </p>
-                    </div>
-                  </div>
-                )}
+                {renderCategoryContent("entree", itemsByCategory.entree)}
+                {renderCategoryContent("mains", itemsByCategory.mains)}
+                {renderCategoryContent("desserts", itemsByCategory.desserts)}
+                {renderCategoryContent("addons", itemsByCategory.addons)}
               </>
             )}
           </div>
@@ -874,17 +633,21 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
                   <Plus size={16} />
                 </button>
               </div>
-              <p className="text-xs text-gray-500 mt-1">Minimum: 15 person</p>
+              <p className="text-xs text-gray-500 mt-1">Minimum: 15 people</p>
             </div>
 
             {/* Selected Items Summary */}
             <div className="mb-4 bg-gray-50 rounded-lg p-3">
               <h4 className="text-sm font-medium text-gray-700 mb-2">
-                Selected Items ({getAllSelectedItems().length}/5 minimum):
+                Main Items ({getMainCategoryItemsCount()}/6 minimum):
               </h4>
-              {getAllSelectedItems().length < 5 && (
+              <p className="text-xs text-gray-600 mb-2">
+                From entree, mains, and desserts only
+              </p>
+              {getMainCategoryItemsCount() < 6 && (
                 <p className="text-xs text-red-500 mb-2">
-                  Select {5 - getAllSelectedItems().length} more items
+                  Select {6 - getMainCategoryItemsCount()} more items from main
+                  categories
                 </p>
               )}
               <div className="max-h-32 overflow-y-auto">
@@ -902,6 +665,11 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
                       <span className="text-xs text-gray-500 ml-2">
                         {formatPrice(item.price)}
                       </span>
+                      {item.category === "addons" && (
+                        <span className="text-xs text-blue-500 ml-1">
+                          (addon)
+                        </span>
+                      )}
                     </div>
                   ))
                 )}
@@ -922,27 +690,13 @@ const CustomOrderModal = ({ menus, onClose, onProceedToConfirmation }) => {
             {/* Continue Button */}
             <motion.button
               whileHover={{
-                scale:
-                  getAllSelectedItems().length < 5 ||
-                  !selectedLocation ||
-                  !selectedService
-                    ? 1
-                    : 1.02,
+                scale: getMainCategoryItemsCount() < 6 ? 1 : 1.02,
               }}
               whileTap={{
-                scale:
-                  getAllSelectedItems().length < 5 ||
-                  !selectedLocation ||
-                  !selectedService
-                    ? 1
-                    : 0.98,
+                scale: getMainCategoryItemsCount() < 6 ? 1 : 0.98,
               }}
               onClick={handlePlaceOrder}
-              disabled={
-                getAllSelectedItems().length < 5 ||
-                !selectedLocation ||
-                !selectedService
-              }
+              disabled={getMainCategoryItemsCount() < 6}
               className="w-full bg-red-600 disabled:bg-gray-400 text-white py-3 rounded-lg font-semibold hover:bg-red-700 disabled:hover:bg-gray-400 transition-colors flex items-center justify-center gap-2"
             >
               <ShoppingCart size={18} />
