@@ -95,24 +95,32 @@ exports.loginValidator = () => {
 
 exports.bookingFormValidation = () => {
   return [
-    // DEBUG: Temporarily disable menu validation to isolate the issue
-    body("menu").custom((value, { req }) => {
-      if (req.body.isCustomOrder) {
-        // For custom orders, just check if menu object exists
-        if (!value) {
-          throw new Error("Menu object is required");
-        }
+    // Order source validation
+    body("orderSource").custom((value, { req }) => {
+      if (!value) {
+        throw new Error("Order source information is required");
+      }
 
-        // Check location for custom orders
-        if (!value.locationId) {
-          console.log("Missing locationId in menu:", value);
-          throw new Error("Location is required for custom orders");
-        }
-      } else {
-        // For regular orders
-        if (!value || !value.menuId) {
-          throw new Error("Menu ID is required for regular orders");
-        }
+      // Check source type
+      if (
+        !value.sourceType ||
+        !["menu", "customOrder"].includes(value.sourceType)
+      ) {
+        throw new Error("Source type must be either 'menu' or 'customOrder'");
+      }
+
+      // Check source ID
+      if (!value.sourceId) {
+        throw new Error("Source ID is required");
+      }
+
+      // Check location and service info
+      if (!value.locationId) {
+        throw new Error("Location ID is required");
+      }
+
+      if (!value.serviceId) {
+        throw new Error("Service ID is required");
       }
 
       return true;
@@ -144,6 +152,36 @@ exports.bookingFormValidation = () => {
       .trim()
       .isLength({ max: 1000 })
       .withMessage("Special instructions cannot exceed 1000 characters"),
+
+    // Simple dietary requirements validation
+    body("customerDetails.dietaryRequirements")
+      .optional()
+      .isArray()
+      .withMessage("Dietary requirements must be an array")
+      .custom((value) => {
+        if (value && value.length > 0) {
+          const validRequirements = [
+            "vegetarian",
+            "vegan",
+            "gluten-free",
+            "halal-friendly",
+          ];
+          const invalidRequirements = value.filter(
+            (req) => !validRequirements.includes(req)
+          );
+          if (invalidRequirements.length > 0) {
+            throw new Error(
+              `Invalid dietary requirements: ${invalidRequirements.join(", ")}`
+            );
+          }
+        }
+        return true;
+      }),
+
+    body("customerDetails.spiceLevel")
+      .optional()
+      .isIn(["mild", "medium", "hot", "extra-hot"])
+      .withMessage("Spice level must be one of: mild, medium, hot, extra-hot"),
 
     // People count validation
     body("peopleCount")
@@ -217,21 +255,142 @@ exports.bookingFormValidation = () => {
 
     // Selected items validation
     body("selectedItems")
-      .isArray()
-      .withMessage("Selected items must be an array")
-      .custom((value, { req }) => {
-        if (req.body.isCustomOrder && (!value || value.length === 0)) {
-          throw new Error(
-            "At least one item must be selected for custom orders"
-          );
-        }
+      .isArray({ min: 1 })
+      .withMessage("At least one item must be selected")
+      .custom((items) => {
+        // Validate each item structure
+        items.forEach((item, index) => {
+          if (!item.name || typeof item.name !== "string") {
+            throw new Error(
+              `Item ${index + 1}: Name is required and must be a string`
+            );
+          }
+
+          if (typeof item.totalPrice !== "number" || item.totalPrice < 0) {
+            throw new Error(
+              `Item ${index + 1}: Total price must be a positive number`
+            );
+          }
+
+          if (!item.category || typeof item.category !== "string") {
+            throw new Error(`Item ${index + 1}: Category is required`);
+          }
+
+          if (!item.type || typeof item.type !== "string") {
+            throw new Error(`Item ${index + 1}: Type is required`);
+          }
+        });
         return true;
       }),
+  ];
+};
 
-    // Custom order flag validation
-    body("isCustomOrder")
+// Validation for custom order price calculation
+exports.customOrderCalculationValidation = () => {
+  return [
+    body("selections").isObject().withMessage("Selections must be an object"),
+
+    body("peopleCount")
+      .isInt({ min: 1, max: 1000 })
+      .withMessage("Number of people must be between 1 and 1000"),
+  ];
+};
+
+// Validation for booking status updates
+exports.bookingStatusValidation = () => {
+  return [
+    body("status")
+      .isIn([
+        "pending",
+        "confirmed",
+        "preparing",
+        "ready",
+        "completed",
+        "cancelled",
+      ])
+      .withMessage("Invalid status value"),
+
+    body("adminNotes")
       .optional()
-      .isBoolean()
-      .withMessage("isCustomOrder must be a boolean value"),
+      .trim()
+      .isLength({ max: 1000 })
+      .withMessage("Admin notes cannot exceed 1000 characters"),
+  ];
+};
+
+// Validation for payment status updates
+exports.paymentStatusValidation = () => {
+  return [
+    body("paymentStatus")
+      .isIn(["pending", "deposit_paid", "fully_paid"])
+      .withMessage("Invalid payment status value"),
+
+    body("depositAmount")
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage("Deposit amount must be a positive number"),
+  ];
+};
+
+// Validation for booking updates
+exports.bookingUpdateValidation = () => {
+  return [
+    // Customer details (optional updates)
+    body("customerDetails.name")
+      .optional()
+      .trim()
+      .isLength({ min: 2, max: 100 })
+      .withMessage("Name must be between 2 and 100 characters"),
+
+    body("customerDetails.email")
+      .optional()
+      .isEmail()
+      .withMessage("Valid email is required")
+      .normalizeEmail(),
+
+    body("customerDetails.phone")
+      .optional()
+      .isLength({ min: 10, max: 15 })
+      .withMessage("Contact number must be between 10-15 digits")
+      .matches(/^[0-9+\-\s()]+$/)
+      .withMessage("Contact number contains invalid characters"),
+
+    body("customerDetails.specialInstructions")
+      .optional()
+      .trim()
+      .isLength({ max: 1000 })
+      .withMessage("Special instructions cannot exceed 1000 characters"),
+
+    body("customerDetails.dietaryRequirements")
+      .optional()
+      .isArray()
+      .withMessage("Dietary requirements must be an array"),
+
+    body("customerDetails.spiceLevel")
+      .optional()
+      .isIn(["mild", "medium", "hot", "extra-hot"])
+      .withMessage("Invalid spice level"),
+
+    // Other optional fields
+    body("peopleCount")
+      .optional()
+      .isInt({ min: 1, max: 1000 })
+      .withMessage("Number of people must be between 1 and 1000"),
+
+    body("deliveryType")
+      .optional()
+      .isIn(["Pickup", "Delivery"])
+      .withMessage("Delivery type must be either Pickup or Delivery"),
+
+    body("deliveryDate")
+      .optional()
+      .isISO8601()
+      .withMessage("Invalid date format"),
+
+    body("adminNotes")
+      .optional()
+      .trim()
+      .isLength({ max: 1000 })
+      .withMessage("Admin notes cannot exceed 1000 characters"),
   ];
 };

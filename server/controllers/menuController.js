@@ -1,7 +1,6 @@
 const mongoose = require("mongoose");
 const Menu = require("../models/menusModel.js");
 const Service = require("../models/serviceModel.js");
-const MenuItem = require("../models/menuItemModel.js");
 const Location = require("../models/locationModel.js");
 
 // @desc    Get all menus with optional filtering and population
@@ -9,37 +8,18 @@ const Location = require("../models/locationModel.js");
 // @access  Public
 const getMenus = async (req, res) => {
   try {
-    const { locationId, serviceId, isActive } = req.query;
+    const { locationId, serviceId, isActive, packageType } = req.query;
 
     // Build query object
     const query = {};
     if (locationId) query.locationId = locationId;
     if (serviceId) query.serviceId = serviceId;
     if (isActive !== undefined) query.isActive = isActive === "true";
+    if (packageType) query.packageType = packageType;
 
     const menus = await Menu.find(query)
       .populate("locationId", "name city address")
       .populate("serviceId", "name description")
-      .populate("categories.entree.includedItems", "name category price")
-      .populate(
-        "categories.entree.selectionGroups.items",
-        "name category price"
-      )
-      .populate("categories.mains.includedItems", "name category price")
-      .populate("categories.mains.selectionGroups.items", "name category price")
-      .populate("categories.desserts.includedItems", "name category price")
-      .populate(
-        "categories.desserts.selectionGroups.items",
-        "name category price"
-      )
-      .populate(
-        "categories.addons.includedItems",
-        "name category price description"
-      ) // Added addons
-      .populate(
-        "categories.addons.selectionGroups.items",
-        "name category price description"
-      ) // Added addons
       .sort({ createdAt: -1 });
 
     res.json({
@@ -73,39 +53,7 @@ const getMenuById = async (req, res) => {
   try {
     const menu = await Menu.findById(id)
       .populate("locationId", "name city address contactInfo")
-      .populate("serviceId", "name description")
-      .populate(
-        "categories.entree.includedItems",
-        "name category price description isVegetarian isVegan allergens"
-      )
-      .populate(
-        "categories.entree.selectionGroups.items",
-        "name category price description isVegetarian isVegan allergens"
-      )
-      .populate(
-        "categories.mains.includedItems",
-        "name category price description isVegetarian isVegan allergens"
-      )
-      .populate(
-        "categories.mains.selectionGroups.items",
-        "name category price description isVegetarian isVegan allergens"
-      )
-      .populate(
-        "categories.desserts.includedItems",
-        "name category price description isVegetarian isVegan allergens"
-      )
-      .populate(
-        "categories.desserts.selectionGroups.items",
-        "name category price description isVegetarian isVegan allergens"
-      )
-      .populate(
-        "categories.addons.includedItems",
-        "name category price description isVegetarian isVegan allergens"
-      ) // Added addons
-      .populate(
-        "categories.addons.selectionGroups.items",
-        "name category price description isVegetarian isVegan allergens"
-      ); // Added addons
+      .populate("serviceId", "name description");
 
     if (!menu) {
       return res.status(404).json({
@@ -133,7 +81,7 @@ const getMenuById = async (req, res) => {
 // @access  Private/Admin
 const createMenu = async (req, res) => {
   try {
-    const { name, serviceId, locationId, categories } = req.body;
+    const { name, serviceId, locationId, packageType, categories, simpleItems, addons } = req.body;
 
     // Validate required fields
     if (!name || !serviceId || !locationId) {
@@ -195,9 +143,13 @@ const createMenu = async (req, res) => {
       });
     }
 
-    // Validate menu items if categories are provided
-    if (categories) {
-      await validateMenuItems(categories);
+    // Validate package structure based on type
+    const validationErrors = validatePackageStructure(packageType, categories, simpleItems);
+    if (validationErrors.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Package validation failed: ${validationErrors.join(', ')}`,
+      });
     }
 
     // Create new menu
@@ -298,9 +250,19 @@ const updateMenu = async (req, res) => {
       }
     }
 
-    // Validate menu items if categories are being updated
-    if (req.body.categories) {
-      await validateMenuItems(req.body.categories);
+    // Validate updated package structure
+    const packageType = req.body.packageType || existingMenu.packageType;
+    const validationErrors = validatePackageStructure(
+      packageType, 
+      req.body.categories || existingMenu.categories, 
+      req.body.simpleItems || existingMenu.simpleItems
+    );
+    
+    if (validationErrors.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Package validation failed: ${validationErrors.join(', ')}`,
+      });
     }
 
     // Update menu
@@ -333,13 +295,12 @@ const updateMenu = async (req, res) => {
   }
 };
 
-// @desc    Delete a menu (soft delete by setting isActive to false)
+// @desc    Delete a menu
 // @route   DELETE /api/menus/:id
 // @access  Private/Admin
 const deleteMenu = async (req, res) => {
   const { id } = req.params;
 
-  // Validate MongoDB ObjectId
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res.status(400).json({
       success: false,
@@ -348,7 +309,6 @@ const deleteMenu = async (req, res) => {
   }
 
   try {
-    // Actually delete the menu
     const deletedMenu = await Menu.findByIdAndDelete(id);
 
     if (!deletedMenu) {
@@ -439,79 +399,227 @@ const getMenusByLocation = async (req, res) => {
   }
 };
 
-// Helper function to validate menu items and addons in categories
-const validateMenuItems = async (categories) => {
-  const allItemIds = [];
+// @desc    Calculate menu price based on selections
+// @route   POST /api/menus/:id/calculate-price
+// @access  Public
+const calculateMenuPrice = async (req, res) => {
+  const { id } = req.params;
+  const { selections, peopleCount } = req.body;
 
-  // Collect all item IDs from all categories (including addons)
-  Object.values(categories).forEach((category) => {
-    if (category.includedItems) {
-      allItemIds.push(...category.includedItems);
-    }
-    if (category.selectionGroups) {
-      category.selectionGroups.forEach((group) => {
-        if (group.items) {
-          allItemIds.push(...group.items);
-        }
-      });
-    }
-  });
-
-  // Remove duplicates
-  const uniqueItemIds = [...new Set(allItemIds)];
-
-  // Validate all ObjectIds
-  for (const itemId of uniqueItemIds) {
-    if (!mongoose.Types.ObjectId.isValid(itemId)) {
-      throw new Error(`Invalid MenuItem ID: ${itemId}`);
-    }
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid Menu ID format",
+    });
   }
 
-  // Check if all menu items exist and are active
-  if (uniqueItemIds.length > 0) {
-    const menuItems = await MenuItem.find({
-      _id: { $in: uniqueItemIds },
-      isActive: true,
+  if (!peopleCount || peopleCount < 1) {
+    return res.status(400).json({
+      success: false,
+      message: "Valid people count is required",
     });
+  }
 
-    if (menuItems.length !== uniqueItemIds.length) {
-      const foundIds = menuItems.map((item) => item._id.toString());
-      const missingIds = uniqueItemIds.filter(
-        (id) => !foundIds.includes(id.toString())
-      );
-      throw new Error(
-        `Menu items not found or inactive: ${missingIds.join(", ")}`
-      );
+  try {
+    const menu = await Menu.findById(id);
+    if (!menu) {
+      return res.status(404).json({
+        success: false,
+        message: "Menu not found",
+      });
     }
 
-    // Validate category consistency (items should match their assigned category)
-    Object.entries(categories).forEach(([categoryName, categoryData]) => {
-      const categoryItems = [];
+    // Validate people count against menu limits
+    if (peopleCount < menu.minPeople || peopleCount > menu.maxPeople) {
+      return res.status(400).json({
+        success: false,
+        message: `People count must be between ${menu.minPeople} and ${menu.maxPeople || 'unlimited'}`,
+      });
+    }
 
-      if (categoryData.includedItems) {
-        categoryItems.push(...categoryData.includedItems);
-      }
+    // Calculate price based on package structure
+    const priceCalculation = calculatePackagePrice(menu, selections, peopleCount);
 
-      if (categoryData.selectionGroups) {
-        categoryData.selectionGroups.forEach((group) => {
-          if (group.items) {
-            categoryItems.push(...group.items);
+    res.json({
+      success: true,
+      message: "Price calculated successfully",
+      data: priceCalculation,
+    });
+  } catch (error) {
+    console.error("Error calculating menu price:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Server error",
+    });
+  }
+};
+
+// Helper function to validate package structure
+const validatePackageStructure = (packageType, categories, simpleItems) => {
+  const errors = [];
+
+  if (packageType === 'categorized') {
+    if (!categories || !Array.isArray(categories) || categories.length === 0) {
+      errors.push('Categorized packages must have at least one category');
+    } else {
+      // Validate each category
+      categories.forEach((category, index) => {
+        if (!category.name || category.name.trim() === '') {
+          errors.push(`Category ${index + 1} must have a name`);
+        }
+        
+        if (category.enabled) {
+          // Check if category has any content
+          const hasIncludedItems = category.includedItems && category.includedItems.length > 0;
+          const hasSelectionGroups = category.selectionGroups && category.selectionGroups.length > 0;
+          
+          if (!hasIncludedItems && !hasSelectionGroups) {
+            errors.push(`Enabled category "${category.name}" must have at least one included item or selection group`);
           }
-        });
-      }
-
-      categoryItems.forEach((itemId) => {
-        const menuItem = menuItems.find(
-          (item) => item._id.toString() === itemId.toString()
-        );
-        if (menuItem && menuItem.category !== categoryName) {
-          throw new Error(
-            `Menu item "${menuItem.name}" belongs to "${menuItem.category}" category, not "${categoryName}"`
-          );
+          
+          // Validate selection groups
+          if (category.selectionGroups) {
+            category.selectionGroups.forEach((group, groupIndex) => {
+              if (!group.name || group.name.trim() === '') {
+                errors.push(`Selection group ${groupIndex + 1} in category "${category.name}" must have a name`);
+              }
+              if (!group.items || group.items.length === 0) {
+                errors.push(`Selection group "${group.name}" must have at least one item`);
+              }
+            });
+          }
         }
       });
-    });
+    }
+  } else if (packageType === 'simple') {
+    if (!simpleItems || !Array.isArray(simpleItems) || simpleItems.length === 0) {
+      errors.push('Simple packages must have at least one item');
+    } else {
+      // Validate simple items
+      simpleItems.forEach((item, index) => {
+        if (!item.name || item.name.trim() === '') {
+          errors.push(`Simple item ${index + 1} must have a name`);
+        }
+      });
+    }
   }
+
+  return errors;
+};
+
+// Helper function to calculate package price
+const calculatePackagePrice = (menu, selections, peopleCount) => {
+  let totalPrice = menu.basePrice || 0;
+  let priceBreakdown = {
+    basePrice: menu.basePrice || 0,
+    itemModifiers: 0,
+    optionModifiers: 0,
+    choiceModifiers: 0,
+    fixedAddons: 0,
+    variableAddons: 0,
+  };
+
+  if (menu.packageType === 'simple') {
+    // Calculate simple package price
+    if (selections.simpleItems) {
+      menu.simpleItems.forEach((item, index) => {
+        const itemSelection = selections.simpleItems[index];
+        if (itemSelection) {
+          // Add item price modifier
+          if (item.priceModifier) {
+            totalPrice += item.priceModifier;
+            priceBreakdown.itemModifiers += item.priceModifier;
+          }
+          
+          // Add choice price modifiers
+          if (item.hasChoices && item.choices && itemSelection.choices) {
+            itemSelection.choices.forEach(choiceIndex => {
+              const choice = item.choices[choiceIndex];
+              if (choice && choice.priceModifier) {
+                totalPrice += choice.priceModifier;
+                priceBreakdown.choiceModifiers += choice.priceModifier;
+              }
+            });
+          }
+          
+          // Add option price modifiers
+          if (item.options && itemSelection.options) {
+            itemSelection.options.forEach(optionIndex => {
+              const option = item.options[optionIndex];
+              if (option && option.priceModifier) {
+                totalPrice += option.priceModifier;
+                priceBreakdown.optionModifiers += option.priceModifier;
+              }
+            });
+          }
+        }
+      });
+    }
+  } else if (menu.packageType === 'categorized') {
+    // Calculate categorized package price
+    if (selections.categories) {
+      menu.categories.forEach(category => {
+        if (category.enabled && selections.categories[category.name]) {
+          const categorySelection = selections.categories[category.name];
+          
+          // Add selection group item price modifiers
+          if (category.selectionGroups) {
+            category.selectionGroups.forEach(group => {
+              if (categorySelection[group.name]) {
+                const groupSelections = categorySelection[group.name];
+                groupSelections.forEach(itemIndex => {
+                  const item = group.items[itemIndex];
+                  if (item && item.priceModifier) {
+                    totalPrice += item.priceModifier;
+                    priceBreakdown.itemModifiers += item.priceModifier;
+                  }
+                });
+              }
+            });
+          }
+        }
+      });
+    }
+  }
+
+  // Calculate addon prices
+  let addonPrice = 0;
+  if (menu.addons && menu.addons.enabled && selections.addons) {
+    // Fixed addons (scale with people count)
+    if (selections.addons.fixed) {
+      selections.addons.fixed.forEach(addonIndex => {
+        const addon = menu.addons.fixedAddons[addonIndex];
+        if (addon && addon.pricePerPerson) {
+          const addonTotal = addon.pricePerPerson * peopleCount;
+          addonPrice += addonTotal;
+          priceBreakdown.fixedAddons += addonTotal;
+        }
+      });
+    }
+    
+    // Variable addons (based on quantity selected)
+    if (selections.addons.variable) {
+      Object.entries(selections.addons.variable).forEach(([addonIndex, quantity]) => {
+        const addon = menu.addons.variableAddons[parseInt(addonIndex)];
+        if (addon && addon.pricePerUnit && quantity > 0) {
+          const addonTotal = addon.pricePerUnit * quantity;
+          addonPrice += addonTotal;
+          priceBreakdown.variableAddons += addonTotal;
+        }
+      });
+    }
+  }
+
+  return {
+    basePrice: menu.basePrice || 0,
+    baseTotalPrice: (menu.basePrice || 0) * peopleCount,
+    priceModifiers: totalPrice - (menu.basePrice || 0),
+    addonPrice: addonPrice,
+    grandTotal: (totalPrice * peopleCount) + addonPrice,
+    perPersonPrice: totalPrice,
+    peopleCount: peopleCount,
+    breakdown: priceBreakdown
+  };
 };
 
 module.exports = {
@@ -522,4 +630,5 @@ module.exports = {
   deleteMenu,
   getMenusByService,
   getMenusByLocation,
+  calculateMenuPrice,
 };

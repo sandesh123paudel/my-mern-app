@@ -11,6 +11,7 @@ export const getMenus = async (params = {}) => {
     if (params.locationId) queryParams.append('locationId', params.locationId);
     if (params.serviceId) queryParams.append('serviceId', params.serviceId);
     if (params.isActive !== undefined) queryParams.append('isActive', params.isActive);
+    if (params.packageType) queryParams.append('packageType', params.packageType);
     
     const queryString = queryParams.toString();
     const url = `${backendUrl}/api/menus${queryString ? `?${queryString}` : ''}`;
@@ -94,6 +95,28 @@ export const deleteMenu = async (id) => {
     return {
       success: false,
       error: error.response?.data?.message || "Failed to delete menu",
+    };
+  }
+};
+
+// Calculate menu price based on selections
+export const calculateMenuPrice = async (menuId, selections, peopleCount) => {
+  try {
+    const response = await axios.post(
+      `${backendUrl}/api/menus/${menuId}/calculate-price`,
+      { selections, peopleCount },
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    return { success: true, data: response.data.data };
+  } catch (error) {
+    console.error("Error calculating menu price:", error);
+    return {
+      success: false,
+      error: error.response?.data?.message || "Failed to calculate menu price",
     };
   }
 };

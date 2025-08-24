@@ -22,8 +22,8 @@ import { toast } from "react-hot-toast";
 import { createBooking } from "../../services/bookingService";
 import { getLocations } from "../../services/locationServices";
 import { getServices } from "../../services/serviceServices";
-import { getInquiries } from "../../services/inquiryService"; // Import inquiry service
-import { AppContext } from "../../context/AppContext"; // Import the context
+import { getInquiries } from "../../services/inquiryService";
+import { AppContext } from "../../context/AppContext";
 
 // Helper function to format currency
 const formatPrice = (price) => {
@@ -33,7 +33,7 @@ const formatPrice = (price) => {
   }).format(price);
 };
 
-const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
+const OrderConfirmationModal = ({ orderData, onClose }) => {
   // Get user data from context
   const { userData, isLoggedIn, isAdmin } = useContext(AppContext);
 
@@ -68,30 +68,18 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
   const [isLoadingInquiries, setIsLoadingInquiries] = useState(false);
 
   // Simple dietary requirements state
-  const [hasDietaryRequirements, setHasDietaryRequirements] = useState(
-    orderData?.hasDietaryRequirements ||
-      (orderData?.dietaryRequirements &&
-        orderData.dietaryRequirements.length > 0) ||
-      false
-  );
-  const [dietaryRequirements, setDietaryRequirements] = useState(
-    orderData?.dietaryRequirements || []
-  );
-  const [spiceLevel, setSpiceLevel] = useState(
-    orderData?.spiceLevel || "medium"
-  );
+  const [hasDietaryRequirements, setHasDietaryRequirements] = useState(false);
+  const [dietaryRequirements, setDietaryRequirements] = useState([]);
+  const [spiceLevel, setSpiceLevel] = useState("medium");
 
   useEffect(() => {
     const loadData = async () => {
-      // Add the "no-scroll" class to the body when the modal is mounted
       document.body.classList.add("no-scroll");
 
-      // Load inquiries for admin users
       if (isAdmin) {
         await loadInquiries();
       }
 
-      // Load locations and services for custom orders
       if (orderData?.isCustomOrder) {
         try {
           const [locationsResult, servicesResult] = await Promise.all([
@@ -120,11 +108,10 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
 
     loadData();
 
-    // Clean up the effect by removing the class when the modal is unmounted
     return () => {
       document.body.classList.remove("no-scroll");
     };
-  }, [orderData, isAdmin]); // Updated dependencies
+  }, [orderData, isAdmin]);
 
   // Load inquiries for admin
   const loadInquiries = async () => {
@@ -132,7 +119,7 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
 
     setIsLoadingInquiries(true);
     try {
-      const result = await getInquiries({ limit: 100 }); // Get recent 100 inquiries
+      const result = await getInquiries({ limit: 100 });
       if (result.success) {
         setInquiries(result.data || []);
       } else {
@@ -147,14 +134,14 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
 
   // Filter inquiries based on search term
   const filteredInquiries = useMemo(() => {
-    if (!searchTerm) return inquiries.slice(0, 10); // Show first 10 if no search
+    if (!searchTerm) return inquiries.slice(0, 10);
 
     return inquiries
       .filter(
         (inquiry) =>
           inquiry.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           inquiry.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          String(inquiry.contact || "").includes(searchTerm) // Convert phone to string
+          String(inquiry.contact || "").includes(searchTerm)
       )
       .slice(0, 10);
   }, [inquiries, searchTerm]);
@@ -165,7 +152,7 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
       ...prev,
       name: inquiry.name || "",
       email: inquiry.email || "",
-      phone: String(inquiry.contact || ""), // Convert phone to string
+      phone: String(inquiry.contact || ""),
     }));
     setShowInquiryDropdown(false);
     setSearchTerm("");
@@ -184,7 +171,6 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
   // Handle location change
   const handleLocationChange = (locationId) => {
     setSelectedLocation(locationId);
-    // Reset service selection when location changes
     setSelectedService("");
   };
 
@@ -192,7 +178,6 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
   const handleDietaryToggle = (hasRequirements) => {
     setHasDietaryRequirements(hasRequirements);
     if (!hasRequirements) {
-      // Reset dietary requirements when user selects "No"
       setDietaryRequirements([]);
       setSpiceLevel("medium");
     }
@@ -207,11 +192,352 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
     );
   };
 
-  // Group selected items by category using useMemo for efficiency
-  const groupedItems = useMemo(() => {
-    if (!orderData?.selectedItems) return {};
+  // Helper function to convert custom order selections to items
+  const convertCustomOrderSelectionsToItems = (orderData) => {
+    const items = [];
+    const { selections, fullMenu, peopleCount } = orderData;
 
-    return orderData.selectedItems.reduce((acc, item) => {
+    if (!fullMenu || !selections) {
+      console.log("Missing fullMenu or selections for custom order:", {
+        hasFullMenu: !!fullMenu,
+        hasSelections: !!selections,
+      });
+      return items;
+    }
+
+    console.log("Converting custom order selections:", {
+      selections,
+      categories: fullMenu.categories,
+      addons: fullMenu.addons,
+    });
+
+    // Process category selections
+    if (selections.categories) {
+      Object.entries(selections.categories).forEach(
+        ([categoryName, categorySelections]) => {
+          console.log(
+            `Processing category: ${categoryName}`,
+            categorySelections
+          );
+
+          const category = fullMenu.categories?.find(
+            (cat) => cat.name === categoryName
+          );
+
+          if (category && categorySelections) {
+            categorySelections.forEach((selection) => {
+              const item = category.items?.find(
+                (item) => item._id === selection.itemId
+              );
+
+              if (item) {
+                const totalPrice =
+                  (item.pricePerPerson || 0) *
+                  peopleCount *
+                  (selection.quantity || 1);
+
+                items.push({
+                  name: item.name,
+                  description: item.description || "",
+                  category:
+                    categoryName === "entree"
+                      ? "entree"
+                      : categoryName === "mains"
+                      ? "mains"
+                      : categoryName.toLowerCase(),
+                  type: "selected",
+                  pricePerPerson: item.pricePerPerson || 0,
+                  totalPrice: totalPrice,
+                  quantity: selection.quantity || 1,
+                  isVegan: item.isVegan || false,
+                  isVegetarian: item.isVegetarian || false,
+                  allergens: item.allergens || [],
+                });
+              }
+            });
+          }
+        }
+      );
+    }
+
+    // Process addons
+    if (selections.addons && fullMenu.addons?.enabled) {
+      console.log("Processing addons:", selections.addons);
+
+      selections.addons.forEach((addonSelection) => {
+        // Check fixed addons
+        if (fullMenu.addons.fixedAddons) {
+          const addon = fullMenu.addons.fixedAddons.find(
+            (a) => a._id === addonSelection.addonId
+          );
+          if (addon) {
+            const totalPrice =
+              (addon.pricePerPerson || 0) *
+              peopleCount *
+              addonSelection.quantity;
+
+            items.push({
+              name: addon.name,
+              description: addon.description || "",
+              category: "addons",
+              type: "fixedAddon",
+              pricePerPerson: addon.pricePerPerson || 0,
+              totalPrice: totalPrice,
+              quantity: addonSelection.quantity,
+              isVegan: addon.isVegan || false,
+              isVegetarian: addon.isVegetarian || false,
+              allergens: addon.allergens || [],
+            });
+          }
+        }
+
+        // Check variable addons
+        if (fullMenu.addons.variableAddons) {
+          const addon = fullMenu.addons.variableAddons.find(
+            (a) => a._id === addonSelection.addonId
+          );
+          if (addon) {
+            const totalPrice =
+              (addon.pricePerUnit || 0) * addonSelection.quantity;
+
+            items.push({
+              name: `${addon.name} (${addonSelection.quantity} ${
+                addon.unit || "pieces"
+              })`,
+              description: addon.description || "",
+              category: "addons",
+              type: "variableAddon",
+              pricePerUnit: addon.pricePerUnit || 0,
+              totalPrice: totalPrice,
+              quantity: addonSelection.quantity,
+              isVegan: addon.isVegan || false,
+              isVegetarian: addon.isVegetarian || false,
+              allergens: addon.allergens || [],
+            });
+          }
+        }
+      });
+    }
+
+    return items;
+  };
+
+  // Helper function to convert menu order selections to items
+  const convertMenuOrderSelectionsToItems = (orderData) => {
+    const items = [];
+    const { selections, fullMenu } = orderData;
+
+    if (!fullMenu || !selections) {
+      console.log("Missing fullMenu or selections for menu order");
+      return items;
+    }
+
+    // Handle simple package items
+    if (fullMenu.packageType === "simple" && fullMenu.simpleItems) {
+      fullMenu.simpleItems.forEach((item, itemIndex) => {
+        const itemSelection = selections[`simple-${itemIndex}`];
+
+        // Add base item
+        items.push({
+          name: item.name,
+          description: item.description || "",
+          category: "package",
+          type: "package",
+          priceModifier: item.priceModifier || 0,
+          quantity: item.quantity || 1,
+          isVegan: item.isVegan || false,
+          isVegetarian: item.isVegetarian || false,
+          allergens: item.allergens || [],
+        });
+
+        // Add selected choices
+        if (itemSelection?.choices && item.choices) {
+          itemSelection.choices.forEach((choiceIndex) => {
+            const choice = item.choices[choiceIndex];
+            if (choice) {
+              items.push({
+                name: `${item.name} - ${choice.name}`,
+                description: choice.description || "",
+                category: "choices",
+                type: "choice",
+                priceModifier: choice.priceModifier || 0,
+                isVegan: choice.isVegan || false,
+                isVegetarian: choice.isVegetarian || false,
+                allergens: choice.allergens || [],
+              });
+            }
+          });
+        }
+
+        // Add selected options
+        if (itemSelection?.options && item.options) {
+          itemSelection.options.forEach((optionIndex) => {
+            const option = item.options[optionIndex];
+            if (option) {
+              items.push({
+                name: `${item.name} - ${option.name}`,
+                description: option.description || "",
+                category: "options",
+                type: "option",
+                priceModifier: option.priceModifier || 0,
+                isVegan: option.isVegan || false,
+                isVegetarian: option.isVegetarian || false,
+                allergens: option.allergens || [],
+              });
+            }
+          });
+        }
+      });
+    }
+
+    // Handle categorized package items
+    if (fullMenu.packageType === "categorized" && fullMenu.categories) {
+      fullMenu.categories.forEach((category, categoryIndex) => {
+        if (!category.enabled) return;
+
+        // Add included items
+        if (category.includedItems) {
+          category.includedItems.forEach((item) => {
+            items.push({
+              name: item.name,
+              description: item.description || "",
+              category: category.name.toLowerCase(),
+              type: "included",
+              priceModifier: item.priceModifier || 0,
+              isVegan: item.isVegan || false,
+              isVegetarian: item.isVegetarian || false,
+              allergens: item.allergens || [],
+            });
+          });
+        }
+
+        // Add selected items from selection groups
+        if (category.selectionGroups) {
+          category.selectionGroups.forEach((group, groupIndex) => {
+            const key = `category-${categoryIndex}-group-${groupIndex}`;
+            const selectedItems = selections[key] || [];
+
+            selectedItems.forEach((itemIndex) => {
+              const item = group.items[itemIndex];
+              if (item) {
+                items.push({
+                  name: item.name,
+                  description: item.description || "",
+                  category: category.name.toLowerCase(),
+                  type: "selected",
+                  priceModifier: item.priceModifier || 0,
+                  isVegan: item.isVegan || false,
+                  isVegetarian: item.isVegetarian || false,
+                  allergens: item.allergens || [],
+                });
+              }
+            });
+          });
+        }
+      });
+    }
+
+    // Handle menu addons
+    if (fullMenu.addons?.enabled) {
+      // Fixed addons
+      if (selections["addons-fixed"] && fullMenu.addons.fixedAddons) {
+        selections["addons-fixed"].forEach((addonIndex) => {
+          const addon = fullMenu.addons.fixedAddons[addonIndex];
+          if (addon) {
+            items.push({
+              name: addon.name,
+              description: addon.description || "",
+              category: "addons",
+              type: "addon",
+              pricePerPerson: addon.pricePerPerson,
+              isVegan: addon.isVegan || false,
+              isVegetarian: addon.isVegetarian || false,
+              allergens: addon.allergens || [],
+            });
+          }
+        });
+      }
+
+      // Variable addons
+      if (selections["addons-variable"] && fullMenu.addons.variableAddons) {
+        Object.entries(selections["addons-variable"]).forEach(
+          ([addonIndex, quantity]) => {
+            const addon = fullMenu.addons.variableAddons[parseInt(addonIndex)];
+            if (addon && quantity > 0) {
+              items.push({
+                name: `${addon.name} (${quantity} ${addon.unit || "pieces"})`,
+                description: addon.description || "",
+                category: "addons",
+                type: "addon",
+                quantity: quantity,
+                pricePerUnit: addon.pricePerUnit,
+                totalPrice: addon.pricePerUnit * quantity,
+                isVegan: addon.isVegan || false,
+                isVegetarian: addon.isVegetarian || false,
+                allergens: addon.allergens || [],
+              });
+            }
+          }
+        );
+      }
+    }
+
+    return items;
+  };
+
+  // Convert menu selections to selectedItems format for display
+  const convertSelectionsToItems = useMemo(() => {
+    const items = [];
+
+    if (!orderData) {
+      console.log("No orderData provided");
+      return items;
+    }
+
+    const isCustomOrder = orderData.isCustomOrder || false;
+
+    console.log("Converting selections to items:", {
+      isCustomOrder,
+      orderData: orderData,
+      selections: orderData.selections,
+      fullMenu: orderData.fullMenu,
+    });
+
+    if (isCustomOrder) {
+      // Handle Custom Order Items - Use selectedItems array directly from CustomOrderModal
+      if (orderData.selectedItems && orderData.selectedItems.length > 0) {
+        console.log(
+          "Using selectedItems from custom order:",
+          orderData.selectedItems
+        );
+
+        // Custom order modal already provides selectedItems in the right format
+        return orderData.selectedItems.map((item) => ({
+          name: item.name,
+          description: item.description || "",
+          category: item.category || "other",
+          type: item.type || "selected",
+          pricePerPerson: item.pricePerPerson || 0,
+          pricePerUnit: item.pricePerUnit || 0,
+          totalPrice: item.totalPrice || 0,
+          quantity: item.quantity || 1,
+          isVegan: item.isVegan || false,
+          isVegetarian: item.isVegetarian || false,
+          allergens: item.allergens || [],
+        }));
+      } else {
+        // Fallback: Convert from selections if selectedItems is not available
+        return convertCustomOrderSelectionsToItems(orderData);
+      }
+    } else {
+      // Handle Menu Order Items - Convert from selections
+      return convertMenuOrderSelectionsToItems(orderData);
+    }
+  }, [orderData]);
+
+  // Group selected items by category
+  const groupedItems = useMemo(() => {
+    return convertSelectionsToItems.reduce((acc, item) => {
       const category = item.category || "other";
       if (!acc[category]) {
         acc[category] = [];
@@ -219,7 +545,7 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
       acc[category].push(item);
       return acc;
     }, {});
-  }, [orderData.selectedItems]);
+  }, [convertSelectionsToItems]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -274,7 +600,6 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
           🍽️ Dietary Requirements
         </h3>
 
-        {/* Initial Question */}
         <div className="mb-4">
           <p className="text-sm font-medium text-gray-700 mb-3">
             Do you have any dietary requirements or spice preferences?
@@ -303,7 +628,6 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
           </div>
         </div>
 
-        {/* Show dietary options only if user selected "Yes" */}
         {hasDietaryRequirements && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
@@ -311,7 +635,6 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
             exit={{ opacity: 0, height: 0 }}
             className="space-y-4"
           >
-            {/* Dietary Requirements */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Select your dietary requirements:
@@ -340,7 +663,6 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
               </div>
             </div>
 
-            {/* Spice Level */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Spice Level Preference:
@@ -369,7 +691,6 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
               </div>
             </div>
 
-            {/* Summary */}
             {(dietaryRequirements.length > 0 || spiceLevel !== "medium") && (
               <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                 <h4 className="font-medium text-green-800 mb-1">
@@ -392,16 +713,15 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
       </div>
     );
   };
+
   const validateDeliveryTime = (dateTimeString) => {
     if (!dateTimeString) return false;
 
     const selectedDate = new Date(dateTimeString);
     const now = new Date();
 
-    // Check if date is in the past
     if (selectedDate <= now) return false;
 
-    // Check time is between 11 AM (11) and 8 PM (20)
     const hours = selectedDate.getHours();
     return hours >= 11 && hours < 20;
   };
@@ -436,7 +756,6 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
       }
     }
 
-    // Custom order specific validation
     if (orderData?.isCustomOrder) {
       if (!selectedLocation) {
         errors.push("Please select a location");
@@ -463,6 +782,7 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
 
     return errors;
   };
+
   const handleFinalSubmit = async (e) => {
     e.preventDefault();
 
@@ -475,9 +795,6 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
     setIsSubmitting(true);
 
     try {
-    
-
-      // Prepare final order data
       let finalOrderData = { ...orderData };
 
       if (orderData?.isCustomOrder) {
@@ -488,16 +805,14 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
           (service) => service._id === selectedService
         );
 
-        // Update the menu info with selected location and service
         finalOrderData.menu = {
           ...orderData.menu,
-          menuId: null, // Ensure null for custom orders
+          menuId: null,
           locationId: selectedLocation,
           locationName: selectedLocationObj?.name || "Selected Location",
           serviceId: selectedService,
           serviceName: selectedServiceObj?.name || "Selected Service",
         };
-
       }
 
       // Construct booking data with proper structure
@@ -507,7 +822,8 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
           menuId:
             finalOrderData?.menuId || finalOrderData?.menu?.menuId || null,
           name: finalOrderData?.menu?.name || "Order",
-          price: finalOrderData?.menu?.price || 0,
+          basePrice:
+            finalOrderData?.menu?.basePrice || finalOrderData?.menu?.price || 0,
           locationId: finalOrderData?.menu?.locationId,
           locationName: finalOrderData?.menu?.locationName,
           serviceId: finalOrderData?.menu?.serviceId,
@@ -520,7 +836,6 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
           email: formData.email,
           phone: formData.phone,
           specialInstructions: formData.description || "",
-          // Include dietary requirements in simple format
           dietaryRequirements: hasDietaryRequirements
             ? dietaryRequirements
             : [],
@@ -544,27 +859,33 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
               }
             : undefined,
 
-        // Items and pricing
-        selectedItems: finalOrderData?.selectedItems || [],
+        // Convert menu selections to selectedItems format
+        selectedItems: convertSelectionsToItems,
+
+        // Menu selections (keep original format for reference)
+        menuSelections: finalOrderData?.selections || {},
+
+        // Pricing
         pricing: {
           basePrice: finalOrderData?.pricing?.basePrice || 0,
+          modifierPrice: finalOrderData?.pricing?.modifierPrice || 0,
           addonsPrice: finalOrderData?.pricing?.addonsPrice || 0,
           total: finalOrderData?.pricing?.total || 0,
         },
 
+        // Addon breakdown
+        addonBreakdown: finalOrderData?.addonBreakdown || [],
+
         // Custom order flag
         isCustomOrder: finalOrderData?.isCustomOrder || false,
       };
+      console.log(bookingData);
 
-  
-
-      // Call the booking service
       const result = await createBooking(bookingData);
 
       if (result.success) {
         toast.success(result.message || "Order submitted successfully!");
 
-        // Show booking reference to user
         if (result.data?.bookingReference) {
           toast.success(
             `Your booking reference is: ${result.data.bookingReference}`,
@@ -594,7 +915,16 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
     orderData?.peopleCount > 0 ? totalPrice / orderData.peopleCount : 0;
 
   // Define the order of categories for display
-  const categoryOrder = ["entree", "mains", "desserts", "addons", "other"];
+  const categoryOrder = [
+    "package",
+    "choices",
+    "options",
+    "entree",
+    "mains",
+    "desserts",
+    "addons",
+    "other",
+  ];
 
   return (
     <motion.div
@@ -640,6 +970,10 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
               <Users size={14} />
               <span>{orderData?.peopleCount} people</span>
             </div>
+            <div className="flex items-center gap-1">
+              <MapPin size={14} />
+              <span>{orderData?.menu?.locationId.name || "Location"}</span>
+            </div>
           </div>
         </div>
 
@@ -659,15 +993,38 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
                 </div>
               </div>
 
-              {/* Menu Details */}
+              {/* Pricing Breakdown */}
               <div className="mb-4 p-3 bg-gray-50 rounded-lg">
                 <div className="text-sm">
-                  <div className="flex justify-between mb-1">
-                    <span className="text-gray-600">Base Package:</span>
-                    <span className="font-medium">
-                      {formatPrice(orderData?.pricing?.basePrice || 0)}
-                    </span>
-                  </div>
+                  {/* Base Package - Only show for menu orders */}
+                  {!orderData?.isCustomOrder && (
+                    <div className="flex justify-between mb-1">
+                      <span className="text-gray-600">Base Package:</span>
+                      <span className="font-medium">
+                        {formatPrice(orderData?.pricing?.basePrice || 0)}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Custom Order Items or Menu Modifications */}
+                  {(orderData?.pricing?.modifierPrice > 0 ||
+                    orderData?.pricing?.itemsPrice > 0) && (
+                    <div className="flex justify-between mb-1">
+                      <span className="text-gray-600">
+                        {orderData?.isCustomOrder
+                          ? "Selected Items:"
+                          : "Modifications:"}
+                      </span>
+                      <span className="font-medium text-primary-green">
+                        {formatPrice(
+                          (orderData?.pricing?.modifierPrice || 0) +
+                            (orderData?.pricing?.itemsPrice || 0)
+                        )}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Add-ons */}
                   {orderData?.pricing?.addonsPrice > 0 && (
                     <div className="flex justify-between mb-1">
                       <span className="text-gray-600">Add-ons:</span>
@@ -676,10 +1033,15 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
                       </span>
                     </div>
                   )}
+
+                  {/* Total */}
                   <div className="border-t pt-1 mt-2">
                     <div className="flex justify-between font-semibold">
                       <span>Total:</span>
                       <span>{formatPrice(totalPrice)}</span>
+                    </div>
+                    <div className="text-xs text-gray-500 text-right mt-1">
+                      {formatPrice(pricePerPerson)} per person
                     </div>
                   </div>
                 </div>
@@ -692,53 +1054,129 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
                 Your Selections
               </h4>
               <div className="space-y-3">
-                {categoryOrder.map(
-                  (category) =>
-                    groupedItems[category] && (
-                      <div key={category} className="bg-gray-50 rounded-lg p-3">
-                        <h5 className="font-medium text-sm text-gray-800 capitalize border-b border-gray-200 pb-1 mb-2">
-                          {category}
-                        </h5>
-                        <div className="space-y-1">
-                          {groupedItems[category].map((item, index) => (
-                            <div
-                              key={index}
-                              className="flex items-start text-sm"
-                            >
+                {convertSelectionsToItems.length === 0 ? (
+                  <div className="text-center py-4">
+                    <span className="text-gray-500 text-sm">
+                      No items selected
+                    </span>
+                  </div>
+                ) : (
+                  categoryOrder.map(
+                    (category) =>
+                      groupedItems[category] && (
+                        <div
+                          key={category}
+                          className="bg-gray-50 rounded-lg p-3"
+                        >
+                          <h5 className="font-medium text-sm text-gray-800 capitalize border-b border-gray-200 pb-1 mb-2">
+                            {category}
+                          </h5>
+                          <div className="space-y-1">
+                            {groupedItems[category].map((item, index) => (
                               <div
-                                className={`rounded-full p-0.5 mr-2 mt-0.5 flex-shrink-0 ${
-                                  item.type === "addon"
-                                    ? "bg-blue-500"
-                                    : "bg-green-500"
-                                }`}
+                                key={index}
+                                className="flex items-start text-xs"
                               >
-                                <Check size={8} className="text-white" />
-                              </div>
-                              <div className="flex-1">
-                                <div className="flex items-center flex-wrap">
-                                  <span
-                                    className={`${
-                                      item.type === "addon"
-                                        ? "text-blue-700"
-                                        : "text-gray-700"
-                                    }`}
-                                  >
-                                    {item.name}
-                                  </span>
-                                  {renderInlineDietaryInfo(item)}
+                                <div
+                                  className={`rounded-full p-0.5 mr-2 mt-0.5 flex-shrink-0 ${
+                                    item.type === "addon" ||
+                                    item.type === "fixedAddon" ||
+                                    item.type === "variableAddon"
+                                      ? "bg-blue-500"
+                                      : item.type === "included"
+                                      ? "bg-green-500"
+                                      : "bg-primary-green"
+                                  }`}
+                                >
+                                  <Check size={8} className="text-white" />
                                 </div>
-                                {item.type === "addon" && (
-                                  <span className="text-xs text-blue-600">
-                                    +{formatPrice(item.pricePerPerson || 0)} per
-                                    person
-                                  </span>
-                                )}
+                                <div className="flex-1">
+                                  <div className="flex items-center flex-wrap">
+                                    <span
+                                      className={`${
+                                        item.type === "addon" ||
+                                        item.type === "fixedAddon" ||
+                                        item.type === "variableAddon"
+                                          ? "text-blue-700"
+                                          : "text-gray-700"
+                                      }`}
+                                    >
+                                      {item.name}
+                                    </span>
+                                    {renderInlineDietaryInfo(item)}
+                                  </div>
+
+                                  {/* MODIFICATION START: Conditionally render price info */}
+                                  {!orderData?.isCustomOrder && (
+                                    <div className="text-xs mt-1">
+                                      {/* For custom order items with pricePerPerson */}
+                                      {item.pricePerPerson > 0 && (
+                                        <span className="text-blue-600 block">
+                                          {formatPrice(item.pricePerPerson)} per
+                                          person
+                                          {item.quantity > 1 &&
+                                            ` × ${item.quantity}`}
+                                          {item.totalPrice && (
+                                            <span className="font-medium ml-1">
+                                              = {formatPrice(item.totalPrice)}
+                                            </span>
+                                          )}
+                                        </span>
+                                      )}
+
+                                      {/* For variable addons with pricePerUnit */}
+                                      {item.pricePerUnit > 0 && (
+                                        <span className="text-blue-600 block">
+                                          {formatPrice(item.pricePerUnit)} per
+                                          unit
+                                          {item.quantity &&
+                                            ` × ${item.quantity}`}
+                                          {item.totalPrice && (
+                                            <span className="font-medium ml-1">
+                                              = {formatPrice(item.totalPrice)}
+                                            </span>
+                                          )}
+                                        </span>
+                                      )}
+
+                                      {/* For menu items with priceModifier */}
+                                      {item.priceModifier !== undefined &&
+                                        item.priceModifier !== 0 && (
+                                          <span className="text-primary-green block">
+                                            {item.priceModifier > 0 ? "+" : ""}
+                                            {formatPrice(item.priceModifier)}{" "}
+                                            per person
+                                          </span>
+                                        )}
+
+                                      {/* For items with totalPrice but no per-person or per-unit pricing */}
+                                      {item.totalPrice > 0 &&
+                                        !item.pricePerPerson &&
+                                        !item.pricePerUnit &&
+                                        !item.priceModifier && (
+                                          <span className="text-green-600 block font-medium">
+                                            {formatPrice(item.totalPrice)} total
+                                          </span>
+                                        )}
+
+                                      {/* Show quantity if it's more than 1 and not already shown */}
+                                      {item.quantity > 1 &&
+                                        !item.pricePerPerson &&
+                                        !item.pricePerUnit && (
+                                          <span className="text-gray-500 block">
+                                            Quantity: {item.quantity}
+                                          </span>
+                                        )}
+                                    </div>
+                                  )}
+                                  {/* MODIFICATION END */}
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )
+                      )
+                  )
                 )}
               </div>
             </div>
@@ -1075,7 +1513,7 @@ const OrderConfirmationModal = ({ orderData, onClose, onBack }) => {
                         );
                       }
                     }}
-                    min={new Date().toISOString().slice(0, 16)} // Ensures future dates only
+                    min={new Date().toISOString().slice(0, 16)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                     required
                   />

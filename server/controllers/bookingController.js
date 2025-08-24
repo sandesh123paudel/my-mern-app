@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const Menu = require("../models/menusModel.js");
+const CustomOrder = require("../models/customOrderModel.js");
 const Booking = require("../models/bookingModel.js");
 const Location = require("../models/locationModel.js");
 const {
@@ -26,96 +27,369 @@ const asyncHandler = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);
 };
 
+// Helper function to convert menu/custom order selections to booking items
+const convertSelectionsToBookingItems = (
+  source,
+  selections,
+  peopleCount,
+  sourceType
+) => {
+  const items = [];
+
+  if (sourceType === "menu") {
+    // Handle menu package selections
+    if (source.packageType === "simple" && source.simpleItems && selections) {
+      source.simpleItems.forEach((item, itemIndex) => {
+        const itemSelection = selections[`simple-${itemIndex}`];
+
+        // Add base item
+        items.push({
+          name: item.name,
+          description: item.description || "",
+          pricePerPerson: item.priceModifier || 0,
+          pricePerOrder: 0,
+          totalPrice: (item.priceModifier || 0) * peopleCount,
+          category: "package",
+          type: "package",
+          quantity: item.quantity || 1,
+          groupName: "Package Items",
+          isVegetarian: item.isVegetarian || false,
+          isVegan: item.isVegan || false,
+          allergens: item.allergens || [],
+          notes: "",
+        });
+
+        // Add selected choices
+        if (itemSelection?.choices && item.choices) {
+          itemSelection.choices.forEach((choiceIndex) => {
+            const choice = item.choices[choiceIndex];
+            if (choice) {
+              items.push({
+                name: `${item.name} - ${choice.name}`,
+                description: choice.description || "",
+                pricePerPerson: choice.priceModifier || 0,
+                pricePerOrder: 0,
+                totalPrice: (choice.priceModifier || 0) * peopleCount,
+                category: "choices",
+                type: "choice",
+                quantity: 1,
+                groupName: item.name,
+                isVegetarian: choice.isVegetarian || false,
+                isVegan: choice.isVegan || false,
+                allergens: choice.allergens || [],
+                notes: "",
+              });
+            }
+          });
+        }
+
+        // Add selected options
+        if (itemSelection?.options && item.options) {
+          itemSelection.options.forEach((optionIndex) => {
+            const option = item.options[optionIndex];
+            if (option) {
+              items.push({
+                name: `${item.name} - ${option.name}`,
+                description: option.description || "",
+                pricePerPerson: option.priceModifier || 0,
+                pricePerOrder: 0,
+                totalPrice: (option.priceModifier || 0) * peopleCount,
+                category: "options",
+                type: "option",
+                quantity: 1,
+                groupName: item.name,
+                isVegetarian: option.isVegetarian || false,
+                isVegan: option.isVegan || false,
+                allergens: option.allergens || [],
+                notes: "",
+              });
+            }
+          });
+        }
+      });
+    }
+
+    // Handle categorized menu items
+    if (
+      source.packageType === "categorized" &&
+      source.categories &&
+      selections
+    ) {
+      source.categories.forEach((category, categoryIndex) => {
+        if (!category.enabled) return;
+
+        // Add included items
+        if (category.includedItems) {
+          category.includedItems.forEach((item) => {
+            items.push({
+              name: item.name,
+              description: item.description || "",
+              pricePerPerson: item.priceModifier || 0,
+              pricePerOrder: 0,
+              totalPrice: (item.priceModifier || 0) * peopleCount,
+              category: category.name.toLowerCase(),
+              type: "included",
+              quantity: 1,
+              groupName: category.name,
+              isVegetarian: item.isVegetarian || false,
+              isVegan: item.isVegan || false,
+              allergens: item.allergens || [],
+              notes: "",
+            });
+          });
+        }
+
+        // Add selected items from selection groups
+        if (category.selectionGroups) {
+          category.selectionGroups.forEach((group, groupIndex) => {
+            const key = `category-${categoryIndex}-group-${groupIndex}`;
+            const selectedItems = selections[key] || [];
+
+            selectedItems.forEach((itemIndex) => {
+              const item = group.items[itemIndex];
+              if (item) {
+                items.push({
+                  name: item.name,
+                  description: item.description || "",
+                  pricePerPerson: item.priceModifier || 0,
+                  pricePerOrder: 0,
+                  totalPrice: (item.priceModifier || 0) * peopleCount,
+                  category: category.name.toLowerCase(),
+                  type: "selected",
+                  quantity: 1,
+                  groupName: `${category.name} - ${group.name}`,
+                  isVegetarian: item.isVegetarian || false,
+                  isVegan: item.isVegan || false,
+                  allergens: item.allergens || [],
+                  notes: "",
+                });
+              }
+            });
+          });
+        }
+      });
+    }
+
+    // Handle menu addons
+    if (source.addons?.enabled && selections) {
+      // Fixed addons
+      if (selections["addons-fixed"] && source.addons.fixedAddons) {
+        selections["addons-fixed"].forEach((addonIndex) => {
+          const addon = source.addons.fixedAddons[addonIndex];
+          if (addon) {
+            const totalPrice = addon.pricePerPerson * peopleCount;
+            items.push({
+              name: addon.name,
+              description: addon.description || "",
+              pricePerPerson: addon.pricePerPerson,
+              pricePerOrder: 0,
+              totalPrice: totalPrice,
+              category: "addons",
+              type: "addon",
+              quantity: peopleCount,
+              groupName: "Add-ons",
+              isVegetarian: addon.isVegetarian || false,
+              isVegan: addon.isVegan || false,
+              allergens: addon.allergens || [],
+              notes: "",
+            });
+          }
+        });
+      }
+
+      // Variable addons
+      if (selections["addons-variable"] && source.addons.variableAddons) {
+        Object.entries(selections["addons-variable"]).forEach(
+          ([addonIndex, quantity]) => {
+            const addon = source.addons.variableAddons[parseInt(addonIndex)];
+            if (addon && quantity > 0) {
+              const totalPrice = addon.pricePerUnit * quantity;
+              items.push({
+                name: `${addon.name} (${quantity} ${addon.unit || "pieces"})`,
+                description: addon.description || "",
+                pricePerPerson: 0,
+                pricePerOrder: addon.pricePerUnit,
+                totalPrice: totalPrice,
+                category: "addons",
+                type: "addon",
+                quantity: quantity,
+                groupName: "Add-ons",
+                isVegetarian: addon.isVegetarian || false,
+                isVegan: addon.isVegan || false,
+                allergens: addon.allergens || [],
+                notes: "",
+              });
+            }
+          }
+        );
+      }
+    }
+  } else if (sourceType === "customOrder") {
+    // Handle custom order selections
+    if (selections.categories) {
+      source.categories.forEach((category) => {
+        const categorySelections = selections.categories[category.name] || [];
+
+        categorySelections.forEach((selection) => {
+          const item = category.items.id(selection.itemId);
+          if (item && item.isAvailable) {
+            const totalPrice = item.pricePerPerson * peopleCount;
+            items.push({
+              name: item.name,
+              description: item.description || "",
+              pricePerPerson: item.pricePerPerson,
+              pricePerOrder: 0,
+              totalPrice: totalPrice,
+              category: category.name,
+              type: "selected",
+              quantity: selection.quantity || 1,
+              groupName: category.displayName,
+              isVegetarian: item.isVegetarian || false,
+              isVegan: item.isVegan || false,
+              allergens: item.allergens || [],
+              notes: "",
+            });
+          }
+        });
+      });
+    }
+
+    // Handle custom order addons
+    if (selections.addons) {
+      selections.addons.forEach((addonSelection) => {
+        const addon = source.addons.id(addonSelection.addonId);
+        if (addon && addon.isAvailable) {
+          const quantity = addonSelection.quantity || 1;
+          const totalPrice = addon.pricePerOrder * quantity;
+          items.push({
+            name: addon.name,
+            description: addon.description || "",
+            pricePerPerson: 0,
+            pricePerOrder: addon.pricePerOrder,
+            totalPrice: totalPrice,
+            category: "addons",
+            type: "addon",
+            quantity: quantity,
+            groupName: "Add-ons",
+            isVegetarian: addon.isVegetarian || false,
+            isVegan: addon.isVegan || false,
+            allergens: addon.allergens || [],
+            notes: "",
+          });
+        }
+      });
+    }
+  }
+
+  return items;
+};
+
 // @desc    Create new booking (Public - No auth required)
 // @route   POST /api/bookings
 // @access  Public
 const createBooking = asyncHandler(async (req, res) => {
   try {
-  
+    const {
+      orderSource,
+      customerDetails,
+      peopleCount,
+      selectedItems,
+      rawSelections,
+      pricing,
+    } = req.body;
 
-    const isCustomOrder =
-      req.body.isCustomOrder || req.body.menu?.menuId === null;
+    if (!orderSource || !orderSource.sourceType) {
+      return sendResponse(
+        res,
+        400,
+        false,
+        "Order source information is required"
+      );
+    }
 
-    let menu = null;
+    let source = null;
     let location = null;
 
-    if (isCustomOrder) {
-      // For custom orders, we need to get location information
-      if (!req.body.menu?.locationId) {
+    // Validate and get source information
+    if (orderSource.sourceType === "menu") {
+      if (!orderSource.sourceId) {
         return sendResponse(
           res,
           400,
           false,
-          "Location is required for custom orders"
+          "Menu ID is required for menu orders"
         );
       }
 
-      try {
-        location = await Location.findById(req.body.menu.locationId);
-        if (!location || !location.isActive) {
-          return sendResponse(
-            res,
-            404,
-            false,
-            "Location not found or inactive"
-          );
-        }
-      } catch (locationError) {
-        console.error("Error finding location:", locationError);
-        // Fallback to using provided location data
-        location = {
-          _id: req.body.menu.locationId,
-          name: req.body.menu.locationName || "Selected Location",
-          isActive: true,
-        };
-      }
-
-      // For custom orders, we don't validate against menu limits
-      // but we should still have reasonable limits
-      if (req.body.peopleCount < 1 || req.body.peopleCount > 1000) {
-        return sendResponse(
-          res,
-          400,
-          false,
-          "Number of people must be between 1 and 1000"
-        );
-      }
-    } else {
-      // Regular menu order - existing validation
-      if (!req.body.menu?.menuId) {
-        return sendResponse(
-          res,
-          400,
-          false,
-          "Valid menu ID is required for regular orders"
-        );
-      }
-
-      menu = await Menu.findById(req.body.menu.menuId)
+      source = await Menu.findById(orderSource.sourceId)
         .populate("locationId")
         .populate("serviceId");
 
-      if (!menu || !menu.isActive) {
+      if (!source || !source.isActive) {
         return sendResponse(res, 404, false, "Menu not found or inactive");
       }
 
-      location = menu.locationId;
+      location = source.locationId;
 
       // Verify people count is within menu limits
-      if (
-        req.body.peopleCount < menu.minPeople ||
-        req.body.peopleCount > menu.maxPeople
-      ) {
+      if (peopleCount < source.minPeople || peopleCount > source.maxPeople) {
         return sendResponse(
           res,
           400,
           false,
-          `Number of people must be between ${menu.minPeople} and ${menu.maxPeople}`
+          `Number of people must be between ${source.minPeople} and ${source.maxPeople}`
         );
       }
+    } else if (orderSource.sourceType === "customOrder") {
+      if (!orderSource.sourceId) {
+        return sendResponse(
+          res,
+          400,
+          false,
+          "Custom Order ID is required for custom orders"
+        );
+      }
+
+      source = await CustomOrder.findById(orderSource.sourceId)
+        .populate("locationId")
+        .populate("serviceId");
+
+      if (!source || !source.isActive) {
+        return sendResponse(
+          res,
+          404,
+          false,
+          "Custom Order configuration not found or inactive"
+        );
+      }
+
+      location = source.locationId;
+
+      // Verify people count is within custom order limits
+      if (peopleCount < source.minPeople || peopleCount > source.maxPeople) {
+        return sendResponse(
+          res,
+          400,
+          false,
+          `Number of people must be between ${source.minPeople} and ${source.maxPeople}`
+        );
+      }
+
+      // Validate custom order selections
+      if (rawSelections) {
+        const validation = source.validateSelections(
+          rawSelections,
+          peopleCount
+        );
+        if (!validation.isValid) {
+          return sendResponse(res, 400, false, validation.errors[0]);
+        }
+      }
+    } else {
+      return sendResponse(res, 400, false, "Invalid order source type");
     }
 
-    // Generate unique booking reference
+    // Generate booking reference
     const generateReference = async () => {
       const date = new Date();
       const year = date.getFullYear().toString().substr(-2);
@@ -130,10 +404,9 @@ const createBooking = asyncHandler(async (req, res) => {
         const random = Math.floor(Math.random() * 1000)
           .toString()
           .padStart(3, "0");
-        const prefix = isCustomOrder ? "CU" : "BK";
+        const prefix = orderSource.sourceType === "customOrder" ? "CU" : "BK";
         reference = `${prefix}${year}${month}${day}${random}`;
 
-        // Check if reference already exists
         const existingBooking = await Booking.findOne({
           bookingReference: reference,
         });
@@ -152,57 +425,77 @@ const createBooking = asyncHandler(async (req, res) => {
 
     const bookingReference = await generateReference();
 
+    // Convert selections to booking items if not provided
+    let bookingItems = selectedItems;
+    if (!bookingItems || bookingItems.length === 0) {
+      if (rawSelections) {
+        bookingItems = convertSelectionsToBookingItems(
+          source,
+          rawSelections,
+          peopleCount,
+          orderSource.sourceType
+        );
+      } else {
+        return sendResponse(
+          res,
+          400,
+          false,
+          "Either selectedItems or rawSelections must be provided"
+        );
+      }
+    }
+
     // Prepare booking data
     const bookingData = {
-      ...req.body,
-      isCustomOrder,
       bookingReference,
-      menu: isCustomOrder
-        ? {
-            // Custom order menu info - use data from frontend
-            menuId: null, // Explicitly null for custom orders
-            name: req.body.menu?.name || "Custom Order",
-            price: 0, // Custom orders use individual item pricing
-            serviceId: req.body.menu?.serviceId || null, // Use service from frontend
-            serviceName: req.body.menu?.serviceName || "Custom Order", // Use service name from frontend
-            locationId: location._id,
-            locationName: location.name || req.body.menu?.locationName,
-          }
-        : {
-            // Regular menu order
-            menuId: menu._id,
-            name: menu.name,
-            price: menu.price,
-            serviceId: menu.serviceId._id,
-            serviceName: menu.serviceId.name,
-            locationId: menu.locationId._id,
-            locationName: menu.locationId.name,
-          },
-      customerDetails: {
-        name: req.body.customerDetails.name,
-        email: req.body.customerDetails.email,
-        phone: req.body.customerDetails.phone,
-        specialInstructions:
-          req.body.customerDetails.description ||
-          req.body.customerDetails.specialInstructions ||
-          "",
-        // Simple dietary requirements - only store what user selected
-        dietaryRequirements: req.body.customerDetails.dietaryRequirements || [],
-        spiceLevel: req.body.customerDetails.spiceLevel || "medium",
+      orderSource: {
+        sourceType: orderSource.sourceType,
+        sourceId: source._id,
+        sourceName: source.name,
+        basePrice:
+          orderSource.sourceType === "menu"
+            ? source.basePrice || source.price || 0
+            : 0,
+        locationId: location._id,
+        locationName: location.name,
+        serviceId: source.serviceId._id,
+        serviceName: source.serviceId.name,
       },
-      // Transform selectedItems to ensure itemId is set
-      selectedItems: (req.body.selectedItems || []).map((item) => ({
-        ...item,
-        itemId: item.itemId || item._id,
-      })),
+      customerDetails: {
+        name: customerDetails.name,
+        email: customerDetails.email,
+        phone: customerDetails.phone,
+        specialInstructions: customerDetails.specialInstructions || "",
+        dietaryRequirements: customerDetails.dietaryRequirements || [],
+        spiceLevel: customerDetails.spiceLevel || "medium",
+      },
+      peopleCount,
+      selectedItems: bookingItems,
+      pricing: pricing || {
+        basePrice:
+          orderSource.sourceType === "menu"
+            ? (source.basePrice || source.price || 0) * peopleCount
+            : 0,
+        modifierPrice: 0,
+        itemsPrice: 0,
+        addonsPrice: 0,
+        total: 0,
+      },
+      deliveryType: req.body.deliveryType || "Pickup",
+      deliveryDate: new Date(req.body.deliveryDate),
+      address: req.body.address || null,
+      status: "pending",
+      paymentStatus: "pending",
+      depositAmount: 0,
+      orderDate: new Date(),
+      adminNotes: "",
+      cancellationReason: "",
+      isDeleted: false,
     };
-
-  
 
     // Create booking
     const booking = new Booking(bookingData);
     const savedBooking = await booking.save();
-
 
     // Get location with bank details for customer email
     let locationWithBankDetails = null;
@@ -259,9 +552,10 @@ const createBooking = asyncHandler(async (req, res) => {
     // Return booking reference for customer
     sendResponse(res, 201, true, "Booking created successfully", {
       bookingReference: savedBooking.bookingReference,
-      message: isCustomOrder
-        ? "Your custom order has been submitted successfully. You will receive a confirmation email and SMS shortly."
-        : "Your booking has been submitted successfully. You will receive a confirmation email and SMS shortly.",
+      message:
+        orderSource.sourceType === "customOrder"
+          ? "Your custom order has been submitted successfully. You will receive a confirmation email and SMS shortly."
+          : "Your booking has been submitted successfully. You will receive a confirmation email and SMS shortly.",
     });
   } catch (error) {
     console.error("Create booking error:", error);
@@ -298,12 +592,11 @@ const getAllBookings = asyncHandler(async (req, res) => {
       deliveryType,
       locationId,
       serviceId,
-      orderType,
+      sourceType, // "menu" or "customOrder"
       startDate,
       endDate,
       search,
-      // Simple dietary filters
-      dietaryRequirement, // single filter: vegetarian, vegan, gluten-free, halal-friendly
+      dietaryRequirement,
       spiceLevel,
       sortBy = "orderDate",
       sortOrder = "desc",
@@ -324,25 +617,20 @@ const getAllBookings = asyncHandler(async (req, res) => {
 
     // Filter by location
     if (locationId) {
-      query["menu.locationId"] = locationId;
+      query["orderSource.locationId"] = locationId;
     }
 
-    // Filter by service (exclude custom orders when filtering by service)
+    // Filter by service
     if (serviceId) {
-      query["menu.serviceId"] = serviceId;
-      query.isCustomOrder = false;
+      query["orderSource.serviceId"] = serviceId;
     }
 
-    // Filter by order type
-    if (orderType) {
-      if (orderType === "custom") {
-        query.isCustomOrder = true;
-      } else if (orderType === "regular") {
-        query.isCustomOrder = false;
-      }
+    // Filter by source type
+    if (sourceType) {
+      query["orderSource.sourceType"] = sourceType;
     }
 
-    // Simple dietary requirement filter
+    // Dietary requirement filter
     if (dietaryRequirement) {
       query["customerDetails.dietaryRequirements"] = dietaryRequirement;
     }
@@ -367,7 +655,7 @@ const getAllBookings = asyncHandler(async (req, res) => {
         { "customerDetails.name": { $regex: search, $options: "i" } },
         { "customerDetails.email": { $regex: search, $options: "i" } },
         { "customerDetails.phone": { $regex: search, $options: "i" } },
-        { "menu.name": { $regex: search, $options: "i" } },
+        { "orderSource.sourceName": { $regex: search, $options: "i" } },
       ];
     }
 
@@ -379,7 +667,7 @@ const getAllBookings = asyncHandler(async (req, res) => {
     // Execute query
     const [bookings, totalCount] = await Promise.all([
       Booking.find(query)
-        .populate("menu.locationId", "name address phone email")
+        .populate("orderSource.locationId", "name address phone email")
         .sort(sortOptions)
         .skip(skip)
         .limit(parseInt(limit)),
@@ -417,10 +705,9 @@ const getBookingById = asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
 
-    const booking = await Booking.findById(id).populate(
-      "menu.locationId",
-      "name address phone email"
-    );
+    const booking = await Booking.findById(id)
+      .populate("orderSource.locationId", "name address phone email")
+      .populate("orderSource.serviceId", "name description");
 
     if (!booking) {
       return sendResponse(res, 404, false, "Booking not found");
@@ -471,10 +758,9 @@ const updateBookingStatus = asyncHandler(async (req, res) => {
 
     await booking.save();
 
-    const updatedBooking = await Booking.findById(id).populate(
-      "menu.locationId",
-      "name address phone email"
-    );
+    const updatedBooking = await Booking.findById(id)
+      .populate("orderSource.locationId", "name address phone email")
+      .populate("orderSource.serviceId", "name description");
 
     sendResponse(res, 200, true, "Booking status updated successfully", {
       booking: updatedBooking,
@@ -515,10 +801,9 @@ const updatePaymentStatus = asyncHandler(async (req, res) => {
 
     await booking.save();
 
-    const updatedBooking = await Booking.findById(id).populate(
-      "menu.locationId",
-      "name address phone email"
-    );
+    const updatedBooking = await Booking.findById(id)
+      .populate("orderSource.locationId", "name address phone email")
+      .populate("orderSource.serviceId", "name description");
 
     sendResponse(res, 200, true, "Payment status updated successfully", {
       booking: updatedBooking,
@@ -566,10 +851,11 @@ const updateBooking = asyncHandler(async (req, res) => {
         booking.customerDetails.specialInstructions =
           customerDetails.specialInstructions;
       }
-      
-      // Update simple dietary requirements
+
+      // Update dietary requirements
       if (customerDetails.dietaryRequirements !== undefined) {
-        booking.customerDetails.dietaryRequirements = customerDetails.dietaryRequirements;
+        booking.customerDetails.dietaryRequirements =
+          customerDetails.dietaryRequirements;
       }
       if (customerDetails.spiceLevel !== undefined) {
         booking.customerDetails.spiceLevel = customerDetails.spiceLevel;
@@ -587,10 +873,9 @@ const updateBooking = asyncHandler(async (req, res) => {
 
     await booking.save();
 
-    const updatedBooking = await Booking.findById(id).populate(
-      "menu.locationId",
-      "name address phone email"
-    );
+    const updatedBooking = await Booking.findById(id)
+      .populate("orderSource.locationId", "name address phone email")
+      .populate("orderSource.serviceId", "name description");
 
     sendResponse(res, 200, true, "Booking updated successfully", {
       booking: updatedBooking,
@@ -608,33 +893,25 @@ const updateBooking = asyncHandler(async (req, res) => {
 // @access  Private (Admin only)
 const getBookingStats = asyncHandler(async (req, res) => {
   try {
-    const {
-      locationId,
-      serviceId,
-      orderType,
-      startDate,
-      endDate,
-      period = "month",
-    } = req.query;
+    const { locationId, serviceId, sourceType, startDate, endDate } = req.query;
 
     // Build match query
     const matchQuery = { isDeleted: false };
 
     if (locationId) {
-      matchQuery["menu.locationId"] = new mongoose.Types.ObjectId(locationId);
+      matchQuery["orderSource.locationId"] = new mongoose.Types.ObjectId(
+        locationId
+      );
     }
 
     if (serviceId) {
-      matchQuery["menu.serviceId"] = new mongoose.Types.ObjectId(serviceId);
-      matchQuery.isCustomOrder = false;
+      matchQuery["orderSource.serviceId"] = new mongoose.Types.ObjectId(
+        serviceId
+      );
     }
 
-    if (orderType) {
-      if (orderType === "custom") {
-        matchQuery.isCustomOrder = true;
-      } else if (orderType === "regular") {
-        matchQuery.isCustomOrder = false;
-      }
+    if (sourceType) {
+      matchQuery["orderSource.sourceType"] = sourceType;
     }
 
     if (startDate && endDate) {
@@ -655,74 +932,33 @@ const getBookingStats = asyncHandler(async (req, res) => {
           totalPeople: { $sum: "$peopleCount" },
           averageOrderValue: { $avg: "$pricing.total" },
           customOrders: {
-            $sum: { $cond: [{ $eq: ["$isCustomOrder", true] }, 1, 0] },
+            $sum: {
+              $cond: [
+                { $eq: ["$orderSource.sourceType", "customOrder"] },
+                1,
+                0,
+              ],
+            },
           },
-          regularOrders: {
-            $sum: { $cond: [{ $eq: ["$isCustomOrder", false] }, 1, 0] },
+          menuOrders: {
+            $sum: {
+              $cond: [{ $eq: ["$orderSource.sourceType", "menu"] }, 1, 0],
+            },
           },
           statusCounts: {
             $push: "$status",
           },
-          // Simple dietary stats
           dietaryBreakdown: {
-            $push: "$customerDetails.dietaryRequirements"
+            $push: "$customerDetails.dietaryRequirements",
           },
           spiceLevelBreakdown: {
-            $push: "$customerDetails.spiceLevel"
-          }
-        },
-      },
-      {
-        $project: {
-          totalBookings: 1,
-          totalRevenue: 1,
-          totalPeople: 1,
-          averageOrderValue: { $round: ["$averageOrderValue", 2] },
-          customOrders: 1,
-          regularOrders: 1,
-          statusCounts: {
-            $reduce: {
-              input: "$statusCounts",
-              initialValue: {},
-              in: {
-                $mergeObjects: [
-                  "$$value",
-                  {
-                    $arrayToObject: [
-                      [
-                        {
-                          k: "$$this",
-                          v: {
-                            $add: [
-                              {
-                                $ifNull: [
-                                  {
-                                    $getField: {
-                                      field: "$$this",
-                                      input: "$$value",
-                                    },
-                                  },
-                                  0,
-                                ],
-                              },
-                              1,
-                            ],
-                          },
-                        },
-                      ],
-                    ],
-                  },
-                ],
-              },
-            },
+            $push: "$customerDetails.spiceLevel",
           },
-          dietaryBreakdown: 1,
-          spiceLevelBreakdown: 1,
         },
       },
     ]);
 
-    // Get popular menu items
+    // Get popular items
     const popularItems = await Booking.aggregate([
       { $match: matchQuery },
       { $unwind: "$selectedItems" },
@@ -731,6 +967,8 @@ const getBookingStats = asyncHandler(async (req, res) => {
           _id: "$selectedItems.name",
           count: { $sum: 1 },
           category: { $first: "$selectedItems.category" },
+          type: { $first: "$selectedItems.type" },
+          totalRevenue: { $sum: "$selectedItems.totalPrice" },
         },
       },
       { $sort: { count: -1 } },
@@ -744,7 +982,7 @@ const getBookingStats = asyncHandler(async (req, res) => {
         totalPeople: 0,
         averageOrderValue: 0,
         customOrders: 0,
-        regularOrders: 0,
+        menuOrders: 0,
         statusCounts: {},
         dietaryBreakdown: [],
         spiceLevelBreakdown: [],
@@ -811,7 +1049,7 @@ const getBookingsByCustomer = asyncHandler(async (req, res) => {
     // Build query
     const query = {
       "customerDetails.email": email.toLowerCase(),
-      isDeleted: false
+      isDeleted: false,
     };
 
     // Calculate pagination
@@ -820,7 +1058,8 @@ const getBookingsByCustomer = asyncHandler(async (req, res) => {
     // Execute query
     const [bookings, totalCount] = await Promise.all([
       Booking.find(query)
-        .populate("menu.locationId", "name address phone email")
+        .populate("orderSource.locationId", "name address phone email")
+        .populate("orderSource.serviceId", "name description")
         .sort({ orderDate: -1 })
         .skip(skip)
         .limit(parseInt(limit)),
@@ -866,7 +1105,7 @@ const getBookingByReference = asyncHandler(async (req, res) => {
     // Build query
     const query = {
       bookingReference: reference.toUpperCase(),
-      isDeleted: false
+      isDeleted: false,
     };
 
     // Add email verification if provided
@@ -875,10 +1114,16 @@ const getBookingByReference = asyncHandler(async (req, res) => {
     }
 
     const booking = await Booking.findOne(query)
-      .populate("menu.locationId", "name address phone email");
+      .populate("orderSource.locationId", "name address phone email")
+      .populate("orderSource.serviceId", "name description");
 
     if (!booking) {
-      return sendResponse(res, 404, false, "Booking not found or email doesn't match");
+      return sendResponse(
+        res,
+        404,
+        false,
+        "Booking not found or email doesn't match"
+      );
     }
 
     sendResponse(res, 200, true, "Booking retrieved successfully", {
@@ -889,6 +1134,154 @@ const getBookingByReference = asyncHandler(async (req, res) => {
     sendResponse(res, 500, false, "Failed to retrieve booking", {
       error: error.message,
     });
+  }
+});
+
+// @desc    Get custom order configurations by location (for frontend)
+// @route   GET /api/bookings/custom-orders/location/:locationId
+// @access  Public
+const getCustomOrdersByLocation = asyncHandler(async (req, res) => {
+  try {
+    const { locationId } = req.params;
+
+    const customOrders = await CustomOrder.find({
+      locationId,
+      isActive: true,
+    })
+      .populate("locationId", "name city")
+      .populate("serviceId", "name description")
+      .sort({ createdAt: -1 });
+
+    sendResponse(res, 200, true, "Custom orders retrieved successfully", {
+      customOrders,
+    });
+  } catch (error) {
+    console.error("Get custom orders by location error:", error);
+    sendResponse(res, 500, false, "Failed to retrieve custom orders", {
+      error: error.message,
+    });
+  }
+});
+
+// @desc    Get custom order configuration by ID (for frontend)
+// @route   GET /api/bookings/custom-orders/:id
+// @access  Public
+const getCustomOrderById = asyncHandler(async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const customOrder = await CustomOrder.findById(id)
+      .populate("locationId", "name city address phone")
+      .populate("serviceId", "name description");
+
+    if (!customOrder || !customOrder.isActive) {
+      return sendResponse(
+        res,
+        404,
+        false,
+        "Custom order configuration not found or inactive"
+      );
+    }
+
+    sendResponse(res, 200, true, "Custom order retrieved successfully", {
+      customOrder,
+    });
+  } catch (error) {
+    console.error("Get custom order by ID error:", error);
+    sendResponse(res, 500, false, "Failed to retrieve custom order", {
+      error: error.message,
+    });
+  }
+});
+
+// @desc    Calculate custom order price (for frontend preview)
+// @route   POST /api/bookings/custom-orders/:id/calculate
+// @access  Public
+const calculateCustomOrderPrice = asyncHandler(async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { selections, peopleCount } = req.body;
+
+    if (!selections || !peopleCount) {
+      return sendResponse(
+        res,
+        400,
+        false,
+        "Selections and people count are required"
+      );
+    }
+
+    const customOrder = await CustomOrder.findById(id);
+    if (!customOrder || !customOrder.isActive) {
+      return sendResponse(
+        res,
+        404,
+        false,
+        "Custom order configuration not found or inactive"
+      );
+    }
+
+    // Validate selections
+    const validation = customOrder.validateSelections(selections, peopleCount);
+    if (!validation.isValid) {
+      return sendResponse(res, 400, false, validation.errors[0], {
+        errors: validation.errors,
+      });
+    }
+
+    // Calculate price
+    const priceCalculation = customOrder.calculatePrice(
+      selections,
+      peopleCount
+    );
+
+    sendResponse(res, 200, true, "Price calculated successfully", {
+      pricing: priceCalculation,
+      isValid: validation.isValid,
+    });
+  } catch (error) {
+    console.error("Calculate custom order price error:", error);
+    sendResponse(res, 500, false, "Failed to calculate price", {
+      error: error.message,
+    });
+  }
+});
+
+// @desc    Get booking items by category (helper for admin)
+// @route   GET /api/bookings/:id/items-by-category
+// @access  Private (Admin only)
+const getBookingItemsByCategory = asyncHandler(async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const booking = await Booking.findById(id);
+    if (!booking) {
+      return sendResponse(res, 404, false, "Booking not found");
+    }
+
+    const itemsByCategory = booking.getItemsByCategory();
+
+    sendResponse(
+      res,
+      200,
+      true,
+      "Booking items by category retrieved successfully",
+      {
+        itemsByCategory,
+        totalItems: booking.totalItems,
+      }
+    );
+  } catch (error) {
+    console.error("Get booking items by category error:", error);
+    sendResponse(
+      res,
+      500,
+      false,
+      "Failed to retrieve booking items by category",
+      {
+        error: error.message,
+      }
+    );
   }
 });
 
@@ -903,4 +1296,8 @@ module.exports = {
   cancelBooking,
   getBookingsByCustomer,
   getBookingByReference,
+  getCustomOrdersByLocation,
+  getCustomOrderById,
+  calculateCustomOrderPrice,
+  getBookingItemsByCategory,
 };

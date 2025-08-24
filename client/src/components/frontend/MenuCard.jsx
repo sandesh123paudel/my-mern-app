@@ -1,6 +1,6 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MapPin, Users, ChefHat, Star, ArrowRight } from "lucide-react";
+import { MapPin, Users, ChefHat, Star, ArrowRight, Package, List } from "lucide-react";
 
 // Helper function to format the price
 const formatPrice = (price) => {
@@ -10,14 +10,73 @@ const formatPrice = (price) => {
   }).format(price);
 };
 
-// Helper function to count the number of enabled categories
-const getMenuCategoryCount = (menu) => {
-  let count = 0;
-  if (menu.categories?.entree?.enabled) count++;
-  if (menu.categories?.mains?.enabled) count++;
-  if (menu.categories?.desserts?.enabled) count++;
-  if (menu.categories?.addons?.enabled) count++;
-  return count;
+// Helper function to get package type info
+const getPackageTypeInfo = (menu) => {
+  if (menu.packageType === 'simple') {
+    return {
+      type: 'Simple Package',
+      icon: <List size={14} className="text-purple-500" />,
+      color: 'purple'
+    };
+  } else {
+    return {
+      type: 'Categorized Package',
+      icon: <Package size={14} className="text-blue-500" />,
+      color: 'blue'
+    };
+  }
+};
+
+// Helper function to count enabled categories or simple items
+const getPackageContentCount = (menu) => {
+  if (menu.packageType === 'simple') {
+    return {
+      type: 'items',
+      count: menu.simpleItems?.length || 0
+    };
+  } else {
+    // Count enabled categories
+    const enabledCategories = menu.categories?.filter(cat => cat.enabled) || [];
+    return {
+      type: 'categories',
+      count: enabledCategories.length
+    };
+  }
+};
+
+// Helper function to get total items count
+const getTotalItemsCount = (menu) => {
+  if (menu.packageType === 'simple') {
+    return menu.simpleItems?.length || 0;
+  } else {
+    let totalItems = 0;
+    menu.categories?.forEach(category => {
+      if (category.enabled) {
+        // Count included items
+        totalItems += category.includedItems?.length || 0;
+        // Count selection group items
+        category.selectionGroups?.forEach(group => {
+          totalItems += group.items?.length || 0;
+        });
+      }
+    });
+    return totalItems;
+  }
+};
+
+// Helper function to get enabled categories for display
+const getEnabledCategories = (menu) => {
+  if (menu.packageType === 'simple') {
+    return ['Simple Items'];
+  } else {
+    return menu.categories?.filter(cat => cat.enabled).map(cat => cat.name) || [];
+  }
+};
+
+// Helper function to check if addons are available
+const hasAddons = (menu) => {
+  return menu.addons?.enabled && 
+    ((menu.addons.fixedAddons?.length > 0) || (menu.addons.variableAddons?.length > 0));
 };
 
 const MenuCard = ({ menu, onClick }) => {
@@ -98,6 +157,12 @@ const MenuCard = ({ menu, onClick }) => {
     tap: { scale: 0.98 },
   };
 
+  const packageTypeInfo = getPackageTypeInfo(menu);
+  const packageContent = getPackageContentCount(menu);
+  const totalItems = getTotalItemsCount(menu);
+  const enabledCategories = getEnabledCategories(menu);
+  const hasAddonsAvailable = hasAddons(menu);
+
   return (
     <motion.div
       onClick={onClick}
@@ -123,6 +188,20 @@ const MenuCard = ({ menu, onClick }) => {
             >
               {menu.name}
             </motion.h3>
+            
+            {/* Package Type Badge */}
+            <motion.div
+              className="flex items-center gap-2 mb-2"
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              {packageTypeInfo.icon}
+              <span className={`text-sm font-medium text-${packageTypeInfo.color}-600`}>
+                {packageTypeInfo.type}
+              </span>
+            </motion.div>
+
             <motion.div
               className="flex items-center text-gray-600 text-sm"
               initial={{ opacity: 0, x: -10 }}
@@ -152,7 +231,7 @@ const MenuCard = ({ menu, onClick }) => {
               whileHover={{ scale: 1.05 }}
               transition={{ duration: 0.2 }}
             >
-              {formatPrice(menu.price)}
+              {formatPrice(menu.basePrice || menu.price)}
             </motion.div>
             <div className="text-sm text-gray-500">per person</div>
           </motion.div>
@@ -213,12 +292,12 @@ const MenuCard = ({ menu, onClick }) => {
               animate={{ opacity: 1 }}
               transition={{ delay: 0.6 }}
             >
-              {menu.minPeople}
-              {menu.maxPeople ? `-${menu.maxPeople}` : "+"} people
+              {menu.minPeople || 1}
+              {menu.maxPeople && menu.maxPeople !== 1000 ? `-${menu.maxPeople}` : "+"} people
             </motion.div>
           </motion.div>
 
-          {/* Courses */}
+          {/* Package Content */}
           <motion.div
             className="text-center"
             whileHover={{ scale: 1.05 }}
@@ -232,7 +311,9 @@ const MenuCard = ({ menu, onClick }) => {
             >
               <ChefHat size={20} style={{ color: "var(--primary-brown)" }} />
             </motion.div>
-            <div className="text-xs text-gray-500 mb-1">Courses</div>
+            <div className="text-xs text-gray-500 mb-1">
+              {packageContent.type === 'categories' ? 'Categories' : 'Items'}
+            </div>
             <motion.div
               className="font-semibold text-sm"
               style={{ color: "var(--primary-brown)" }}
@@ -240,11 +321,11 @@ const MenuCard = ({ menu, onClick }) => {
               animate={{ opacity: 1 }}
               transition={{ delay: 0.7 }}
             >
-              {getMenuCategoryCount(menu)} courses
+              {packageContent.count} {packageContent.type}
             </motion.div>
           </motion.div>
 
-          {/* Quality */}
+          {/* Total Items */}
           <motion.div
             className="text-center"
             whileHover={{ scale: 1.05 }}
@@ -257,7 +338,7 @@ const MenuCard = ({ menu, onClick }) => {
             >
               <Star size={20} className="text-yellow-600" />
             </motion.div>
-            <div className="text-xs text-gray-500 mb-1">Quality</div>
+            <div className="text-xs text-gray-500 mb-1">Total Items</div>
             <motion.div
               className="font-semibold text-sm"
               style={{ color: "var(--primary-brown)" }}
@@ -265,25 +346,30 @@ const MenuCard = ({ menu, onClick }) => {
               animate={{ opacity: 1 }}
               transition={{ delay: 0.8 }}
             >
-              Premium
+              {totalItems} items
             </motion.div>
           </motion.div>
         </motion.div>
 
-        {/* Categories Tags */}
+        {/* Package Content Tags */}
         <motion.div
-          className="flex flex-wrap gap-2 mb-6"
+          className="flex flex-wrap gap-2 mb-4"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6, staggerChildren: 0.05 }}
         >
           <AnimatePresence>
-            {menu.categories?.entree?.enabled && (
+            {enabledCategories.map((categoryName, index) => (
               <motion.span
+                key={categoryName}
                 className="px-2 py-1 text-xs font-medium rounded"
                 style={{
-                  backgroundColor: "rgba(164, 205, 61, 0.1)",
-                  color: "var(--primary-green)",
+                  backgroundColor: index % 2 === 0 
+                    ? "rgba(164, 205, 61, 0.1)" 
+                    : "rgba(73, 42, 0, 0.1)",
+                  color: index % 2 === 0 
+                    ? "var(--primary-green)" 
+                    : "var(--primary-brown)",
                 }}
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -291,51 +377,55 @@ const MenuCard = ({ menu, onClick }) => {
                 whileHover={{ scale: 1.05 }}
                 layout
               >
-                Entree
+                {categoryName}
               </motion.span>
-            )}
-            {menu.categories?.mains?.enabled && (
+            ))}
+            {hasAddonsAvailable && (
               <motion.span
-                className="px-2 py-1 text-xs font-medium rounded"
-                style={{
-                  backgroundColor: "rgba(73, 42, 0, 0.1)",
-                  color: "var(--primary-brown)",
-                }}
+                className="px-2 py-1 text-xs font-medium rounded bg-orange-100 text-orange-700"
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
                 whileHover={{ scale: 1.05 }}
                 layout
               >
-                Mains
-              </motion.span>
-            )}
-            {menu.categories?.desserts?.enabled && (
-              <motion.span
-                className="px-2 py-1 text-xs font-medium rounded bg-yellow-100 text-yellow-700"
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                whileHover={{ scale: 1.05 }}
-                layout
-              >
-                Desserts
-              </motion.span>
-            )}
-            {menu.categories?.addons?.enabled && (
-              <motion.span
-                className="px-2 py-1 text-xs font-medium rounded bg-gray-100 text-gray-600"
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                whileHover={{ scale: 1.05 }}
-                layout
-              >
-                Add-ons
+                Add-ons Available
               </motion.span>
             )}
           </AnimatePresence>
         </motion.div>
+
+        {/* Package Summary */}
+        {menu.packageType === 'simple' && menu.simpleItems?.length > 0 && (
+          <motion.div
+            className="mb-4 p-3 bg-purple-50 rounded-lg border border-purple-200"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 }}
+          >
+            <div className="text-xs text-purple-700 font-medium mb-1">Sample Items:</div>
+            <div className="text-xs text-purple-600">
+              {menu.simpleItems.slice(0, 3).map(item => item.name).join(', ')}
+              {menu.simpleItems.length > 3 && ` +${menu.simpleItems.length - 3} more`}
+            </div>
+          </motion.div>
+        )}
+
+        {menu.packageType === 'categorized' && menu.categories?.length > 0 && (
+          <motion.div
+            className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 }}
+          >
+            <div className="text-xs text-blue-700 font-medium mb-1">Categories:</div>
+            <div className="text-xs text-blue-600">
+              {menu.categories.filter(cat => cat.enabled).slice(0, 3).map(cat => cat.name).join(', ')}
+              {menu.categories.filter(cat => cat.enabled).length > 3 && 
+                ` +${menu.categories.filter(cat => cat.enabled).length - 3} more`}
+            </div>
+          </motion.div>
+        )}
 
         {/* Action Button */}
         <motion.button

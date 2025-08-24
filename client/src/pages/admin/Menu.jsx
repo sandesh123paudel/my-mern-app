@@ -6,7 +6,7 @@ import { getLocations } from "../../services/locationServices";
 import { getServices } from "../../services/serviceServices";
 import MenuCard from "../../components/admin/Menu/MenuCard";
 import MenuFormModal from "../../components/admin/Menu/MenuFormModal";
-import { Menu as MenuIcon, Plus, Filter, X } from "lucide-react";
+import { Menu as MenuIcon, Plus, Filter, X, Package, List } from "lucide-react";
 
 const Menu = () => {
   const [menus, setMenus] = useState([]);
@@ -19,11 +19,12 @@ const Menu = () => {
   const [locations, setLocations] = useState([]);
   const [services, setServices] = useState([]);
 
-  // Filter state
+  // Enhanced filter state
   const [filters, setFilters] = useState({
     locationId: undefined,
     serviceId: undefined,
     isActive: undefined,
+    packageType: undefined,
   });
 
   const [filteredServices, setFilteredServices] = useState([]);
@@ -110,7 +111,10 @@ const Menu = () => {
 
   const hasActiveFilters = () => {
     return (
-      filters.locationId || filters.serviceId || filters.isActive !== undefined
+      filters.locationId ||
+      filters.serviceId ||
+      filters.isActive !== undefined ||
+      filters.packageType !== undefined
     );
   };
 
@@ -119,6 +123,7 @@ const Menu = () => {
       locationId: undefined,
       serviceId: undefined,
       isActive: undefined,
+      packageType: undefined,
     });
   };
 
@@ -135,7 +140,7 @@ const Menu = () => {
   const handleDeleteMenu = async (menuId) => {
     if (
       !window.confirm(
-        "Are you sure you want to delete this menu? This action cannot be undone."
+        "Are you sure you want to delete this menu package? This action cannot be undone."
       )
     ) {
       return;
@@ -144,13 +149,13 @@ const Menu = () => {
     try {
       const result = await deleteMenu(menuId);
       if (result.success) {
-        toast.success("Menu deleted successfully");
+        toast.success("Menu package deleted successfully");
         fetchMenus(); // Reload the list
       } else {
-        toast.error(result.error || "Failed to delete menu");
+        toast.error(result.error || "Failed to delete menu package");
       }
     } catch (error) {
-      toast.error("Failed to delete menu");
+      toast.error("Failed to delete menu package");
     }
   };
 
@@ -163,6 +168,10 @@ const Menu = () => {
       total: menus.length,
       active: menus.filter((menu) => menu.isActive).length,
       inactive: menus.filter((menu) => !menu.isActive).length,
+      categorized: menus.filter(
+        (menu) => menu.packageType === "categorized" || !menu.packageType
+      ).length,
+      simple: menus.filter((menu) => menu.packageType === "simple").length,
       locations: new Set(
         menus.map((menu) => menu.locationId?._id || menu.locationId)
       ).size,
@@ -173,7 +182,7 @@ const Menu = () => {
   const stats = getMenuStats();
 
   if (loading && menus.length === 0) {
-    return <InlineLoading message="Loading menus..." size="large" />;
+    return <InlineLoading message="Loading menu packages..." size="large" />;
   }
 
   return (
@@ -181,52 +190,67 @@ const Menu = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold  flex items-center gap-3">
-            Menu Management
+          <h1 className="text-3xl font-bold flex items-center gap-3">
+            <Package className="text-blue-600" size={36} />
+            Package Management
           </h1>
-          <p className=" mt-1">
+          <p className="mt-1 text-gray-600">
             Create and manage menu packages for your locations and services
           </p>
         </div>
         <div className="flex items-center gap-4">
-          <div className="text-sm text-gray-600">Total: {totalCount} menus</div>
+          <div className="text-sm text-gray-600">
+            Total: {totalCount} packages
+          </div>
           <button
             onClick={handleAddMenu}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2"
+            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center gap-2"
           >
             <Plus size={20} />
-            Create Menu
+            Create Package
           </button>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Enhanced Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="text-2xl font-bold text-blue-700">{stats.total}</div>
-          <div className="text-sm text-blue-600">Total Menus</div>
+          <div className="text-sm text-blue-600">Total Packages</div>
         </div>
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <div className="text-2xl font-bold text-green-700">
             {stats.active}
           </div>
-          <div className="text-sm text-green-600">Active Menus</div>
+          <div className="text-sm text-green-600">Active</div>
         </div>
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
           <div className="text-2xl font-bold text-gray-700">
             {stats.inactive}
           </div>
-          <div className="text-sm text-gray-600">Inactive Menus</div>
+          <div className="text-sm text-gray-600">Inactive</div>
         </div>
         <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
           <div className="text-2xl font-bold text-purple-700">
+            {stats.categorized}
+          </div>
+          <div className="text-sm text-purple-600">Categorized</div>
+        </div>
+        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+          <div className="text-2xl font-bold text-orange-700">
+            {stats.simple}
+          </div>
+          <div className="text-sm text-orange-600">Simple</div>
+        </div>
+        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+          <div className="text-2xl font-bold text-indigo-700">
             {stats.locations}
           </div>
-          <div className="text-sm text-purple-600">Locations</div>
+          <div className="text-sm text-indigo-600">Locations</div>
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Enhanced Filters */}
       <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
         <div className="flex flex-col lg:flex-row gap-4">
           <div>
@@ -265,6 +289,23 @@ const Menu = () => {
                   {service.name}
                 </option>
               ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Package Type
+            </label>
+            <select
+              value={filters.packageType || ""}
+              onChange={(e) =>
+                handleFilterChange("packageType", e.target.value)
+              }
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">All Types</option>
+              <option value="categorized">Categorized Packages</option>
+              <option value="simple">Simple Packages</option>
             </select>
           </div>
 
@@ -326,8 +367,16 @@ const Menu = () => {
                     "Unknown"}
                 </span>
               )}
-              {filters.isActive !== undefined && (
+              {filters.packageType && (
                 <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
+                  Type:{" "}
+                  {filters.packageType === "categorized"
+                    ? "Categorized"
+                    : "Simple"}
+                </span>
+              )}
+              {filters.isActive !== undefined && (
+                <span className="px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded-full">
                   {filters.isActive ? "Active Only" : "Inactive Only"}
                 </span>
               )}
@@ -336,12 +385,12 @@ const Menu = () => {
         )}
       </div>
 
-      {/* Menus Display */}
+      {/* Packages Display */}
       <div className="bg-white rounded-lg shadow-md border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200 bg-blue-50">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-blue-800">
-              Menus ({totalCount})
+              Menu Packages ({totalCount})
             </h2>
             {loading && <div className="text-sm text-blue-600">Loading...</div>}
           </div>
@@ -350,12 +399,21 @@ const Menu = () => {
         {menus.length === 0 && !loading ? (
           <div className="p-8 text-center text-gray-600">
             <MenuIcon size={48} className="mx-auto mb-4 text-gray-300" />
-            <p className="text-lg">No menus found</p>
+            <p className="text-lg">No menu packages found</p>
             <p className="text-sm mt-2">
               {hasActiveFilters()
                 ? "Try adjusting your filters"
-                : "Create your first menu to get started"}
+                : "Create your first menu package to get started"}
             </p>
+            {!hasActiveFilters() && (
+              <button
+                onClick={handleAddMenu}
+                className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 mx-auto"
+              >
+                <Plus size={20} />
+                Create Your First Package
+              </button>
+            )}
           </div>
         ) : (
           <div className="p-6">

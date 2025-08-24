@@ -1,40 +1,71 @@
 const mongoose = require("mongoose");
 
-// Schema for selected menu items
+// Schema for selected items with full details embedded (no references)
 const selectedItemSchema = new mongoose.Schema(
   {
-    itemId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "MenuItem",
-      required: function () {
-        // Only require itemId if _id is not present (for backwards compatibility)
-        return !this._id;
-      },
-    },
-    _id: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "MenuItem",
-    },
+    // Item details (copied from source)
     name: {
       type: String,
       required: true,
     },
-    description: String,
-    price: {
+    description: {
+      type: String,
+      default: "",
+    },
+
+    // Price information
+    pricePerPerson: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    pricePerOrder: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    totalPrice: {
       type: Number,
       required: true,
+      min: 0,
     },
+
+    // Item classification
     category: {
       type: String,
-      enum: ["entree", "mains", "desserts", "addons"],
+      enum: [
+        "entree",
+        "mains",
+        "desserts",
+        "sides",
+        "beverages",
+        "addons",
+        "package",
+        "choices",
+        "options",
+      ],
       required: true,
     },
+
     type: {
       type: String,
-      enum: ["included", "selected", "addon"],
+      enum: ["included", "selected", "addon", "package", "choice", "option"],
       required: true,
     },
-    groupName: String,
+
+    // Quantity and details
+    quantity: {
+      type: Number,
+      default: 1,
+      min: 1,
+    },
+
+    groupName: {
+      type: String,
+      default: "",
+    },
+
+    // Dietary information (copied from source)
     isVegetarian: {
       type: Boolean,
       default: false,
@@ -43,14 +74,21 @@ const selectedItemSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    allergens: [String],
-    pricePerPerson: Number, // For addons
-    totalPrice: Number, // For addons
+    allergens: {
+      type: [String],
+      default: [],
+    },
+
+    // Special notes
+    notes: {
+      type: String,
+      default: "",
+    },
   },
   { _id: false }
 );
 
-// Schema for customer details
+// Customer details schema
 const customerDetailsSchema = new mongoose.Schema(
   {
     name: {
@@ -71,15 +109,13 @@ const customerDetailsSchema = new mongoose.Schema(
     },
     specialInstructions: {
       type: String,
-      trim: true,
+      default: "",
     },
-    // Simple Dietary Requirements - only if user selects them
     dietaryRequirements: {
       type: [String],
       enum: ["vegetarian", "vegan", "gluten-free", "halal-friendly"],
       default: [],
     },
-    // Simple Spice Level
     spiceLevel: {
       type: String,
       enum: ["mild", "medium", "hot", "extra-hot"],
@@ -88,7 +124,8 @@ const customerDetailsSchema = new mongoose.Schema(
   },
   { _id: false }
 );
-// Schema for delivery/pickup address
+
+// Address schema
 const addressSchema = new mongoose.Schema(
   {
     street: {
@@ -122,18 +159,26 @@ const addressSchema = new mongoose.Schema(
     country: {
       type: String,
       default: "Australia",
-      trim: true,
     },
   },
   { _id: false }
 );
 
-// Schema for pricing breakdown
+// Pricing schema
 const pricingSchema = new mongoose.Schema(
   {
     basePrice: {
       type: Number,
-      required: true,
+      default: 0,
+      min: 0,
+    },
+    modifierPrice: {
+      type: Number,
+      default: 0,
+    },
+    itemsPrice: {
+      type: Number,
+      default: 0,
       min: 0,
     },
     addonsPrice: {
@@ -150,60 +195,69 @@ const pricingSchema = new mongoose.Schema(
   { _id: false }
 );
 
-// Updated menuInfoSchema to properly handle custom orders
-const menuInfoSchema = new mongoose.Schema(
+// Order source schema
+const orderSourceSchema = new mongoose.Schema(
   {
-    menuId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Menu",
-      required: false, // Make it optional, we'll validate in pre-save hook
-      default: null,
+    sourceType: {
+      type: String,
+      enum: ["menu", "customOrder"],
+      required: true,
     },
-    name: {
+
+    // Source ID (Menu ID or CustomOrder ID)
+    sourceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+    },
+
+    // Source name (copied for reference)
+    sourceName: {
       type: String,
       required: true,
     },
-    price: {
+
+    basePrice: {
       type: Number,
-      required: true,
-      min: 0,
+      default: 0,
     },
-    serviceId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Service",
-      required: false, // Make it optional, we'll validate in pre-save hook
-      default: null,
-    },
-    serviceName: String,
+
+    // Location and service info (copied for reference)
     locationId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Location",
-      required: true, // Location is always required
+      required: true,
     },
-    locationName: String,
+    locationName: {
+      type: String,
+      required: true,
+    },
+
+    serviceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Service",
+      required: true,
+    },
+    serviceName: {
+      type: String,
+      required: true,
+    },
   },
   { _id: false }
 );
 
-// Main booking schema with custom order support
+// Main Booking Schema
 const bookingSchema = new mongoose.Schema(
   {
-    // Booking reference number (auto-generated)
+    // Auto-generated booking reference
     bookingReference: {
       type: String,
       unique: true,
     },
 
-    // Menu information
-    menu: {
-      type: menuInfoSchema,
+    // Order source (Menu or CustomOrder)
+    orderSource: {
+      type: orderSourceSchema,
       required: true,
-    },
-
-    // Custom order flag
-    isCustomOrder: {
-      type: Boolean,
-      default: false,
     },
 
     // Customer information
@@ -212,7 +266,7 @@ const bookingSchema = new mongoose.Schema(
       required: true,
     },
 
-    // Number of people
+    // Order details
     peopleCount: {
       type: Number,
       required: true,
@@ -220,10 +274,10 @@ const bookingSchema = new mongoose.Schema(
       max: 1000,
     },
 
-    // Selected menu items
+    // All selected items with full details (no references)
     selectedItems: [selectedItemSchema],
 
-    // Pricing information
+    // Pricing breakdown
     pricing: {
       type: pricingSchema,
       required: true,
@@ -240,13 +294,6 @@ const bookingSchema = new mongoose.Schema(
     deliveryDate: {
       type: Date,
       required: true,
-      validate: {
-        validator: function (v) {
-          // Check if delivery date is not on Monday (0 = Sunday, 1 = Monday)
-          return v.getDay() !== 1;
-        },
-        message: "Delivery and pickup are not available on Mondays",
-      },
     },
 
     // Address (only for delivery)
@@ -257,16 +304,16 @@ const bookingSchema = new mongoose.Schema(
       },
     },
 
-    // Booking status
+    // Status tracking
     status: {
       type: String,
       enum: [
-        "pending", // Initial booking submitted
-        "confirmed", // Booking confirmed by admin
-        "preparing", // Order being prepared
-        "ready", // Ready for pickup/delivery
-        "completed", // Order completed
-        "cancelled", // Order cancelled by admin
+        "pending",
+        "confirmed",
+        "preparing",
+        "ready",
+        "completed",
+        "cancelled",
       ],
       default: "pending",
     },
@@ -290,18 +337,18 @@ const bookingSchema = new mongoose.Schema(
       default: Date.now,
     },
 
-    // Admin notes and cancellation reason
+    // Admin fields
     adminNotes: {
       type: String,
-      trim: true,
+      default: "",
     },
 
     cancellationReason: {
       type: String,
-      trim: true,
+      default: "",
     },
 
-    // For soft deletes
+    // Soft delete
     isDeleted: {
       type: Boolean,
       default: false,
@@ -312,20 +359,31 @@ const bookingSchema = new mongoose.Schema(
   }
 );
 
-// Updated indexes to handle custom orders
+// Indexes
 bookingSchema.index({ "customerDetails.email": 1 });
 bookingSchema.index({ "customerDetails.phone": 1 });
 bookingSchema.index({ deliveryDate: 1 });
 bookingSchema.index({ status: 1 });
-bookingSchema.index({ orderDate: 1 });
-bookingSchema.index({ "menu.locationId": 1 });
-bookingSchema.index({ "menu.serviceId": 1 });
-bookingSchema.index({ isCustomOrder: 1 });
+bookingSchema.index({ "orderSource.locationId": 1 });
+bookingSchema.index({ "orderSource.sourceType": 1 });
+bookingSchema.index({ bookingReference: 1 });
 bookingSchema.index({ isDeleted: 1 });
 
-// Pre-save middleware to generate booking reference and validate custom orders
+// Virtual properties
+bookingSchema.virtual("isCustomOrder").get(function () {
+  return this.orderSource?.sourceType === "customOrder";
+});
+
+bookingSchema.virtual("isMenuOrder").get(function () {
+  return this.orderSource?.sourceType === "menu";
+});
+
+bookingSchema.virtual("totalItems").get(function () {
+  return this.selectedItems?.length || 0;
+});
+
+// Pre-save middleware to generate booking reference
 bookingSchema.pre("save", async function (next) {
-  // Generate booking reference if new
   if (this.isNew && !this.bookingReference) {
     const generateReference = () => {
       const date = new Date();
@@ -341,14 +399,13 @@ bookingSchema.pre("save", async function (next) {
     let reference = generateReference();
     let isUnique = false;
     let attempts = 0;
-    const maxAttempts = 10;
 
-    while (!isUnique && attempts < maxAttempts) {
-      const existingBooking = await this.constructor.findOne({
+    while (!isUnique && attempts < 10) {
+      const existing = await this.constructor.findOne({
         bookingReference: reference,
       });
 
-      if (!existingBooking) {
+      if (!existing) {
         isUnique = true;
       } else {
         reference = generateReference();
@@ -363,47 +420,19 @@ bookingSchema.pre("save", async function (next) {
     this.bookingReference = reference;
   }
 
-  // Custom validation for menu fields based on order type
-  if (this.isCustomOrder) {
-    // For custom orders, menuId should be null
-    if (this.menu.menuId !== null && this.menu.menuId !== undefined) {
-      this.menu.menuId = null;
-    }
-
-    // For custom orders, serviceId can be null or a valid ObjectId
-    // Location is always required and already validated by schema
-
-    // Ensure at least one item is selected for custom orders
-    if (!this.selectedItems || this.selectedItems.length === 0) {
-      return next(
-        new Error("At least one item must be selected for custom orders")
-      );
-    }
-  } else {
-    // For regular orders, menuId is required
-    if (!this.menu.menuId) {
-      return next(new Error("Menu ID is required for regular orders"));
-    }
-
-    // For regular orders, serviceId is required
-    if (!this.menu.serviceId) {
-      return next(new Error("Service ID is required for regular orders"));
-    }
+  // Validation
+  if (!this.orderSource.sourceId) {
+    return next(new Error("Source ID is required"));
   }
 
-  // Fix selectedItems - set itemId from _id if available
-  if (this.selectedItems && this.selectedItems.length > 0) {
-    this.selectedItems.forEach((item) => {
-      if (item._id && !item.itemId) {
-        item.itemId = item._id;
-      }
-    });
+  if (!this.selectedItems || this.selectedItems.length === 0) {
+    return next(new Error("At least one item must be selected"));
   }
 
   next();
 });
 
-// Static methods for admin dashboard
+// Static methods for analytics
 bookingSchema.statics.getBookingStats = function (
   locationId = null,
   startDate = null,
@@ -412,7 +441,9 @@ bookingSchema.statics.getBookingStats = function (
   const matchQuery = { isDeleted: false };
 
   if (locationId) {
-    matchQuery["menu.locationId"] = new mongoose.Types.ObjectId(locationId);
+    matchQuery["orderSource.locationId"] = new mongoose.Types.ObjectId(
+      locationId
+    );
   }
 
   if (startDate && endDate) {
@@ -432,73 +463,33 @@ bookingSchema.statics.getBookingStats = function (
         totalPeople: { $sum: "$peopleCount" },
         averageOrderValue: { $avg: "$pricing.total" },
         customOrders: {
-          $sum: { $cond: [{ $eq: ["$isCustomOrder", true] }, 1, 0] },
-        },
-        regularOrders: {
-          $sum: { $cond: [{ $eq: ["$isCustomOrder", false] }, 1, 0] },
-        },
-        statusCounts: {
-          $push: "$status",
-        },
-      },
-    },
-    {
-      $project: {
-        totalBookings: 1,
-        totalRevenue: 1,
-        totalPeople: 1,
-        averageOrderValue: { $round: ["$averageOrderValue", 2] },
-        customOrders: 1,
-        regularOrders: 1,
-        statusCounts: {
-          $reduce: {
-            input: "$statusCounts",
-            initialValue: {},
-            in: {
-              $mergeObjects: [
-                "$$value",
-                {
-                  $arrayToObject: [
-                    [
-                      {
-                        k: "$$this",
-                        v: {
-                          $add: [
-                            {
-                              $ifNull: [
-                                {
-                                  $getField: {
-                                    field: "$$this",
-                                    input: "$$value",
-                                  },
-                                },
-                                0,
-                              ],
-                            },
-                            1,
-                          ],
-                        },
-                      },
-                    ],
-                  ],
-                },
-              ],
-            },
+          $sum: {
+            $cond: [{ $eq: ["$orderSource.sourceType", "customOrder"] }, 1, 0],
           },
+        },
+        menuOrders: {
+          $sum: { $cond: [{ $eq: ["$orderSource.sourceType", "menu"] }, 1, 0] },
         },
       },
     },
   ]);
 };
 
-// Virtual for formatted booking reference
-bookingSchema.virtual("formattedReference").get(function () {
-  return this.bookingReference;
-});
+// Instance method to get items by category
+bookingSchema.methods.getItemsByCategory = function () {
+  const itemsByCategory = {};
 
-// Ensure virtual fields are serialized
+  this.selectedItems.forEach((item) => {
+    if (!itemsByCategory[item.category]) {
+      itemsByCategory[item.category] = [];
+    }
+    itemsByCategory[item.category].push(item);
+  });
+
+  return itemsByCategory;
+};
+
 bookingSchema.set("toJSON", { virtuals: true });
-bookingSchema.set("toObject", { virtuals: true });
 
 const Booking = mongoose.model("Booking", bookingSchema);
 

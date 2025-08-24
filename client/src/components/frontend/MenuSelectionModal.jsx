@@ -1,12 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
   Users,
   MapPin,
   Check,
-  Leaf,
-  AlertCircle,
   ShoppingCart,
   X,
   Plus,
@@ -15,30 +12,21 @@ import {
 import { toast } from "react-hot-toast";
 
 const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
-  // State to track item selections within selection groups.
   const [selections, setSelections] = useState({});
-  // State to track the number of people.
   const [peopleCount, setPeopleCount] = useState("");
-  // State to track validation errors
-  const [validationErrors, setValidationErrors] = useState({});
 
   useEffect(() => {
-    // Add the "no-scroll" class to the body when the modal is mounted
     document.body.classList.add("no-scroll");
-
-    // Clean up the effect by removing the class when the modal is unmounted
     return () => {
       document.body.classList.remove("no-scroll");
     };
   }, []);
 
   useEffect(() => {
-    // Set the initial people count based on the menu's minimum.
     const initialCount = menu.minPeople || 1;
     setPeopleCount(String(initialCount));
   }, [menu.minPeople]);
 
-  // Helper function to format currency
   const formatPrice = (price) => {
     return new Intl.NumberFormat("en-AU", {
       style: "currency",
@@ -46,44 +34,75 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
     }).format(price);
   };
 
-  // Enhanced addon selection handler
-  const handleAddonSelection = (groupIndex, itemId, isSelected) => {
-    const key = `addons-${groupIndex}`;
-    const currentSelections = selections[key] || [];
-
-    let newSelections;
-    if (isSelected) {
-      newSelections = [...currentSelections, itemId];
-    } else {
-      newSelections = currentSelections.filter((id) => id !== itemId);
-    }
-
+  // Simple item selection handlers
+  const handleSimpleItemSelection = (itemIndex, type, value) => {
+    const key = `simple-${itemIndex}`;
     setSelections((prev) => ({
       ...prev,
-      [key]: newSelections,
+      [key]: {
+        ...prev[key],
+        [type]: value,
+      },
     }));
   };
 
-  // Simplified item selection handler
-  const handleItemSelection = (
-    categoryName,
+  const handleSimpleItemChoiceSelection = (
+    itemIndex,
+    choiceIndex,
+    isSelected
+  ) => {
+    const item = menu.simpleItems[itemIndex];
+    const key = `simple-${itemIndex}`;
+    const currentSelection = selections[key] || {};
+    const currentChoices = currentSelection.choices || [];
+
+    let newChoices;
+    if (item.selectionType === "single") {
+      newChoices = isSelected ? [choiceIndex] : [];
+    } else {
+      if (isSelected) {
+        newChoices = [...currentChoices, choiceIndex];
+      } else {
+        newChoices = currentChoices.filter((idx) => idx !== choiceIndex);
+      }
+    }
+
+    handleSimpleItemSelection(itemIndex, "choices", newChoices);
+  };
+
+  const handleSimpleItemOptionSelection = (
+    itemIndex,
+    optionIndex,
+    isSelected
+  ) => {
+    const key = `simple-${itemIndex}`;
+    const currentSelection = selections[key] || {};
+    const currentOptions = currentSelection.options || [];
+
+    let newOptions;
+    if (isSelected) {
+      newOptions = [...currentOptions, optionIndex];
+    } else {
+      newOptions = currentOptions.filter((idx) => idx !== optionIndex);
+    }
+
+    handleSimpleItemSelection(itemIndex, "options", newOptions);
+  };
+
+  // Category item selection handler
+  const handleCategoryItemSelection = (
+    categoryIndex,
     groupIndex,
-    itemId,
+    itemIndex,
     isSelected,
     group
   ) => {
-    // Special handling for addons
-    if (categoryName === "addons") {
-      handleAddonSelection(groupIndex, itemId, isSelected);
-      return;
-    }
-
-    const key = `${categoryName}-${groupIndex}`;
+    const key = `category-${categoryIndex}-group-${groupIndex}`;
     const currentSelections = selections[key] || [];
 
     let newSelections;
     if (group.selectionType === "single") {
-      newSelections = isSelected ? [itemId] : [];
+      newSelections = isSelected ? [itemIndex] : [];
     } else {
       if (isSelected) {
         if (
@@ -95,9 +114,9 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
           );
           return;
         }
-        newSelections = [...currentSelections, itemId];
+        newSelections = [...currentSelections, itemIndex];
       } else {
-        newSelections = currentSelections.filter((id) => id !== itemId);
+        newSelections = currentSelections.filter((idx) => idx !== itemIndex);
       }
     }
 
@@ -107,123 +126,60 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
     }));
   };
 
-  // Checks if an item is currently selected in a specific selection group.
-  const isItemSelected = (categoryName, groupIndex, itemId) => {
-    const key = `${categoryName}-${groupIndex}`;
-    return (selections[key] || []).includes(itemId);
-  };
-
-  // Calculates the base package price (menu price * people count)
-  const calculateBasePrice = () => {
-    const numPeople = parseInt(peopleCount) || 0;
-    return (menu.price || 0) * numPeople;
-  };
-
-  // Enhanced addon price calculation with detailed breakdown
-  const calculateAddonsPrice = () => {
-    const numPeople = parseInt(peopleCount) || 0;
-    let addonsPrice = 0;
-    const addonBreakdown = [];
-
-    const addonsCategory = menu.categories?.addons;
-    if (addonsCategory?.enabled && addonsCategory?.selectionGroups) {
-      addonsCategory.selectionGroups.forEach((group, groupIndex) => {
-        const key = `addons-${groupIndex}`;
-        const selectedAddonIds = selections[key] || [];
-
-        selectedAddonIds.forEach((addonId) => {
-          const addonItem = group.items.find((item) => item._id === addonId);
-          if (addonItem) {
-            const itemTotal = addonItem.price * numPeople;
-            addonsPrice += itemTotal;
-            addonBreakdown.push({
-              name: addonItem.name,
-              pricePerPerson: addonItem.price,
-              totalPrice: itemTotal,
-              groupName: group.name,
-            });
-          }
-        });
-      });
-    }
-
-    return { total: addonsPrice, breakdown: addonBreakdown };
-  };
-
-  // Calculates the total price of the order
-  const calculateTotalOrderPrice = () => {
-    const addonData = calculateAddonsPrice();
-    return calculateBasePrice() + addonData.total;
-  };
-
-  // Get selected addons for display purposes
-  const getSelectedAddons = () => {
-    const selectedAddons = [];
-    const addonsCategory = menu.categories?.addons;
-
-    if (addonsCategory?.enabled && addonsCategory?.selectionGroups) {
-      addonsCategory.selectionGroups.forEach((group, groupIndex) => {
-        const key = `addons-${groupIndex}`;
-        const selectedAddonIds = selections[key] || [];
-
-        selectedAddonIds.forEach((addonId) => {
-          const addonItem = group.items.find((item) => item._id === addonId);
-          if (addonItem) {
-            selectedAddons.push({
-              ...addonItem,
-              groupName: group.name,
-              pricePerPerson: addonItem.price,
-              totalPrice: addonItem.price * (parseInt(peopleCount) || 0),
-            });
-          }
-        });
-      });
-    }
-
-    return selectedAddons;
-  };
-
-  // Gathers all selected items (included and user-selected) for the final order summary.
-  const getAllSelectedItems = () => {
-    const allSelected = [];
-    Object.entries(menu.categories || {}).forEach(
-      ([categoryName, categoryData]) => {
-        // Add included items from all categories
-        if (categoryData?.enabled && categoryData.includedItems) {
-          categoryData.includedItems.forEach((item) => {
-            allSelected.push({
-              ...item,
-              type: "included",
-              category: categoryName,
-            });
-          });
-        }
-        // Add selected items from selection groups
-        if (categoryData?.enabled && categoryData.selectionGroups) {
-          categoryData.selectionGroups.forEach((group, groupIndex) => {
-            const key = `${categoryName}-${groupIndex}`;
-            const selectedItems = selections[key] || [];
-            selectedItems.forEach((itemId) => {
-              const item = group.items.find((item) => item._id === itemId);
-              if (item) {
-                allSelected.push({
-                  ...item,
-                  type: categoryName === "addons" ? "addon" : "selected",
-                  category: categoryName,
-                  groupName: group.name,
-                });
-              }
-            });
-          });
-        }
+  // Addon selection handler
+  const handleAddonSelection = (type, addonIndex, value) => {
+    const key = `addons-${type}`;
+    if (type === "fixed") {
+      const currentSelections = selections[key] || [];
+      let newSelections;
+      if (currentSelections.includes(addonIndex)) {
+        newSelections = currentSelections.filter((idx) => idx !== addonIndex);
+      } else {
+        newSelections = [...currentSelections, addonIndex];
       }
-    );
-    return allSelected;
+      setSelections((prev) => ({
+        ...prev,
+        [key]: newSelections,
+      }));
+    } else if (type === "variable") {
+      setSelections((prev) => ({
+        ...prev,
+        [key]: {
+          ...(prev[key] || {}),
+          [addonIndex]: value,
+        },
+      }));
+    }
   };
 
-  // Simplified people count handlers
+  // Check if selections are made
+  const isSimpleItemChoiceSelected = (itemIndex, choiceIndex) => {
+    const key = `simple-${itemIndex}`;
+    const selection = selections[key];
+    return selection?.choices?.includes(choiceIndex) || false;
+  };
+
+  const isSimpleItemOptionSelected = (itemIndex, optionIndex) => {
+    const key = `simple-${itemIndex}`;
+    const selection = selections[key];
+    return selection?.options?.includes(optionIndex) || false;
+  };
+
+  const isCategoryItemSelected = (categoryIndex, groupIndex, itemIndex) => {
+    const key = `category-${categoryIndex}-group-${groupIndex}`;
+    return (selections[key] || []).includes(itemIndex);
+  };
+
+  const isFixedAddonSelected = (addonIndex) => {
+    return (selections["addons-fixed"] || []).includes(addonIndex);
+  };
+
+  const getVariableAddonQuantity = (addonIndex) => {
+    return selections["addons-variable"]?.[addonIndex] || 0;
+  };
+
+  // People count handlers
   const handlePeopleCountChange = (value) => {
-    // Allow any input while typing
     setPeopleCount(value);
   };
 
@@ -243,8 +199,123 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
     }
   };
 
-  // Validation only on form submission
-  const validateOrderOnSubmit = () => {
+  // Calculate prices
+  const calculateBasePrice = () => {
+    const numPeople = parseInt(peopleCount) || 0;
+    return (menu.basePrice || menu.price || 0) * numPeople;
+  };
+
+  const calculateItemModifiers = () => {
+    let modifierPrice = 0;
+    const numPeople = parseInt(peopleCount) || 0;
+
+    if (menu.packageType === "simple" && menu.simpleItems) {
+      menu.simpleItems.forEach((item, itemIndex) => {
+        const itemSelection = selections[`simple-${itemIndex}`];
+
+        // Add item price modifier
+        if (item.priceModifier) {
+          modifierPrice += item.priceModifier * numPeople;
+        }
+
+        // Add choice modifiers
+        if (item.hasChoices && item.choices && itemSelection?.choices) {
+          itemSelection.choices.forEach((choiceIndex) => {
+            const choice = item.choices[choiceIndex];
+            if (choice?.priceModifier) {
+              modifierPrice += choice.priceModifier * numPeople;
+            }
+          });
+        }
+
+        // Add option modifiers
+        if (item.options && itemSelection?.options) {
+          itemSelection.options.forEach((optionIndex) => {
+            const option = item.options[optionIndex];
+            if (option?.priceModifier) {
+              modifierPrice += option.priceModifier * numPeople;
+            }
+          });
+        }
+      });
+    } else if (menu.packageType === "categorized" && menu.categories) {
+      menu.categories.forEach((category, categoryIndex) => {
+        if (category.enabled && category.selectionGroups) {
+          category.selectionGroups.forEach((group, groupIndex) => {
+            const key = `category-${categoryIndex}-group-${groupIndex}`;
+            const selectedItems = selections[key] || [];
+
+            selectedItems.forEach((itemIndex) => {
+              const item = group.items[itemIndex];
+              if (item?.priceModifier) {
+                modifierPrice += item.priceModifier * numPeople;
+              }
+            });
+          });
+        }
+      });
+    }
+
+    return modifierPrice;
+  };
+
+  const calculateAddonsPrice = () => {
+    let addonsPrice = 0;
+    const numPeople = parseInt(peopleCount) || 0;
+    const addonBreakdown = [];
+
+    if (menu.addons?.enabled) {
+      // Fixed addons
+      if (menu.addons.fixedAddons && selections["addons-fixed"]) {
+        selections["addons-fixed"].forEach((addonIndex) => {
+          const addon = menu.addons.fixedAddons[addonIndex];
+          if (addon) {
+            const itemTotal = addon.pricePerPerson * numPeople;
+            addonsPrice += itemTotal;
+            addonBreakdown.push({
+              name: addon.name,
+              type: "fixed",
+              pricePerPerson: addon.pricePerPerson,
+              totalPrice: itemTotal,
+            });
+          }
+        });
+      }
+
+      // Variable addons
+      if (menu.addons.variableAddons && selections["addons-variable"]) {
+        Object.entries(selections["addons-variable"]).forEach(
+          ([addonIndex, quantity]) => {
+            const addon = menu.addons.variableAddons[parseInt(addonIndex)];
+            if (addon && quantity > 0) {
+              const itemTotal = addon.pricePerUnit * quantity;
+              addonsPrice += itemTotal;
+              addonBreakdown.push({
+                name: addon.name,
+                type: "variable",
+                pricePerUnit: addon.pricePerUnit,
+                quantity: quantity,
+                unit: addon.unit || "piece",
+                totalPrice: itemTotal,
+              });
+            }
+          }
+        );
+      }
+    }
+
+    return { total: addonsPrice, breakdown: addonBreakdown };
+  };
+
+  const calculateTotalPrice = () => {
+    const basePrice = calculateBasePrice();
+    const modifierPrice = calculateItemModifiers();
+    const addonData = calculateAddonsPrice();
+    return basePrice + modifierPrice + addonData.total;
+  };
+
+  // Validation
+ const validateOrder = () => {
     const errors = [];
     const numPeople = parseInt(peopleCount) || 0;
     const minPeople = menu.minPeople || 1;
@@ -259,383 +330,546 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
       errors.push(`Maximum ${maxPeople} people allowed for this menu`);
     }
 
-    // Validate required selections
-    const categoriesToValidate = ["entree", "mains", "desserts"];
-
-    for (const categoryName of categoriesToValidate) {
-      const categoryData = menu.categories?.[categoryName];
-
-      if (categoryData?.enabled && categoryData.selectionGroups) {
-        for (const [
-          groupIndex,
-          group,
-        ] of categoryData.selectionGroups.entries()) {
-          if (group.isRequired) {
-            const key = `${categoryName}-${groupIndex}`;
-            const selectedItems = selections[key] || [];
-            if (selectedItems.length === 0) {
-              errors.push(
-                `Please make a selection for "${group.name}" in ${categoryName}`
-              );
-            }
+    // **NEW: Validate required selections for simple packages**
+    if (menu.packageType === "simple" && menu.simpleItems) {
+      menu.simpleItems.forEach((item, itemIndex) => {
+        // We assume if an item has choices, a selection is required.
+        // You could also add an "isRequired" flag to your data model for more control.
+        if (item.hasChoices && item.choices && item.choices.length > 0) {
+          const key = `simple-${itemIndex}`;
+          const selection = selections[key];
+          if (!selection?.choices || selection.choices.length === 0) {
+            errors.push(`Please make a selection for "${item.name}"`);
           }
         }
-      }
+      });
+    }
+
+    // Validate required selections for categorized packages
+    if (menu.packageType === "categorized" && menu.categories) {
+      menu.categories.forEach((category, categoryIndex) => {
+        if (category.enabled && category.selectionGroups) {
+          category.selectionGroups.forEach((group, groupIndex) => {
+            if (group.isRequired) {
+              const key = `category-${categoryIndex}-group-${groupIndex}`;
+              const selectedItems = selections[key] || [];
+              if (selectedItems.length === 0) {
+                errors.push(
+                  `Please make a selection for "${group.name}" in ${category.name}`
+                );
+              }
+            }
+          });
+        }
+      });
     }
 
     return errors;
   };
 
-  // Enhanced order placement logic with comprehensive validation
   const handlePlaceOrder = () => {
-    const validationErrors = validateOrderOnSubmit();
+    const validationErrors = validateOrder();
 
     if (validationErrors.length > 0) {
-      // Show first error only using toast
       toast.error(validationErrors[0]);
       return;
     }
 
-    const addonData = calculateAddonsPrice();
     const orderDetails = {
-      menuId: menu._id, // Add the actual menu ID here
+      menuId: menu._id,
       menu: {
         name: menu.name,
-        price: menu.price,
+        basePrice: menu.basePrice || menu.price,
+        packageType: menu.packageType,
         locationId: menu.locationId,
       },
+      fullMenu: menu,
       peopleCount: parseInt(peopleCount),
-      selectedItems: getAllSelectedItems(),
+      selections: selections,
       pricing: {
         basePrice: calculateBasePrice(),
-        addonsPrice: addonData.total,
-        total: calculateTotalOrderPrice(),
+        modifierPrice: calculateItemModifiers(),
+        addonsPrice: calculateAddonsPrice().total,
+        total: calculateTotalPrice(),
       },
-      selectedAddons: getSelectedAddons(),
-      selections: selections,
+      addonBreakdown: calculateAddonsPrice().breakdown,
     };
+    console.log("Order Details being passed:", orderDetails);
+    console.log("Menu object:", menu);
+    console.log("Selections object:", selections);
 
     onProceedToConfirmation(orderDetails);
   };
 
-  // Render dietary info badges inline
-  const renderInlineDietaryInfo = (item) => {
-    const badges = [];
-
-    if (item.isVegan) {
-      badges.push(
-        <span
-          key="vegan"
-          className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded ml-2"
-        >
-          <Leaf size={8} />V
-        </span>
-      );
-    } else if (item.isVegetarian) {
-      badges.push(
-        <span
-          key="vegetarian"
-          className="inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded ml-2"
-        >
-          <Leaf size={8} />
-          Veg
-        </span>
-      );
-    }
-
-    if (item.allergens && item.allergens.length > 0) {
-      badges.push(
-        <span
-          key="allergens"
-          className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-100 text-orange-700 text-xs rounded ml-2"
-        >
-          <AlertCircle size={8} />
-          {item.allergens.join(", ")}
-        </span>
-      );
-    }
-
-    return badges;
-  };
-
-  // Simplified addon rendering
-  const renderAddonCategory = (categoryData) => {
-    if (!categoryData?.enabled) return null;
+  // Render simple items
+  const renderSimpleItems = () => {
+    if (!menu.simpleItems || menu.simpleItems.length === 0) return null;
 
     return (
-      <div className="mb-8">
-        <div className="mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            Add-ons (Optional)
-          </h3>
-          <p className="text-sm text-gray-600">
-            Select any additional items you'd like to include with your order.
-          </p>
-        </div>
+      <div className="mb-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b pb-2">
+          Package Items
+        </h3>
 
-        {categoryData.selectionGroups &&
-          categoryData.selectionGroups.length > 0 && (
-            <div className="space-y-4">
-              {categoryData.selectionGroups.map((group, groupIndex) => (
-                <div
-                  key={groupIndex}
-                  className="bg-white rounded-lg border border-gray-200 p-4"
-                >
-                  <h4 className="font-medium text-gray-900 mb-3">
-                    {group.name}
-                  </h4>
+        <div className="space-y-4">
+          {menu.simpleItems.map((item, itemIndex) => (
+            <div
+              key={itemIndex}
+              className="border border-gray-300 rounded-lg p-4 bg-white"
+            >
+              <div className="mb-3">
+                <h4 className="font-medium text-gray-900 text-base">
+                  {item.name}
+                  {item.priceModifier !== 0 && (
+                    <span className="ml-2 text-primary-green font-medium">
+                      {item.priceModifier > 0 ? "+" : ""}
+                      {formatPrice(item.priceModifier)}
+                    </span>
+                  )}
+                </h4>
+                {item.quantity && item.quantity > 1 && (
+                  <p className="text-sm text-gray-600 mt-1">
+                    Quantity: {item.quantity}
+                  </p>
+                )}
+              </div>
 
-                  <div className="space-y-3">
-                    {group.items.map((item, itemIndex) => {
-                      const isSelected = isItemSelected(
-                        "addons",
-                        groupIndex,
-                        item._id
+              {/* Customer Choices */}
+              {item.hasChoices && item.choices && item.choices.length > 0 && (
+                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <h5 className="font-medium text-gray-900 mb-3">
+                    {item.selectionType === "single"
+                      ? "Choose one option:"
+                      : "Choose options:"}
+                  </h5>
+                  <div className="space-y-2">
+                    {item.choices.map((choice, choiceIndex) => {
+                      const isSelected = isSimpleItemChoiceSelected(
+                        itemIndex,
+                        choiceIndex
                       );
                       return (
-                        <div
-                          key={itemIndex}
-                          className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                            isSelected
-                              ? "border-blue-500 bg-blue-50"
-                              : "border-gray-200 hover:border-gray-300"
-                          }`}
-                          onClick={() =>
-                            handleItemSelection(
-                              "addons",
-                              groupIndex,
-                              item._id,
-                              !isSelected,
-                              group
-                            )
-                          }
+                        <label
+                          key={choiceIndex}
+                          className="flex items-center p-2 border border-gray-200 rounded cursor-pointer hover:bg-gray-50"
                         >
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-start gap-3 flex-1">
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => {}}
-                                className="w-4 h-4 text-blue-600 rounded mt-0.5"
-                              />
-                              <div className="flex-1">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center flex-wrap">
-                                    <h5 className="font-medium text-gray-900">
-                                      {item.name}
-                                    </h5>
-                                    {renderInlineDietaryInfo(item)}
-                                  </div>
-                                  <div className="text-right">
-                                    <div className="text-blue-600 font-semibold">
-                                      +{formatPrice(item.price)}
-                                    </div>
-                                    <div className="text-xs text-gray-500">
-                                      per person
-                                    </div>
-                                  </div>
-                                </div>
-                                {item.description && (
-                                  <p className="text-sm text-gray-600 mt-1">
-                                    {item.description}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
+                          <input
+                            type={
+                              item.selectionType === "single"
+                                ? "radio"
+                                : "checkbox"
+                            }
+                            name={`simple-${itemIndex}-choices`}
+                            checked={isSelected}
+                            onChange={() =>
+                              handleSimpleItemChoiceSelection(
+                                itemIndex,
+                                choiceIndex,
+                                !isSelected
+                              )
+                            }
+                            className="mr-3"
+                          />
+                          <div className="flex-1">
+                            <span className="font-medium">{choice.name}</span>
+                            {choice.priceModifier !== 0 && (
+                              <span className="ml-2 text-primary-green font-medium">
+                                {choice.priceModifier > 0 ? "+" : ""}
+                                {formatPrice(choice.priceModifier)}
+                              </span>
+                            )}
                           </div>
-                        </div>
+                        </label>
                       );
                     })}
                   </div>
                 </div>
-              ))}
+              )}
+
+              {/* Additional Options */}
+              {item.options && item.options.length > 0 && (
+                <div className="p-3 bg-primary-green border border-primary-green rounded-lg">
+                  <h5 className="font-medium text-gray-900 mb-3">
+                    Additional Options:
+                  </h5>
+                  <div className="space-y-2">
+                    {item.options.map((option, optionIndex) => {
+                      const isSelected = isSimpleItemOptionSelected(
+                        itemIndex,
+                        optionIndex
+                      );
+                      return (
+                        <label
+                          key={optionIndex}
+                          className="flex items-center p-2 border border-gray-200 rounded cursor-pointer hover:bg-gray-50"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() =>
+                              handleSimpleItemOptionSelection(
+                                itemIndex,
+                                optionIndex,
+                                !isSelected
+                              )
+                            }
+                            className="mr-3"
+                          />
+                          <div className="flex-1">
+                            <span className="font-medium">{option.name}</span>
+                            {option.priceModifier !== 0 && (
+                              <span className="ml-2 text-green-600 font-medium">
+                                {option.priceModifier > 0 ? "+" : ""}
+                                {formatPrice(option.priceModifier)}
+                              </span>
+                            )}
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
-          )}
+          ))}
+        </div>
       </div>
     );
   };
 
-  // Simplified category rendering
-  const renderCategoryContent = (categoryName, categoryData) => {
-    if (!categoryData?.enabled) return null;
+  // Render categorized content
+  const renderCategorizedContent = () => {
+    if (!menu.categories || menu.categories.length === 0) return null;
 
     return (
-      <div className="mb-8">
-        <h3 className="text-lg font-semibold text-gray-900 capitalize mb-4 border-b border-gray-200 pb-2">
-          {categoryName}
+      <div className="space-y-6">
+        {menu.categories.map((category, categoryIndex) => {
+          if (!category.enabled) return null;
+
+          return (
+            <div key={categoryIndex} className="mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 capitalize mb-4 border-b pb-2">
+                {category.name}
+              </h3>
+
+              {/* Included Items */}
+              {category.includedItems && category.includedItems.length > 0 && (
+                <div className="mb-4">
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">
+                    Included with your package:
+                  </h4>
+                  <div className="space-y-2">
+                    {category.includedItems.map((item, itemIndex) => (
+                      <div
+                        key={itemIndex}
+                        className="flex items-center p-3 bg-green-50 border border-green-200 rounded-lg"
+                      >
+                        <Check size={16} className="text-green-600 mr-3" />
+                        <div className="flex-1">
+                          <span className="font-medium text-gray-900">
+                            {item.name}
+                          </span>
+                          {item.priceModifier !== 0 && (
+                            <span className="ml-2 text-green-600 font-medium">
+                              {item.priceModifier > 0 ? "+" : ""}
+                              {formatPrice(item.priceModifier)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Selection Groups */}
+              {category.selectionGroups &&
+                category.selectionGroups.length > 0 && (
+                  <div className="space-y-4">
+                    {category.selectionGroups.map((group, groupIndex) => (
+                      <div
+                        key={groupIndex}
+                        className="border border-gray-300 rounded-lg p-4 bg-white"
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="font-medium text-gray-900">
+                            {group.name}
+                          </h4>
+                          {group.isRequired && (
+                            <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-medium">
+                              Required
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="text-sm text-gray-600 mb-3">
+                          {group.selectionType === "single"
+                            ? "Choose one option:"
+                            : `Choose up to ${
+                                group.maxSelections || "unlimited"
+                              } options:`}
+                        </p>
+
+                        <div className="space-y-2">
+                          {group.items.map((item, itemIndex) => {
+                            const isSelected = isCategoryItemSelected(
+                              categoryIndex,
+                              groupIndex,
+                              itemIndex
+                            );
+                            return (
+                              <label
+                                key={itemIndex}
+                                className="flex items-center p-2 border border-gray-200 rounded cursor-pointer hover:bg-gray-50"
+                              >
+                                <input
+                                  type={
+                                    group.selectionType === "single"
+                                      ? "radio"
+                                      : "checkbox"
+                                  }
+                                  name={`category-${categoryIndex}-group-${groupIndex}`}
+                                  checked={isSelected}
+                                  onChange={() =>
+                                    handleCategoryItemSelection(
+                                      categoryIndex,
+                                      groupIndex,
+                                      itemIndex,
+                                      !isSelected,
+                                      group
+                                    )
+                                  }
+                                  className="mr-3"
+                                />
+                                <div className="flex-1">
+                                  <span className="font-medium">
+                                    {item.name}
+                                  </span>
+                                  {item.priceModifier !== 0 && (
+                                    <span className="ml-2 text-green-600 font-medium">
+                                      {item.priceModifier > 0 ? "+" : ""}
+                                      {formatPrice(item.priceModifier)}
+                                    </span>
+                                  )}
+                                </div>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // Render addons
+  const renderAddons = () => {
+    if (!menu.addons?.enabled) return null;
+
+    return (
+      <div className="mb-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b pb-2">
+          Add-ons (Optional)
         </h3>
 
-        {/* Included Items */}
-        {categoryData.includedItems &&
-          categoryData.includedItems.length > 0 && (
-            <div className="mb-6">
-              <h4 className="text-sm font-medium text-gray-700 mb-3">
-                Included with your package:
-              </h4>
-              <div className="grid gap-2">
-                {categoryData.includedItems.map((item, index) => (
-                  <div
-                    key={index}
-                    className="flex items-start gap-3 p-3 bg-green-50 rounded-lg border border-green-200"
+        {/* Fixed Addons */}
+        {menu.addons.fixedAddons && menu.addons.fixedAddons.length > 0 && (
+          <div className="mb-4">
+            <h4 className="font-medium text-gray-700 mb-3">
+              Fixed Add-ons (price per person):
+            </h4>
+            <div className="space-y-2">
+              {menu.addons.fixedAddons.map((addon, addonIndex) => {
+                const isSelected = isFixedAddonSelected(addonIndex);
+                return (
+                  <label
+                    key={addonIndex}
+                    className="flex items-center justify-between p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50"
                   >
-                    <div className="bg-green-500 rounded-full p-1 mt-0.5">
-                      <Check size={12} className="text-white" />
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() =>
+                          handleAddonSelection("fixed", addonIndex)
+                        }
+                        className="mr-3"
+                      />
+                      <div>
+                        <span className="font-medium">{addon.name}</span>
+                        <div className="text-sm text-gray-600">
+                          {formatPrice(addon.pricePerPerson)} per person
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <h5 className="font-medium text-gray-900">{item.name}</h5>
-                      {item.description && (
-                        <p className="text-sm text-gray-600 mt-1">
-                          {item.description}
-                        </p>
-                      )}
-                      {renderInlineDietaryInfo(item)}
+                    <div className="text-right">
+                      <div className="font-semibold text-orange-600">
+                        {formatPrice(
+                          addon.pricePerPerson * (parseInt(peopleCount) || 0)
+                        )}
+                      </div>
+                      <div className="text-xs text-gray-500">total</div>
                     </div>
-                  </div>
-                ))}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Variable Addons */}
+        {menu.addons.variableAddons &&
+          menu.addons.variableAddons.length > 0 && (
+            <div className="mb-4">
+              <h4 className="font-medium text-gray-700 mb-3">
+                Variable Add-ons (choose quantity):
+              </h4>
+              <div className="space-y-3">
+                {menu.addons.variableAddons.map((addon, addonIndex) => {
+                  const quantity = getVariableAddonQuantity(addonIndex);
+                  return (
+                    <div
+                      key={addonIndex}
+                      className="border border-gray-300 rounded-lg p-3 bg-white"
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <h5 className="font-medium">{addon.name}</h5>
+                          <p className="text-sm text-gray-600">
+                            {formatPrice(addon.pricePerUnit)} per{" "}
+                            {addon.unit || "piece"}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-semibold text-purple-600">
+                            {formatPrice(addon.pricePerUnit * quantity)}
+                          </div>
+                          <div className="text-xs text-gray-500">total</div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() =>
+                            handleAddonSelection(
+                              "variable",
+                              addonIndex,
+                              Math.max(0, quantity - 1)
+                            )
+                          }
+                          className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100"
+                          disabled={quantity <= 0}
+                        >
+                          <Minus size={14} />
+                        </button>
+                        <input
+                          type="number"
+                          min="0"
+                          max={addon.maxQuantity || 20}
+                          value={quantity}
+                          onChange={(e) =>
+                            handleAddonSelection(
+                              "variable",
+                              addonIndex,
+                              parseInt(e.target.value) || 0
+                            )
+                          }
+                          className="w-16 px-2 py-1 text-center border border-gray-300 rounded"
+                        />
+                        <button
+                          onClick={() =>
+                            handleAddonSelection(
+                              "variable",
+                              addonIndex,
+                              Math.min(addon.maxQuantity || 20, quantity + 1)
+                            )
+                          }
+                          className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100"
+                          disabled={quantity >= (addon.maxQuantity || 20)}
+                        >
+                          <Plus size={14} />
+                        </button>
+                        <span className="text-sm text-gray-600">
+                          {addon.unit || "pieces"} (max:{" "}
+                          {addon.maxQuantity || 20})
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
-
-        {/* Selection Groups */}
-        {categoryData.selectionGroups &&
-          categoryData.selectionGroups.length > 0 && (
-            <div className="space-y-6">
-              {categoryData.selectionGroups.map((group, groupIndex) => (
-                <div
-                  key={groupIndex}
-                  className="bg-white rounded-lg border border-gray-200 p-4"
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-medium text-gray-900">{group.name}</h4>
-                    {group.isRequired && (
-                      <span className="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-medium">
-                        Required
-                      </span>
-                    )}
-                  </div>
-
-                  <p className="text-sm text-gray-600 mb-4">
-                    {group.selectionType === "single"
-                      ? "Choose one option"
-                      : `Choose up to ${
-                          group.maxSelections || "unlimited"
-                        } options`}
-                  </p>
-
-                  <div className="space-y-3">
-                    {group.items.map((item, itemIndex) => {
-                      const isSelected = isItemSelected(
-                        categoryName,
-                        groupIndex,
-                        item._id
-                      );
-                      return (
-                        <div
-                          key={itemIndex}
-                          className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                            isSelected
-                              ? "border-green-500 bg-green-50"
-                              : "border-gray-200 hover:border-gray-300"
-                          }`}
-                          onClick={() =>
-                            handleItemSelection(
-                              categoryName,
-                              groupIndex,
-                              item._id,
-                              !isSelected,
-                              group
-                            )
-                          }
-                        >
-                          <div className="flex items-start gap-3">
-                            {group.selectionType === "single" ? (
-                              <input
-                                type="radio"
-                                name={`${categoryName}-${groupIndex}`}
-                                checked={isSelected}
-                                onChange={() => {}}
-                                className="w-4 h-4 text-green-600 mt-0.5"
-                              />
-                            ) : (
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => {}}
-                                className="w-4 h-4 text-green-600 rounded mt-0.5"
-                              />
-                            )}
-                            <div className="flex-1">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center flex-wrap">
-                                  <h5 className="font-medium text-gray-900">
-                                    {item.name}
-                                  </h5>
-                                  {renderInlineDietaryInfo(item)}
-                                </div>
-                              </div>
-                              {item.description && (
-                                <p className="text-sm text-gray-600 mt-1">
-                                  {item.description}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
       </div>
     );
   };
 
-  // Simplified price breakdown
+  // Render price breakdown
   const renderPriceBreakdown = () => {
+    const basePrice = calculateBasePrice();
+    const modifierPrice = calculateItemModifiers();
     const addonData = calculateAddonsPrice();
+    const totalPrice = calculateTotalPrice();
 
     return (
-      <div className="bg-white rounded-lg p-4 border border-gray-200">
+      <div className="bg-white border border-gray-300 rounded-lg p-4">
         <h4 className="font-medium text-gray-900 mb-3">Order Summary</h4>
 
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-gray-600">
-              Package ({peopleCount} × {formatPrice(menu.price)}):
+              Base Package ({peopleCount || 0} people):
             </span>
-            <span className="font-medium">
-              {formatPrice(calculateBasePrice())}
-            </span>
+            <span className="font-medium">{formatPrice(basePrice)}</span>
           </div>
+
+          {modifierPrice > 0 && (
+            <div className="flex justify-between">
+              <span className="text-gray-600">Item modifications:</span>
+              <span className="text-primary-green font-medium">
+                {formatPrice(modifierPrice)}
+              </span>
+            </div>
+          )}
 
           {addonData.breakdown.length > 0 && (
             <>
               {addonData.breakdown.map((addon, index) => (
                 <div key={index} className="flex justify-between text-xs">
                   <span className="text-gray-600">
-                    {addon.name} ({peopleCount} ×{" "}
-                    {formatPrice(addon.pricePerPerson)}):
+                    {addon.name}
+                    {addon.type === "fixed"
+                      ? ` (${peopleCount} × ${formatPrice(
+                          addon.pricePerPerson
+                        )})`
+                      : ` (${addon.quantity} × ${formatPrice(
+                          addon.pricePerUnit
+                        )})`}
+                    :
                   </span>
-                  <span className="text-blue-600 font-medium">
+                  <span className="text-orange-600 font-medium">
                     {formatPrice(addon.totalPrice)}
                   </span>
                 </div>
               ))}
               <div className="flex justify-between pt-2 border-t">
                 <span className="text-gray-600">Add-ons Total:</span>
-                <span className="text-blue-600 font-medium">
+                <span className="text-orange-600 font-medium">
                   {formatPrice(addonData.total)}
                 </span>
               </div>
             </>
           )}
 
-          <div className="flex justify-between pt-2 border-t">
-            <span className="font-medium text-gray-900">Total:</span>
-            <span className="font-bold text-lg text-gray-900">
-              {formatPrice(calculateTotalOrderPrice())}
+          <div className="flex justify-between pt-2 border-t font-medium">
+            <span className="text-gray-900">Grand Total:</span>
+            <span className="text-lg font-bold text-gray-900">
+              {formatPrice(totalPrice)}
             </span>
           </div>
         </div>
@@ -644,130 +878,127 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-start justify-center p-2 sm:p-4 overflow-y-auto"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-gray-50 rounded-xl w-full max-w-6xl shadow-2xl flex flex-col min-h-[90vh] sm:min-h-0 lg:max-h-[95vh] lg:overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-start justify-center p-4 overflow-y-auto">
+      <div className="bg-gray-100 rounded-lg w-full max-w-6xl shadow-lg flex flex-col min-h-[90vh] lg:max-h-[95vh] lg:overflow-hidden">
         {/* Header */}
-        <div className="bg-primary-green text-white p-3 sm:p-4 rounded-t-xl flex-shrink-0">
+        <div className="bg-primary-green text-white p-4 rounded-t-lg flex-shrink-0">
           <div className="flex items-center justify-between mb-2">
             <button
               onClick={onClose}
-              className="flex items-center gap-2 text-white/90 hover:text-white transition-colors"
+              className="flex items-center gap-2 text-white hover:text-gray-200"
             >
               <ArrowLeft size={18} />
-              <span className="text-sm hidden sm:inline">Back</span>
+              <span className="hidden sm:inline">Back</span>
             </button>
             <button
               onClick={onClose}
-              className="text-white/90 hover:text-white"
+              className="text-white hover:text-gray-200"
             >
               <X size={20} />
             </button>
           </div>
-          <h2 className="text-lg sm:text-xl font-bold mb-2">{menu.name}</h2>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-white/90 text-sm">
+          <h2 className="text-xl font-bold mb-2">{menu.name}</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-white text-sm">
             <div className="flex items-center gap-1">
               <MapPin size={14} />
-              <span className="truncate">
-                {menu.locationId?.name || "Location"}
-              </span>
+              <span>{menu.locationId?.name || "Location"}</span>
             </div>
             <div className="flex items-center gap-1">
               <Users size={14} />
               <span>
-                {menu.minPeople || 1}-{menu.maxPeople || 1000} people
+                Min {menu.minPeople || 1}{" "}
+                {menu.maxPeople ? `- Max ${menu.maxPeople}` : ""} People
               </span>
             </div>
           </div>
         </div>
 
-        <div className="flex flex-col lg:flex-row flex-1 lg:overflow-hidden">
-          {/* Main Content */}
-          <div className="flex-1 p-3 sm:p-6 lg:overflow-y-auto">
-            {renderCategoryContent("entree", menu.categories?.entree)}
-            {renderCategoryContent("mains", menu.categories?.mains)}
-            {renderCategoryContent("desserts", menu.categories?.desserts)}
-            {renderAddonCategory(menu.categories?.addons)}
+        {/* Body */}
+        <div className="flex-grow lg:grid lg:grid-cols-3 lg:gap-6 lg:overflow-hidden">
+          {/* Left Column: Selections */}
+          <div className="lg:col-span-2 p-4 lg:p-6 lg:overflow-y-auto">
+            {menu.packageType === "categorized"
+              ? renderCategorizedContent()
+              : renderSimpleItems()}
+            {renderAddons()}
           </div>
 
-          {/* Sidebar */}
-          <div className="w-full lg:w-80 bg-white border-t lg:border-t-0 lg:border-l border-gray-200 p-3 sm:p-6 lg:overflow-y-auto flex-shrink-0">
-            '
-            <h3 className="text-lg font-bold text-gray-900 mb-4">
-              Order Details
-            </h3>
-            {/* Package Price */}
-            <div className="text-center mb-4 sm:mb-6 p-3 sm:p-4 bg-green-50 rounded-lg border border-green-200">
-              <div className="text-xl sm:text-2xl font-bold text-green-700">
-                {formatPrice(menu.price || 0)}
+          {/* Right Column: Order Summary (Sticky) */}
+          <div className="lg:col-span-1 p-4 lg:p-6 bg-gray-50 flex-shrink-0 lg:overflow-y-auto">
+            <div className="sticky top-0">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">
+                Order Details
+              </h3>
+
+              {/* Package Price */}
+              <div className="text-center mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="text-2xl font-bold text-green-700">
+                  {formatPrice(menu.basePrice || menu.price || 0)}
+                </div>
+                <div className="text-sm text-green-600">per person</div>
               </div>
-              <div className="text-sm text-green-600">per person</div>
-            </div>
-            {/* People Count */}
-            <div className="mb-4 sm:mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Number of People *
-              </label>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={decrementPeople}
-                  className="w-10 h-10 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
-                >
-                  <Minus size={16} />
-                </button>
-                <input
-                  type="number"
-                  min={menu.minPeople || 1}
-                  max={menu.maxPeople || 1000}
-                  value={peopleCount}
-                  onChange={(e) => handlePeopleCountChange(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-center"
-                  placeholder="Enter number"
-                />
-                <button
-                  onClick={incrementPeople}
-                  className="w-10 h-10 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
-                >
-                  <Plus size={16} />
-                </button>
+
+              {/* People Count */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Number of People *
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={decrementPeople}
+                    className="w-10 h-10 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100"
+                    disabled={parseInt(peopleCount) <= (menu.minPeople || 1)}
+                  >
+                    <Minus size={16} />
+                  </button>
+                  <input
+                    type="number"
+                    min={menu.minPeople || 1}
+                    max={menu.maxPeople || 1000}
+                    value={peopleCount}
+                    onChange={(e) => handlePeopleCountChange(e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded text-center focus:outline-none focus:ring-2 focus:ring-primary-green"
+                    placeholder="Enter number"
+                  />
+                  <button
+                    onClick={incrementPeople}
+                    className="w-10 h-10 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100"
+                    disabled={parseInt(peopleCount) >= (menu.maxPeople || 1000)}
+                  >
+                    <Plus size={16} />
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Min: {menu.minPeople || 1}
+                  {menu.maxPeople &&
+                    menu.maxPeople !== 1000 &&
+                    ` | Max: ${menu.maxPeople}`}
+                </p>
               </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Min: {menu.minPeople || 1}, Max: {menu.maxPeople || 1000}
-              </p>
+
+              {/* Price Breakdown */}
+              <div className="mb-4">{renderPriceBreakdown()}</div>
+
+              {/* Note */}
+              <div className="mb-4">
+                <div className="text-xs text-red-600 bg-red-50 p-3 rounded border border-red-200">
+                  * Deposits made are non-refundable when orders are cancelled
+                </div>
+              </div>
+
+              {/* Place Order Button */}
+              <button
+                onClick={handlePlaceOrder}
+                className="w-full bg-red-600 text-white py-3 px-4 rounded font-semibold hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+              >
+                <ShoppingCart size={18} />
+                Continue to Order Details
+              </button>
             </div>
-            {/* Price Breakdown */}
-            <div className="mb-4 sm:mb-6">{renderPriceBreakdown()}</div>
-            {/* Note */}
-            <div className="mb-4 sm:mb-6">
-              <p className="text-xs text-red-600 bg-red-50 p-3 rounded-lg border border-red-200">
-                * Deposits made are non-refundable when orders are cancelled
-              </p>
-            </div>
-            {/* Place Order Button */}
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={handlePlaceOrder}
-              className="w-full bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
-            >
-              <ShoppingCart size={18} />
-              Continue to Order Details
-            </motion.button>
           </div>
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 };
 
