@@ -13,41 +13,90 @@ axios.defaults.withCredentials = true;
  */
 export const createBooking = async (bookingData) => {
   try {
-    // Transform the data for custom orders
-    let transformedData = { ...bookingData };
-    
-    if (bookingData.isCustomOrder) {
-      // For custom orders, ensure the structure matches backend expectations
-      transformedData = {
-        ...bookingData,
-        isCustomOrder: true,
-        menu: {
-          menuId: null, // Explicitly null for custom orders
-          name: bookingData.menu?.name || "Custom Order",
-          price: 0, // Custom orders use total pricing from selected items
-          serviceId: bookingData.menu?.serviceId || null,
-          serviceName: bookingData.menu?.serviceName || "Custom Order",
-          locationId: bookingData.menu?.locationId,
-          locationName: bookingData.menu?.locationName,
-        },
-        // Ensure selectedItems have the correct structure
-        selectedItems: (bookingData.selectedItems || []).map(item => ({
-          ...item,
-          itemId: item.itemId || item._id,
-          type: item.type || "selected",
-        })),
-      };
-      
-      // Remove any undefined values that might cause issues
-      if (transformedData.menu.menuId === undefined) {
-        transformedData.menu.menuId = null;
-      }
-      if (transformedData.menu.serviceId === undefined) {
-        transformedData.menu.serviceId = null;
-      }
-      
-  
-    }
+    console.log("🚀 Creating booking with original data:", bookingData);
+
+    // Transform the data to match backend expectations
+    let transformedData = {
+      // Menu information - matches backend expectation
+      menu: {
+        menuId: bookingData.isCustomOrder
+          ? null
+          : bookingData.menu?.menuId || null,
+        name:
+          bookingData.menu?.name ||
+          (bookingData.isCustomOrder ? "Custom Order" : "Order"),
+        basePrice: bookingData.menu?.basePrice || bookingData.menu?.price || 0,
+        locationId: bookingData.menu?.locationId,
+        locationName: bookingData.menu?.locationName,
+        serviceId: bookingData.menu?.serviceId,
+        serviceName: bookingData.menu?.serviceName,
+      },
+
+      // Customer details - direct mapping
+      customerDetails: {
+        name: bookingData.customerDetails?.name || "",
+        email: bookingData.customerDetails?.email || "",
+        phone: bookingData.customerDetails?.phone || "",
+        specialInstructions:
+          bookingData.customerDetails?.specialInstructions || "",
+        dietaryRequirements:
+          bookingData.customerDetails?.dietaryRequirements || [],
+        spiceLevel: bookingData.customerDetails?.spiceLevel || "medium",
+      },
+
+      // Order details
+      peopleCount: bookingData.peopleCount || 1,
+      deliveryType: bookingData.deliveryType || "Pickup",
+      deliveryDate: bookingData.deliveryDate,
+
+      // Address (conditional)
+      address:
+        bookingData.deliveryType === "Delivery"
+          ? bookingData.address
+          : undefined,
+
+      // Selected items - ensure proper format
+      selectedItems: (bookingData.selectedItems || []).map((item) => ({
+        name: item.name || "",
+        description: item.description || "",
+        pricePerPerson: item.pricePerPerson || 0,
+        pricePerUnit: item.pricePerUnit || 0,
+        pricePerOrder: item.pricePerOrder || 0,
+        totalPrice: item.totalPrice || 0,
+        category: item.category || "other",
+        type: item.type || "selected",
+        quantity: item.quantity || 1,
+        groupName: item.groupName || item.category || "",
+        isVegetarian: item.isVegetarian || false,
+        isVegan: item.isVegan || false,
+        allergens: Array.isArray(item.allergens) ? item.allergens : [],
+        notes: item.notes || "",
+      })),
+
+      // Menu selections (for reference)
+      menuSelections: bookingData.menuSelections || {},
+
+      // Pricing information
+      pricing: {
+        basePrice: bookingData.pricing?.basePrice || 0,
+        modifierPrice: bookingData.pricing?.modifierPrice || 0,
+        itemsPrice: bookingData.pricing?.itemsPrice || 0,
+        addonsPrice: bookingData.pricing?.addonsPrice || 0,
+        total: bookingData.pricing?.total || 0,
+      },
+
+      // Custom order flag
+      isCustomOrder: bookingData.isCustomOrder || false,
+    };
+
+    console.log("📦 Transformed data for backend:", {
+      menu: transformedData.menu,
+      customerDetails: transformedData.customerDetails,
+      peopleCount: transformedData.peopleCount,
+      selectedItemsCount: transformedData.selectedItems.length,
+      pricing: transformedData.pricing,
+      isCustomOrder: transformedData.isCustomOrder,
+    });
 
     const response = await axios.post(
       `${backendUrl}/api/bookings`,
@@ -59,13 +108,16 @@ export const createBooking = async (bookingData) => {
         timeout: 15000, // 15 second timeout
       }
     );
+
+    console.log("✅ Booking creation successful:", response.data);
+
     return {
       success: true,
       data: response.data.data,
       message: response.data.message,
     };
   } catch (error) {
-    console.error("Error creating booking:", error);
+    console.error("❌ Error creating booking:", error);
     console.error("Error response:", error.response?.data);
     console.error("Request data that failed:", error.config?.data);
     return {
@@ -89,29 +141,30 @@ export const getAllBookings = async (params = {}) => {
 
     // Filter params
     if (params.status) queryParams.append("status", params.status);
-    if (params.deliveryType) queryParams.append("deliveryType", params.deliveryType);
+    if (params.deliveryType)
+      queryParams.append("deliveryType", params.deliveryType);
     if (params.locationId) queryParams.append("locationId", params.locationId);
     if (params.serviceId) queryParams.append("serviceId", params.serviceId);
-    if (params.orderType) queryParams.append("orderType", params.orderType);
-    
+    if (params.sourceType) queryParams.append("sourceType", params.sourceType); // Updated to match backend
+
     // Date range filters
     if (params.startDate) queryParams.append("startDate", params.startDate);
     if (params.endDate) queryParams.append("endDate", params.endDate);
-    
+
     // Search and sorting
     if (params.search) queryParams.append("search", params.search);
     if (params.sortBy) queryParams.append("sortBy", params.sortBy);
     if (params.sortOrder) queryParams.append("sortOrder", params.sortOrder);
 
-    // Payment filters
-    if (params.paymentStatus) queryParams.append("paymentStatus", params.paymentStatus);
-    
-    // Customer filters
-    if (params.customerEmail) queryParams.append("customerEmail", params.customerEmail);
-    if (params.customerPhone) queryParams.append("customerPhone", params.customerPhone);
+    // Dietary filters
+    if (params.dietaryRequirement)
+      queryParams.append("dietaryRequirement", params.dietaryRequirement);
+    if (params.spiceLevel) queryParams.append("spiceLevel", params.spiceLevel);
 
     const queryString = queryParams.toString();
-    const url = `${backendUrl}/api/bookings${queryString ? `?${queryString}` : ""}`;
+    const url = `${backendUrl}/api/bookings${
+      queryString ? `?${queryString}` : ""
+    }`;
 
     const response = await axios.get(url, { timeout: 10000 });
 
@@ -147,8 +200,8 @@ export const getBookingById = async (id) => {
     const response = await axios.get(`${backendUrl}/api/bookings/${id}`, {
       timeout: 10000,
     });
-    return { 
-      success: true, 
+    return {
+      success: true,
       data: response.data.data.booking,
       message: response.data.message,
     };
@@ -164,19 +217,24 @@ export const getBookingById = async (id) => {
 /**
  * Get booking by reference number (Public)
  * @param {string} reference - Booking reference number
+ * @param {string} email - Optional email for verification
  * @returns {Object} Response with booking data
  */
-export const getBookingByReference = async (reference) => {
+export const getBookingByReference = async (reference, email = null) => {
   try {
     if (!reference) {
       throw new Error("Booking reference is required");
     }
 
-    const response = await axios.get(`${backendUrl}/api/bookings/reference/${reference}`, {
+    const url = `${backendUrl}/api/bookings/reference/${reference}${
+      email ? `?email=${email}` : ""
+    }`;
+
+    const response = await axios.get(url, {
       timeout: 10000,
     });
-    return { 
-      success: true, 
+    return {
+      success: true,
       data: response.data.data.booking,
       message: response.data.message,
     };
@@ -201,7 +259,7 @@ export const updateBookingStatus = async (id, statusData) => {
       throw new Error("Booking ID is required");
     }
 
-    const response = await axios.patch(
+    const response = await axios.put(
       `${backendUrl}/api/bookings/${id}/status`,
       statusData,
       {
@@ -242,7 +300,7 @@ export const updatePaymentStatus = async (id, paymentData) => {
       throw new Error("Deposit amount cannot be negative");
     }
 
-    const response = await axios.patch(
+    const response = await axios.put(
       `${backendUrl}/api/bookings/${id}/payment`,
       paymentData,
       {
@@ -304,7 +362,7 @@ export const updateBooking = async (id, bookingData) => {
 
 /**
  * Get booking statistics (Admin only)
- * Supports filtering by location, service, order type, and date range
+ * Supports filtering by location, service, source type, and date range
  * @param {Object} params - Filter parameters for statistics
  * @returns {Object} Response with statistical data
  */
@@ -315,13 +373,15 @@ export const getBookingStats = async (params = {}) => {
     // Add filter params for stats
     if (params.locationId) queryParams.append("locationId", params.locationId);
     if (params.serviceId) queryParams.append("serviceId", params.serviceId);
-    if (params.orderType) queryParams.append("orderType", params.orderType);
+    if (params.sourceType) queryParams.append("sourceType", params.sourceType); // Updated to match backend
     if (params.startDate) queryParams.append("startDate", params.startDate);
     if (params.endDate) queryParams.append("endDate", params.endDate);
-    if (params.period) queryParams.append("period", params.period);
+    if (params.date) queryParams.append("date", params.date); // For daily unique dishes
 
     const queryString = queryParams.toString();
-    const url = `${backendUrl}/api/bookings/stats${queryString ? `?${queryString}` : ""}`;
+    const url = `${backendUrl}/api/bookings/stats${
+      queryString ? `?${queryString}` : ""
+    }`;
 
     const response = await axios.get(url, { timeout: 10000 });
 
@@ -333,7 +393,8 @@ export const getBookingStats = async (params = {}) => {
     console.error("Error fetching booking stats:", error);
     return {
       success: false,
-      error: error.response?.data?.message || "Failed to fetch booking statistics",
+      error:
+        error.response?.data?.message || "Failed to fetch booking statistics",
       data: {
         overview: {
           totalBookings: 0,
@@ -341,10 +402,56 @@ export const getBookingStats = async (params = {}) => {
           totalPeople: 0,
           averageOrderValue: 0,
           customOrders: 0,
-          regularOrders: 0,
-          statusCounts: {},
+          menuOrders: 0,
+          statusBreakdown: {},
+          dietaryBreakdown: {},
+          spiceLevelBreakdown: {},
+          uniqueDishesToday: 0,
         },
         popularItems: [],
+        dailyTrends: [],
+        categoryBreakdown: [],
+      },
+    };
+  }
+};
+
+/**
+ * Get unique dishes count for specific date (Dashboard feature)
+ * @param {Object} params - Filter parameters including date
+ * @returns {Object} Response with unique dishes data
+ */
+export const getUniqueDishesCount = async (params = {}) => {
+  try {
+    const queryParams = new URLSearchParams();
+
+    if (params.date) queryParams.append("date", params.date);
+    if (params.locationId) queryParams.append("locationId", params.locationId);
+    if (params.serviceId) queryParams.append("serviceId", params.serviceId);
+
+    const queryString = queryParams.toString();
+    const url = `${backendUrl}/api/bookings/unique-dishes${
+      queryString ? `?${queryString}` : ""
+    }`;
+
+    const response = await axios.get(url, { timeout: 10000 });
+
+    return {
+      success: true,
+      data: response.data.data,
+    };
+  } catch (error) {
+    console.error("Error fetching unique dishes count:", error);
+    return {
+      success: false,
+      error:
+        error.response?.data?.message || "Failed to fetch unique dishes data",
+      data: {
+        uniqueDishesCount: 0,
+        totalQuantity: 0,
+        totalRevenue: 0,
+        dishes: [],
+        categoryBreakdown: {},
       },
     };
   }
@@ -356,19 +463,24 @@ export const getBookingStats = async (params = {}) => {
  * @param {Object} cancellationData - Cancellation data with reason
  * @returns {Object} Response with cancellation confirmation
  */
-export const cancelBooking = async (id, cancellationData) => {
+export const cancelBooking = async (id, cancellationData = {}) => {
   try {
     if (!id) {
       throw new Error("Booking ID is required");
     }
 
-    const response = await axios.delete(`${backendUrl}/api/bookings/${id}`, {
-      data: cancellationData,
-      headers: {
-        "Content-Type": "application/json",
+    const response = await axios.put(
+      `${backendUrl}/api/bookings/${id}/cancel`,
+      {
+        reason: cancellationData.reason || "",
       },
-      timeout: 10000,
-    });
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+        timeout: 10000,
+      }
+    );
     return {
       success: true,
       data: response.data.data,
@@ -384,46 +496,125 @@ export const cancelBooking = async (id, cancellationData) => {
 };
 
 /**
- * Permanently delete booking (Admin only - use with caution)
- * @param {string} id - Booking ID
- * @returns {Object} Response with deletion confirmation
+ * Get bookings for a specific customer (Public with email verification)
+ * @param {string} email - Customer email
+ * @param {Object} params - Additional parameters
+ * @returns {Object} Response with customer's bookings
  */
-export const deleteBookingPermanently = async (id) => {
+export const getBookingsByCustomer = async (email, params = {}) => {
   try {
-    if (!id) {
-      throw new Error("Booking ID is required");
+    if (!email) {
+      throw new Error("Customer email is required");
     }
 
-    const response = await axios.delete(`${backendUrl}/api/bookings/${id}/permanent`, {
-      timeout: 10000,
-    });
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.append("page", params.page);
+    if (params.limit) queryParams.append("limit", params.limit);
+
+    const queryString = queryParams.toString();
+    const url = `${backendUrl}/api/bookings/customer/${email}${
+      queryString ? `?${queryString}` : ""
+    }`;
+
+    const response = await axios.get(url, { timeout: 10000 });
+
     return {
       success: true,
-      message: response.data.message,
+      data: response.data.data.bookings || [],
+      pagination: response.data.data.pagination || {},
+      total: response.data.data.pagination?.totalCount || 0,
     };
   } catch (error) {
-    console.error("Error permanently deleting booking:", error);
+    console.error("Error fetching customer bookings:", error);
     return {
       success: false,
-      error: error.response?.data?.message || "Failed to permanently delete booking",
+      error:
+        error.response?.data?.message || "Failed to fetch customer bookings",
+      data: [],
+      pagination: {},
+      total: 0,
     };
   }
 };
 
 /**
- * Restore cancelled booking (Admin only)
- * @param {string} id - Booking ID
- * @returns {Object} Response with restored booking
+ * Get custom order configurations by location (Public)
+ * @param {string} locationId - Location ID
+ * @returns {Object} Response with custom order configurations
  */
-export const restoreBooking = async (id) => {
+export const getCustomOrdersByLocation = async (locationId) => {
   try {
-    if (!id) {
-      throw new Error("Booking ID is required");
+    if (!locationId) {
+      throw new Error("Location ID is required");
     }
 
-    const response = await axios.patch(
-      `${backendUrl}/api/bookings/${id}/restore`,
-      {},
+    const response = await axios.get(
+      `${backendUrl}/api/bookings/custom-orders/location/${locationId}`,
+      {
+        timeout: 10000,
+      }
+    );
+
+    return {
+      success: true,
+      data: response.data.data.customOrders || [],
+    };
+  } catch (error) {
+    console.error("Error fetching custom orders by location:", error);
+    return {
+      success: false,
+      error: error.response?.data?.message || "Failed to fetch custom orders",
+      data: [],
+    };
+  }
+};
+
+/**
+ * Get custom order configuration by ID (Public)
+ * @param {string} id - Custom order configuration ID
+ * @returns {Object} Response with custom order configuration
+ */
+export const getCustomOrderById = async (id) => {
+  try {
+    if (!id) {
+      throw new Error("Custom order ID is required");
+    }
+
+    const response = await axios.get(
+      `${backendUrl}/api/bookings/custom-orders/${id}`,
+      {
+        timeout: 10000,
+      }
+    );
+
+    return {
+      success: true,
+      data: response.data.data.customOrder,
+    };
+  } catch (error) {
+    console.error("Error fetching custom order by ID:", error);
+    return {
+      success: false,
+      error: error.response?.data?.message || "Failed to fetch custom order",
+    };
+  }
+};
+
+/**
+ * Calculate custom order price (Public)
+ * @param {string} id - Custom order configuration ID
+ * @param {Object} calculationData - Selections and people count
+ * @returns {Object} Response with price calculation
+ */
+export const calculateCustomOrderPrice = async (id, calculationData) => {
+  try {
+    if (!id) {
+      throw new Error("Custom order ID is required");
+    }
+
+    const response = await axios.post(
+      `${backendUrl}/api/bookings/custom-orders/${id}/calculate`,
+      calculationData,
       {
         headers: {
           "Content-Type": "application/json",
@@ -431,223 +622,86 @@ export const restoreBooking = async (id) => {
         timeout: 10000,
       }
     );
+
     return {
       success: true,
-      data: response.data.data.booking,
-      message: response.data.message,
+      data: response.data.data,
     };
   } catch (error) {
-    console.error("Error restoring booking:", error);
+    console.error("Error calculating custom order price:", error);
     return {
       success: false,
-      error: error.response?.data?.message || "Failed to restore booking",
+      error: error.response?.data?.message || "Failed to calculate price",
     };
   }
 };
 
 /**
- * Get bookings for a specific customer (Admin only)
- * @param {Object} customerData - Customer search criteria
- * @returns {Object} Response with customer's bookings
- */
-export const getCustomerBookings = async (customerData) => {
-  try {
-    const queryParams = new URLSearchParams();
-    
-    if (customerData.email) queryParams.append("email", customerData.email);
-    if (customerData.phone) queryParams.append("phone", customerData.phone);
-    if (customerData.name) queryParams.append("name", customerData.name);
-    if (customerData.limit) queryParams.append("limit", customerData.limit);
-
-    const queryString = queryParams.toString();
-    const url = `${backendUrl}/api/bookings/customer${queryString ? `?${queryString}` : ""}`;
-
-    const response = await axios.get(url, { timeout: 10000 });
-
-    return {
-      success: true,
-      data: response.data.data.bookings || [],
-      total: response.data.data.total || 0,
-    };
-  } catch (error) {
-    console.error("Error fetching customer bookings:", error);
-    return {
-      success: false,
-      error: error.response?.data?.message || "Failed to fetch customer bookings",
-      data: [],
-      total: 0,
-    };
-  }
-};
-
-/**
- * Export bookings to CSV (Admin only)
- * @param {Object} params - Export parameters
- * @returns {Object} Response with CSV data or download link
- */
-export const exportBookings = async (params = {}) => {
-  try {
-    const queryParams = new URLSearchParams();
-    
-    // Add all filter params
-    Object.keys(params).forEach(key => {
-      if (params[key]) queryParams.append(key, params[key]);
-    });
-
-    const queryString = queryParams.toString();
-    const url = `${backendUrl}/api/bookings/export${queryString ? `?${queryString}` : ""}`;
-
-    const response = await axios.get(url, {
-      responseType: 'blob',
-      timeout: 30000, // Longer timeout for export
-    });
-
-    return {
-      success: true,
-      data: response.data,
-      filename: response.headers['content-disposition']?.split('filename=')[1] || 'bookings.csv',
-    };
-  } catch (error) {
-    console.error("Error exporting bookings:", error);
-    return {
-      success: false,
-      error: error.response?.data?.message || "Failed to export bookings",
-    };
-  }
-};
-
-/**
- * Send booking confirmation email (Admin only)
+ * Get booking items by category (Admin only)
  * @param {string} id - Booking ID
- * @returns {Object} Response with email confirmation
+ * @returns {Object} Response with items grouped by category
  */
-export const sendBookingConfirmation = async (id) => {
+export const getBookingItemsByCategory = async (id) => {
   try {
     if (!id) {
       throw new Error("Booking ID is required");
     }
 
-    const response = await axios.post(
-      `${backendUrl}/api/bookings/${id}/send-confirmation`,
-      {},
+    const response = await axios.get(
+      `${backendUrl}/api/bookings/${id}/items-by-category`,
       {
-        headers: {
-          "Content-Type": "application/json",
-        },
-        timeout: 15000,
+        timeout: 10000,
       }
     );
+
     return {
       success: true,
-      message: response.data.message,
+      data: response.data.data,
     };
   } catch (error) {
-    console.error("Error sending booking confirmation:", error);
+    console.error("Error fetching booking items by category:", error);
     return {
       success: false,
-      error: error.response?.data?.message || "Failed to send booking confirmation",
+      error:
+        error.response?.data?.message ||
+        "Failed to fetch booking items by category",
     };
   }
 };
 
 // ============================================================================
-// CUSTOM ORDER SPECIFIC FUNCTIONS
+// LEGACY FUNCTIONS (maintained for backward compatibility)
 // ============================================================================
 
-//
 /**
- * Create custom order
- * This is a specialized function for creating custom orders
- * @param {Object} customOrderData - Custom order data
- * @returns {Object} Response with created custom order
+ * @deprecated Use createBooking with isCustomOrder: true instead
  */
 export const createCustomOrder = async (customOrderData) => {
-  try {
-    // Validate required fields for custom orders
-    if (!customOrderData.locationId) {
-      throw new Error("Location is required for custom orders");
-    }
-    if (!customOrderData.selectedItems || customOrderData.selectedItems.length === 0) {
-      throw new Error("At least one item must be selected for custom orders");
-    }
-    if (!customOrderData.customerDetails) {
-      throw new Error("Customer details are required");
-    }
+  console.warn(
+    "createCustomOrder is deprecated. Use createBooking with isCustomOrder: true instead."
+  );
 
-    // Transform custom order data to booking format
-    const bookingData = {
-      isCustomOrder: true,
-      menu: {
-        menuId: null, // No menu ID for custom orders
-        name: "Custom Order",
-        price: 0, // Custom orders use total pricing from selected items
-        locationId: customOrderData.locationId,
-        locationName: customOrderData.locationName,
-        serviceId: null, // No service for custom orders
-        serviceName: "Custom Order",
-      },
-      customerDetails: customOrderData.customerDetails,
-      peopleCount: customOrderData.peopleCount || 1,
-      selectedItems: customOrderData.selectedItems.map(item => ({
-        ...item,
-        type: "selected", // Mark as selected for custom orders
-        itemId: item.itemId || item._id,
-      })),
-      pricing: customOrderData.pricing || {
-        basePrice: 0,
-        addonsPrice: customOrderData.totalPrice || 0,
-        total: customOrderData.totalPrice || 0,
-      },
-      deliveryType: customOrderData.deliveryType || "Pickup",
-      deliveryDate: customOrderData.deliveryDate,
-      address: customOrderData.address,
-      // Custom order specific notes
-      adminNotes: `Custom Order - ${customOrderData.selectedItems.length} items selected`,
-    };
+  const bookingData = {
+    isCustomOrder: true,
+    menu: {
+      menuId: null,
+      name: "Custom Order",
+      basePrice: 0,
+      locationId: customOrderData.locationId,
+      locationName: customOrderData.locationName,
+      serviceId: customOrderData.serviceId,
+      serviceName: customOrderData.serviceName,
+    },
+    customerDetails: customOrderData.customerDetails,
+    peopleCount: customOrderData.peopleCount || 1,
+    selectedItems: customOrderData.selectedItems || [],
+    pricing: customOrderData.pricing || { total: 0 },
+    deliveryType: customOrderData.deliveryType || "Pickup",
+    deliveryDate: customOrderData.deliveryDate,
+    address: customOrderData.address,
+  };
 
-    return await createBooking(bookingData);
-  } catch (error) {
-    console.error("Error creating custom order:", error);
-    return {
-      success: false,
-      error: error.message || "Failed to create custom order",
-    };
-  }
-};
-
-/**
- * Get available items for custom orders
- * @param {Object} params - Filter parameters
- * @returns {Object} Response with available menu items
- */
-export const getCustomOrderItems = async (params = {}) => {
-  try {
-    const queryParams = new URLSearchParams();
-    
-    if (params.locationId) queryParams.append("locationId", params.locationId);
-    if (params.category) queryParams.append("category", params.category);
-    if (params.isVegetarian) queryParams.append("isVegetarian", params.isVegetarian);
-    if (params.isVegan) queryParams.append("isVegan", params.isVegan);
-
-    const queryString = queryParams.toString();
-    const url = `${backendUrl}/api/menu-items/available${queryString ? `?${queryString}` : ""}`;
-
-    const response = await axios.get(url, { timeout: 10000 });
-
-    return {
-      success: true,
-      data: response.data.data || [],
-      categories: response.data.categories || {},
-    };
-  } catch (error) {
-    console.error("Error fetching custom order items:", error);
-    return {
-      success: false,
-      error: error.response?.data?.message || "Failed to fetch available items",
-      data: [],
-      categories: {},
-    };
-  }
+  return await createBooking(bookingData);
 };
 
 // ============================================================================
@@ -660,7 +714,11 @@ export const getCustomOrderItems = async (params = {}) => {
  * @returns {boolean} True if custom order
  */
 export const isCustomOrder = (booking) => {
-  return booking?.isCustomOrder === true || booking?.menu?.menuId === null;
+  return (
+    booking?.isCustomOrder === true ||
+    booking?.orderSource?.sourceType === "customOrder" ||
+    booking?.menu?.menuId === null
+  );
 };
 
 /**
@@ -672,7 +730,11 @@ export const getOrderTypeDisplay = (booking) => {
   if (isCustomOrder(booking)) {
     return "Custom Order";
   }
-  return booking?.menu?.serviceName || "Regular Order";
+  return (
+    booking?.orderSource?.serviceName ||
+    booking?.menu?.serviceName ||
+    "Menu Order"
+  );
 };
 
 /**
@@ -683,7 +745,7 @@ export const getOrderTypeDisplay = (booking) => {
 export const formatBookingForDisplay = (booking) => {
   const enhanced = {
     ...booking,
-    displayType: isCustomOrder(booking) ? "Custom Order" : "Regular Booking",
+    displayType: isCustomOrder(booking) ? "Custom Order" : "Menu Order",
     orderTypeDisplay: getOrderTypeDisplay(booking),
     isCustomOrder: isCustomOrder(booking),
   };
@@ -691,14 +753,16 @@ export const formatBookingForDisplay = (booking) => {
   if (isCustomOrder(booking)) {
     enhanced.customOrderInfo = {
       totalItems: booking.selectedItems?.length || 0,
-      categories: booking.selectedItems?.reduce((acc, item) => {
-        const category = item.category || "unknown";
-        acc[category] = (acc[category] || 0) + 1;
-        return acc;
-      }, {}) || {},
-      averageItemPrice: booking.selectedItems?.length > 0 
-        ? (booking.pricing?.total || 0) / booking.selectedItems.length 
-        : 0,
+      categories:
+        booking.selectedItems?.reduce((acc, item) => {
+          const category = item.category || "unknown";
+          acc[category] = (acc[category] || 0) + 1;
+          return acc;
+        }, {}) || {},
+      averageItemPrice:
+        booking.selectedItems?.length > 0
+          ? (booking.pricing?.total || 0) / booking.selectedItems.length
+          : 0,
     };
   }
 
@@ -771,7 +835,7 @@ export const validateBookingData = (bookingData) => {
   }
 
   // Menu/Custom order validation
-  if (isCustomOrder(bookingData)) {
+  if (bookingData.isCustomOrder) {
     if (!bookingData.selectedItems || bookingData.selectedItems.length === 0) {
       errors.push("At least one item must be selected for custom orders");
     }
@@ -789,11 +853,11 @@ export const validateBookingData = (bookingData) => {
     const deliveryDate = new Date(bookingData.deliveryDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     if (deliveryDate < today) {
       errors.push("Delivery date cannot be in the past");
     }
-    
+
     // Check if it's Monday (0 = Sunday, 1 = Monday)
     if (deliveryDate.getDay() === 1) {
       errors.push("Delivery and pickup are not available on Mondays");
@@ -828,19 +892,19 @@ export const validateBookingData = (bookingData) => {
  * @returns {string} Formatted error message
  */
 export const formatErrorMessage = (error) => {
-  if (typeof error === 'string') {
+  if (typeof error === "string") {
     return error;
   }
-  
+
   if (error?.message) {
     return error.message;
   }
-  
+
   if (Array.isArray(error)) {
-    return error.join(', ');
+    return error.join(", ");
   }
-  
-  return 'An unexpected error occurred';
+
+  return "An unexpected error occurred";
 };
 
 // Export all functions as default object
@@ -854,19 +918,21 @@ export default {
   updatePaymentStatus,
   updateBooking,
   getBookingStats,
+  getUniqueDishesCount,
   cancelBooking,
-  deleteBookingPermanently,
-  restoreBooking,
-  
-  // Customer and export operations
-  getCustomerBookings,
-  exportBookings,
-  sendBookingConfirmation,
-  
+
+  // Customer operations
+  getBookingsByCustomer,
+
   // Custom order operations
+  getCustomOrdersByLocation,
+  getCustomOrderById,
+  calculateCustomOrderPrice,
+  getBookingItemsByCategory,
+
+  // Legacy operations
   createCustomOrder,
-  getCustomOrderItems,
-  
+
   // Utility functions
   isCustomOrder,
   getOrderTypeDisplay,
@@ -874,4 +940,168 @@ export default {
   calculateBookingTotals,
   validateBookingData,
   formatErrorMessage,
+};
+
+// Add this enhanced function to your bookingService.js
+
+/**
+ * Get kitchen preparation requirements for specific date
+ * Calculates total portions needed per dish across all orders
+ * @param {Object} params - Filter parameters including date
+ * @returns {Object} Response with kitchen preparation data
+ */
+export const getKitchenPrepRequirements = async (params = {}) => {
+  try {
+    const queryParams = new URLSearchParams();
+
+    if (params.date) queryParams.append("date", params.date);
+    if (params.locationId) queryParams.append("locationId", params.locationId);
+    if (params.serviceId) queryParams.append("serviceId", params.serviceId);
+
+    const queryString = queryParams.toString();
+    const url = `${backendUrl}/api/bookings/unique-dishes${
+      queryString ? `?${queryString}` : ""
+    }`;
+
+    const response = await axios.get(url, { timeout: 10000 });
+
+    if (response.success && response.data) {
+      // Process the dishes data to calculate kitchen requirements
+      const kitchenRequirements = processKitchenRequirements(response.data);
+
+      return {
+        success: true,
+        data: {
+          ...response.data,
+          kitchenRequirements,
+        },
+      };
+    }
+
+    return response;
+  } catch (error) {
+    console.error("Error fetching kitchen prep requirements:", error);
+    return {
+      success: false,
+      error:
+        error.response?.data?.message || "Failed to fetch kitchen requirements",
+      data: {
+        uniqueDishesCount: 0,
+        totalQuantity: 0,
+        totalRevenue: 0,
+        dishes: [],
+        categoryBreakdown: {},
+        kitchenRequirements: [],
+      },
+    };
+  }
+};
+
+/**
+ * Process dishes data for kitchen requirements
+ * Calculates total portions needed per dish
+ */
+const processKitchenRequirements = (dishesData) => {
+  if (!dishesData.dishes || dishesData.dishes.length === 0) {
+    return [];
+  }
+
+  return dishesData.dishes
+    .map((dish) => {
+      // Calculate total people this dish serves
+      const totalPeopleServed = dish.bookings
+        ? dish.bookings.reduce((sum, booking) => {
+            // If quantity is per person, multiply by people count in that booking
+            // This would need to be determined by the dish data structure
+            return sum + (booking.quantity || 1);
+          }, 0)
+        : dish.totalQuantity;
+
+      return {
+        dishName: dish.dishName,
+        category: dish.category,
+        totalOrders: dish.totalOrders || 0,
+        totalQuantity: dish.totalQuantity,
+        totalPeopleServed: totalPeopleServed,
+        estimatedPrepTime: estimatePrepTime(dish.category, dish.totalQuantity),
+        priority: getPriorityLevel(dish.category, dish.totalQuantity),
+        instructions: getKitchenInstructions(dish.dishName, dish.totalQuantity),
+        bookingDetails: dish.bookings || [],
+      };
+    })
+    .sort((a, b) => {
+      // Sort by priority (high to low), then by prep time (long to short)
+      if (a.priority !== b.priority) {
+        return b.priority - a.priority;
+      }
+      return b.estimatedPrepTime - a.estimatedPrepTime;
+    });
+};
+
+/**
+ * Estimate preparation time based on dish category and quantity
+ */
+const estimatePrepTime = (category, quantity) => {
+  const baseTimes = {
+    mains: 45, // minutes
+    entree: 30,
+    sides: 25,
+    desserts: 60,
+    addons: 15,
+  };
+
+  const baseTime = baseTimes[category?.toLowerCase()] || 30;
+
+  // Add time based on quantity (every 10 portions adds 15 minutes)
+  const additionalTime = Math.floor(quantity / 10) * 15;
+
+  return baseTime + additionalTime;
+};
+
+/**
+ * Get priority level for kitchen preparation
+ */
+const getPriorityLevel = (category, quantity) => {
+  // Priority scale: 1-5 (5 being highest)
+  let priority = 3; // default
+
+  // Category-based priority
+  if (category?.toLowerCase() === "mains") priority += 1;
+  if (category?.toLowerCase() === "desserts") priority += 1;
+
+  // Quantity-based priority
+  if (quantity > 50) priority += 1;
+  if (quantity > 100) priority += 1;
+
+  return Math.min(5, priority);
+};
+
+/**
+ * Generate kitchen instructions based on dish and quantity
+ */
+const getKitchenInstructions = (dishName, quantity) => {
+  const instructions = [];
+
+  // Basic quantity instruction
+  instructions.push(`Prepare ${quantity} portions`);
+
+  // Quantity-based instructions
+  if (quantity > 30) {
+    instructions.push("Start early - high volume order");
+  }
+
+  if (quantity > 50) {
+    instructions.push("Consider batch cooking");
+    instructions.push("Ensure adequate prep space");
+  }
+
+  if (quantity > 100) {
+    instructions.push("HIGH PRIORITY - Large order");
+    instructions.push("May require additional staff");
+  }
+
+  // Dish-specific instructions could be added here
+  // This would typically come from a database of dish preparation guidelines
+
+  return instructions;
 };

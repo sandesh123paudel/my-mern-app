@@ -1,5 +1,13 @@
 import React, { useState } from "react";
-import { Printer } from "lucide-react";
+import {
+  Printer,
+  MapPin,
+  Briefcase,
+  ChefHat,
+  Users,
+  Clock,
+  AlertCircle,
+} from "lucide-react";
 
 const BookingsList = ({
   bookings,
@@ -13,6 +21,8 @@ const BookingsList = ({
   formatPrice,
   formatDate,
   formatDateTime,
+  selectedLocation,
+  selectedService,
 }) => {
   const [expandedBooking, setExpandedBooking] = useState(null);
   const [editingPayment, setEditingPayment] = useState(null);
@@ -24,9 +34,10 @@ const BookingsList = ({
   const itemsPerPage = 10;
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
+
+  // Apply custom sorting to bookings
   const applyCustomSorting = (bookingsArray) => {
     return [...bookingsArray].sort((a, b) => {
-      // Define status priority (lower number = higher priority)
       const getStatusPriority = (status) => {
         switch (status) {
           case "pending":
@@ -49,29 +60,25 @@ const BookingsList = ({
       const statusA = getStatusPriority(a.status || "pending");
       const statusB = getStatusPriority(b.status || "pending");
 
-      // First sort by status priority
       if (statusA !== statusB) {
         return statusA - statusB;
       }
 
-      // Within same status, sort by delivery date (upcoming first, then by recency)
       const dateA = new Date(a.deliveryDate);
       const dateB = new Date(b.deliveryDate);
       const now = new Date();
 
-      // For pending/confirmed/preparing/ready - upcoming dates first
       if (statusA <= 4) {
         if (dateA >= now && dateB >= now) {
-          return dateA - dateB; // Upcoming dates: earliest first
+          return dateA - dateB;
         } else if (dateA >= now) {
-          return -1; // A is upcoming, B is past
+          return -1;
         } else if (dateB >= now) {
-          return 1; // B is upcoming, A is past
+          return 1;
         } else {
-          return dateB - dateA; // Both past: most recent first
+          return dateB - dateA;
         }
       } else {
-        // For completed/cancelled - most recent first
         return dateB - dateA;
       }
     });
@@ -89,7 +96,6 @@ const BookingsList = ({
     return level.charAt(0).toUpperCase() + level.slice(1);
   };
 
-  // Check if customer has dietary requirement
   const currentBookings = applyCustomSorting(
     bookings.slice(startIndex, endIndex)
   );
@@ -109,8 +115,45 @@ const BookingsList = ({
       balance,
       isFullyPaid,
       isCancelled,
-      showRevenue: !isCancelled, // Don't show revenue for cancelled bookings
-      showPaymentOption: !isFullyPaid && !isCancelled, // Don't show payment option if fully paid or cancelled
+      showRevenue: !isCancelled,
+      showPaymentOption: !isFullyPaid && !isCancelled,
+    };
+  };
+
+  // Enhanced booking type detection
+  const getBookingType = (booking) => {
+    if (
+      booking.isCustomOrder ||
+      booking.orderSource?.sourceType === "customOrder"
+    ) {
+      return {
+        type: "custom",
+        label: "Custom Order",
+        className: "bg-purple-100 text-purple-800 border-purple-200",
+        icon: ChefHat,
+      };
+    }
+    return {
+      type: "regular",
+      label: "Regular Order",
+      className: "bg-blue-100 text-blue-800 border-blue-200",
+      icon: Briefcase,
+    };
+  };
+
+  // Get enhanced booking info
+  const getBookingInfo = (booking) => {
+    return {
+      locationName:
+        booking.orderSource?.locationName ||
+        booking.menu?.locationName ||
+        "Unknown Location",
+      serviceName:
+        booking.orderSource?.serviceName ||
+        booking.menu?.serviceName ||
+        "Unknown Service",
+      sourceName:
+        booking.orderSource?.sourceName || booking.menu?.name || "Unknown Menu",
     };
   };
 
@@ -153,7 +196,6 @@ const BookingsList = ({
   const openPaymentEdit = (booking) => {
     const financials = calculateFinancials(booking);
 
-    // Don't open payment edit if fully paid or cancelled
     if (!financials.showPaymentOption) {
       return;
     }
@@ -193,7 +235,6 @@ const BookingsList = ({
     const total = booking.pricing?.total || 0;
     const numericValue = parseFloat(value) || 0;
 
-    // Don't allow amount greater than total
     if (numericValue > total) {
       setPaymentData({
         ...paymentData,
@@ -207,17 +248,59 @@ const BookingsList = ({
     }
   };
 
+  // Get upcoming delivery time indicator
+  const getDeliveryTimeIndicator = (deliveryDate) => {
+    const now = new Date();
+    const delivery = new Date(deliveryDate);
+    const diffHours = Math.round((delivery - now) / (1000 * 60 * 60));
+
+    if (diffHours < 0) {
+      return { text: "Past event", className: "text-gray-500", icon: null };
+    } else if (diffHours <= 2) {
+      return {
+        text: "Due soon!",
+        className: "text-red-600",
+        icon: AlertCircle,
+      };
+    } else if (diffHours <= 24) {
+      return {
+        text: `${diffHours}h remaining`,
+        className: "text-orange-600",
+        icon: Clock,
+      };
+    } else if (diffHours <= 48) {
+      return { text: "Tomorrow", className: "text-blue-600", icon: Clock };
+    }
+    return null;
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-      {/* List Header */}
+      {/* Enhanced List Header */}
       <div className="px-6 py-4 border-b border-gray-200 bg-green-50">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-green-800">
-            📋 Bookings List
-          </h3>
-          <div className="text-sm text-green-600">
-            Showing {startIndex + 1}-{Math.min(endIndex, bookings.length)} of{" "}
-            {bookings.length} bookings
+          <div className="flex items-center gap-4">
+            <h3 className="text-lg font-semibold text-green-800">
+              📋 Bookings List
+            </h3>
+            <div className="text-sm text-green-600">
+              Showing {startIndex + 1}-{Math.min(endIndex, bookings.length)} of{" "}
+              {bookings.length} bookings
+            </div>
+          </div>
+
+          {/* Context Display */}
+          <div className="flex items-center gap-3 text-sm">
+            <div className="bg-white px-3 py-1 rounded border border-green-200 flex items-center gap-2">
+              <MapPin className="w-3 h-3 text-green-600" />
+              <span className="text-green-800">Location filtered</span>
+            </div>
+            {selectedService && (
+              <div className="bg-white px-3 py-1 rounded border border-green-200 flex items-center gap-2">
+                <Briefcase className="w-3 h-3 text-green-600" />
+                <span className="text-green-800">Service filtered</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -249,9 +332,17 @@ const BookingsList = ({
         <div className="divide-y divide-gray-200">
           {currentBookings.map((booking) => {
             const financials = calculateFinancials(booking);
+            const bookingType = getBookingType(booking);
+            const bookingInfo = getBookingInfo(booking);
+            const deliveryIndicator = getDeliveryTimeIndicator(
+              booking.deliveryDate
+            );
 
             return (
-              <div key={booking._id} className="p-6">
+              <div
+                key={booking._id}
+                className="p-6 hover:bg-gray-50 transition-colors"
+              >
                 {/* Main Booking Info */}
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -259,9 +350,11 @@ const BookingsList = ({
                       <h4 className="font-semibold text-gray-900 text-lg">
                         {booking.customerDetails?.name || "No Name"}
                       </h4>
+
                       <span className="text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded">
                         #{booking.bookingReference || "No Reference"}
                       </span>
+
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(
                           booking.status || "pending"
@@ -272,7 +365,6 @@ const BookingsList = ({
                           .toUpperCase()}
                       </span>
 
-                      {/* Only show payment status if not cancelled */}
                       {!financials.isCancelled && (
                         <span
                           className={`px-3 py-1 rounded-full text-xs font-medium border ${getPaymentStatusColor(
@@ -285,18 +377,32 @@ const BookingsList = ({
                         </span>
                       )}
 
-                      {booking.isCustomOrder && (
-                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">
-                          CUSTOM ORDER
+                      {/* Enhanced Booking Type Badge */}
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-medium border flex items-center gap-1 ${bookingType.className}`}
+                      >
+                        <bookingType.icon className="w-3 h-3" />
+                        {bookingType.label}
+                      </span>
+
+                      {/* Delivery Time Indicator */}
+                      {deliveryIndicator && (
+                        <span
+                          className={`px-2 py-1 rounded text-xs font-medium flex items-center gap-1 ${deliveryIndicator.className}`}
+                        >
+                          {deliveryIndicator.icon && (
+                            <deliveryIndicator.icon className="w-3 h-3" />
+                          )}
+                          {deliveryIndicator.text}
                         </span>
                       )}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-                      {/* Customer Info */}
+                      {/* Enhanced Customer Info */}
                       <div>
                         <h5 className="font-medium text-gray-700 mb-1">
-                          Customer
+                          Customer Details
                         </h5>
                         <p className="text-gray-600">
                           📧 {booking.customerDetails?.email || "No email"}
@@ -304,44 +410,57 @@ const BookingsList = ({
                         <p className="text-gray-600">
                           📞 {booking.customerDetails?.phone || "No phone"}
                         </p>
+                        <div className="flex items-center gap-1 mt-1">
+                          <Users className="w-3 h-3 text-gray-500" />
+                          <span className="text-gray-600">
+                            {booking.peopleCount || 0} guests
+                          </span>
+                        </div>
                       </div>
 
-                      {/* Event Info */}
+                      {/* Enhanced Event Info */}
                       <div>
                         <h5 className="font-medium text-gray-700 mb-1">
-                          Event
+                          Event Details
                         </h5>
                         <p className="text-gray-600">
-                          🍽️ {booking.menu?.name || "No menu"}
+                          🍽️ {bookingInfo.sourceName}
                         </p>
-                        <p className="text-gray-600">
-                          📍 {booking.menu?.locationName || "No location"}
+                        <p className="text-gray-600 flex items-center gap-1">
+                          <MapPin className="w-3 h-3" />
+                          {bookingInfo.locationName}
                         </p>
-                        <p className="text-gray-600">
-                          🏷️ {booking.menu?.serviceName || "No service"}
+                        <p className="text-gray-600 flex items-center gap-1">
+                          <Briefcase className="w-3 h-3" />
+                          {bookingInfo.serviceName}
                         </p>
                         <p className="text-gray-600">
                           🚚 {booking.deliveryType || "Not specified"}
                         </p>
                       </div>
 
-                      {/* Date & Guests */}
+                      {/* Enhanced Date & Time Info */}
                       <div>
                         <h5 className="font-medium text-gray-700 mb-1">
-                          Details
+                          Timing
                         </h5>
-                        <p className="text-gray-600">
-                          📅 {formatDate(booking.deliveryDate)}
-                        </p>
-                        <p className="text-gray-600">
-                          👥 {booking.peopleCount || 0} guests
+                        <p className="text-gray-600 flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {formatDateTime(booking.deliveryDate)}
                         </p>
                         <p className="text-gray-600 text-xs">
-                          Booked: {formatDateTime(booking.orderDate)}
+                          Booked: {formatDate(booking.orderDate)}
                         </p>
+                        {booking.selectedItems &&
+                          booking.selectedItems.length > 0 && (
+                            <p className="text-gray-600 text-xs flex items-center gap-1 mt-1">
+                              <ChefHat className="w-3 h-3" />
+                              {booking.selectedItems.length} items
+                            </p>
+                          )}
                       </div>
 
-                      {/* Financial */}
+                      {/* Enhanced Financial Info */}
                       <div>
                         <h5 className="font-medium text-gray-700 mb-1">
                           Financial
@@ -364,6 +483,33 @@ const BookingsList = ({
                                 <p className="text-orange-600">
                                   💸 Due: {formatPrice(financials.balance)}
                                 </p>
+                                {/* Payment Progress Bar */}
+                                <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                                  <div
+                                    className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                                    style={{
+                                      width: `${
+                                        financials.total > 0
+                                          ? Math.min(
+                                              (financials.paid /
+                                                financials.total) *
+                                                100,
+                                              100
+                                            )
+                                          : 0
+                                      }%`,
+                                    }}
+                                  ></div>
+                                </div>
+                                <div className="text-xs text-gray-500 mt-1">
+                                  {financials.total > 0
+                                    ? Math.round(
+                                        (financials.paid / financials.total) *
+                                          100
+                                      )
+                                    : 0}
+                                  % paid
+                                </div>
                               </>
                             )}
                           </>
@@ -374,9 +520,37 @@ const BookingsList = ({
                         )}
                       </div>
                     </div>
+
+                    {/* Dietary Requirements Display */}
+                    {(booking.customerDetails?.dietaryRequirements?.length >
+                      0 ||
+                      booking.customerDetails?.spiceLevel !== "medium") && (
+                      <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded">
+                        <div className="text-sm text-blue-800">
+                          <span className="font-medium">Dietary:</span>{" "}
+                          {formatDietaryRequirements(
+                            booking.customerDetails?.dietaryRequirements
+                          )}{" "}
+                          |<span className="font-medium"> Spice:</span>{" "}
+                          {formatSpiceLevel(
+                            booking.customerDetails?.spiceLevel
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Special Instructions */}
+                    {booking.customerDetails?.specialInstructions && (
+                      <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded">
+                        <p className="text-sm text-amber-700">
+                          <strong>Special Instructions:</strong>{" "}
+                          {booking.customerDetails.specialInstructions}
+                        </p>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Action Buttons */}
+                  {/* Enhanced Action Buttons */}
                   <div className="ml-4 flex flex-col gap-2">
                     <button
                       onClick={() => onBookingClick && onBookingClick(booking)}
@@ -399,11 +573,11 @@ const BookingsList = ({
                       className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors text-sm"
                     >
                       {expandedBooking === booking._id
-                        ? "Hide Quick View"
+                        ? "Hide Details"
                         : "Quick View"}
                     </button>
 
-                    {/* Quick status update - Don't show for completed or cancelled */}
+                    {/* Quick status update */}
                     {booking.status !== "cancelled" &&
                       booking.status !== "completed" && (
                         <select
@@ -421,7 +595,7 @@ const BookingsList = ({
                         </select>
                       )}
 
-                    {/* Payment button - only show if payment is allowed */}
+                    {/* Enhanced Payment button */}
                     {financials.showPaymentOption && (
                       <button
                         onClick={() => openPaymentEdit(booking)}
@@ -433,92 +607,94 @@ const BookingsList = ({
                   </div>
                 </div>
 
-                {/* Expanded Details */}
+                {/* Expanded Details Section */}
                 {expandedBooking === booking._id && (
                   <div className="mt-4 pt-4 border-t border-gray-200">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      {booking.customerDetails?.dietaryRequirements && (
-                        <div className="mb-4">
-                          <h4 className="font-medium text-gray-700 mb-2">
-                            Dietary Requirements
-                          </h4>
-                          <div className="bg-blue-50 border border-blue-200 rounded p-3">
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 text-sm">
-                              <div>
-                                <strong>Dietary:</strong>{" "}
-                                {formatDietaryRequirements(
-                                  booking.customerDetails?.dietaryRequirements
-                                )}
-                              </div>
-                              <div>
-                                <strong>Spice Level:</strong>{" "}
-                                {formatSpiceLevel(
-                                  booking.customerDetails?.spiceLevel
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Special Instructions */}
-                      {booking.customerDetails?.specialInstructions && (
-                        <div className="lg:col-span-2">
-                          <h5 className="font-medium text-gray-700 mb-2">
-                            Special Instructions
-                          </h5>
-                          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                            <p className="text-sm text-amber-700">
-                              {booking.customerDetails.specialInstructions}
-                            </p>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Selected Items */}
+                      {/* Enhanced Selected Items Display */}
                       {booking.selectedItems &&
                         booking.selectedItems.length > 0 && (
                           <div>
-                            <h5 className="font-medium text-gray-700 mb-2">
-                              Selected Items ({booking.selectedItems.length})
+                            <h5 className="font-medium text-gray-700 mb-2 flex items-center gap-2">
+                              <ChefHat className="w-4 h-4 text-orange-600" />
+                              Kitchen Requirements (
+                              {booking.selectedItems.length} items)
                             </h5>
-                            <div className="space-y-2 max-h-40 overflow-y-auto">
+                            <div className="space-y-2 max-h-60 overflow-y-auto">
                               {booking.selectedItems.map((item, index) => (
                                 <div
                                   key={index}
-                                  className="bg-gray-50 border border-gray-200 rounded p-2"
+                                  className="bg-orange-50 border border-orange-200 rounded-lg p-3"
                                 >
                                   <div className="flex justify-between items-start">
                                     <div className="flex-1">
-                                      <h6 className="font-medium text-sm">
+                                      <h6 className="font-medium text-sm text-orange-900">
                                         {item.name}
                                       </h6>
                                       {item.description && (
-                                        <p className="text-xs text-gray-600">
+                                        <p className="text-xs text-orange-700 mt-1">
                                           {item.description}
                                         </p>
                                       )}
-                                      <div className="flex gap-1 mt-1">
-                                        <span className="text-xs bg-amber-100 text-amber-800 px-1 py-0.5 rounded">
-                                          {item.category?.toUpperCase()}
+                                      <div className="flex flex-wrap gap-1 mt-2">
+                                        <span className="text-xs bg-orange-100 text-orange-800 px-2 py-0.5 rounded border">
+                                          {item.category?.toUpperCase() ||
+                                            "OTHER"}
                                         </span>
+                                        {item.quantity && item.quantity > 1 && (
+                                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded border">
+                                            QTY: {item.quantity}
+                                          </span>
+                                        )}
                                         {item.isVegetarian && (
-                                          <span className="text-xs bg-green-100 text-green-700 px-1 py-0.5 rounded">
+                                          <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded border">
                                             🌱 VEG
                                           </span>
                                         )}
                                         {item.isVegan && (
-                                          <span className="text-xs bg-green-100 text-green-700 px-1 py-0.5 rounded">
+                                          <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded border">
                                             🌿 VEGAN
                                           </span>
                                         )}
                                       </div>
-                                    </div>
-                                    {booking.isCustomOrder && item.price && (
-                                      <div className="ml-2 text-sm font-medium text-gray-900">
-                                        {formatPrice(item.price)}
+
+                                      {/* Kitchen Instructions for this item */}
+                                      <div className="mt-2 text-xs text-orange-700">
+                                        <span className="font-medium">
+                                          For Kitchen:
+                                        </span>
+                                        {item.quantity && item.quantity > 1
+                                          ? ` Prepare ${item.quantity} portions`
+                                          : ` Prepare ${booking.peopleCount} portions`}
+                                        {item.groupName &&
+                                          ` (${item.groupName})`}
                                       </div>
-                                    )}
+
+                                      {item.allergens &&
+                                        item.allergens.length > 0 && (
+                                          <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
+                                            <p className="text-xs text-red-600">
+                                              ⚠️ <strong>Allergens:</strong>{" "}
+                                              {item.allergens.join(", ")}
+                                            </p>
+                                          </div>
+                                        )}
+                                    </div>
+
+                                    {/* Price info for custom orders */}
+                                    {bookingType.type === "custom" &&
+                                      (item.totalPrice ||
+                                        item.pricePerPerson) && (
+                                        <div className="ml-2 text-sm font-medium text-orange-900">
+                                          {item.totalPrice
+                                            ? formatPrice(item.totalPrice)
+                                            : item.pricePerPerson
+                                            ? `${formatPrice(
+                                                item.pricePerPerson
+                                              )}/pp`
+                                            : ""}
+                                        </div>
+                                      )}
                                   </div>
                                 </div>
                               ))}
@@ -530,7 +706,8 @@ const BookingsList = ({
                       {booking.deliveryType === "Delivery" &&
                         booking.address && (
                           <div>
-                            <h5 className="font-medium text-gray-700 mb-2">
+                            <h5 className="font-medium text-gray-700 mb-2 flex items-center gap-2">
+                              <MapPin className="w-4 h-4 text-blue-600" />
                               Delivery Address
                             </h5>
                             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">

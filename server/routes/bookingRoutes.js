@@ -7,6 +7,7 @@ const {
   updatePaymentStatus,
   updateBooking,
   getBookingStats,
+  getUniqueDishesCount, // Added this function
   cancelBooking,
   getBookingsByCustomer,
   getBookingByReference,
@@ -22,6 +23,7 @@ const {
   bookingStatusValidation,
   paymentStatusValidation,
   bookingUpdateValidation,
+  bookingCancellationValidation,
 } = require("../middlewares/validator.js");
 
 const handleValidationErrors = require("../utils/handleValidationErrors.js");
@@ -29,7 +31,11 @@ const userAuth = require("../middlewares/auth.js");
 
 const bookingRouter = express.Router();
 
-// Public routes
+// ============================================================================
+// PUBLIC ROUTES (No authentication required)
+// ============================================================================
+
+// Create new booking
 bookingRouter.post(
   "/",
   bookingFormValidation(),
@@ -37,11 +43,11 @@ bookingRouter.post(
   createBooking
 );
 
-// Customer lookup routes (public)
+// Customer lookup routes
 bookingRouter.get("/customer/:email", getBookingsByCustomer);
 bookingRouter.get("/reference/:reference", getBookingByReference);
 
-// Custom order routes (public - for frontend)
+// Custom order routes (for frontend)
 bookingRouter.get(
   "/custom-orders/location/:locationId",
   getCustomOrdersByLocation
@@ -54,18 +60,35 @@ bookingRouter.post(
   calculateCustomOrderPrice
 );
 
-// Admin routes (protected)
+// ============================================================================
+// ADMIN ROUTES (Authentication required)
+// ============================================================================
+
+// Get all bookings with filters
 bookingRouter.get("/", userAuth, getAllBookings);
+
+// Get booking statistics and analytics
 bookingRouter.get("/stats", userAuth, getBookingStats);
+
+// Get unique dishes count for dashboard (NEW ROUTE)
+bookingRouter.get("/unique-dishes", userAuth, getUniqueDishesCount);
+
+// Get single booking by ID
 bookingRouter.get("/:id", userAuth, getBookingById);
+
+// Get booking items grouped by category
 bookingRouter.get(
   "/:id/items-by-category",
   userAuth,
   getBookingItemsByCategory
 );
 
-// Admin update routes (protected)
-bookingRouter.patch(
+// ============================================================================
+// ADMIN UPDATE ROUTES (Authentication required)
+// ============================================================================
+
+// Update booking status
+bookingRouter.put(
   "/:id/status",
   userAuth,
   bookingStatusValidation(),
@@ -73,7 +96,8 @@ bookingRouter.patch(
   updateBookingStatus
 );
 
-bookingRouter.patch(
+// Update payment status
+bookingRouter.put(
   "/:id/payment",
   userAuth,
   paymentStatusValidation(),
@@ -81,6 +105,7 @@ bookingRouter.patch(
   updatePaymentStatus
 );
 
+// Update complete booking details
 bookingRouter.put(
   "/:id",
   userAuth,
@@ -89,6 +114,13 @@ bookingRouter.put(
   updateBooking
 );
 
-bookingRouter.put("/:id/cancel", userAuth, cancelBooking);
+// Cancel booking
+bookingRouter.put(
+  "/:id/cancel",
+  userAuth,
+  bookingCancellationValidation(),
+  handleValidationErrors,
+  cancelBooking
+);
 
 module.exports = bookingRouter;

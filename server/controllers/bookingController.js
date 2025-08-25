@@ -27,249 +27,184 @@ const asyncHandler = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);
 };
 
-// Helper function to convert menu/custom order selections to booking items
-const convertSelectionsToBookingItems = (
-  source,
-  selections,
-  peopleCount,
-  sourceType
-) => {
+// Enhanced helper function to process selectedItems from frontend
+const processSelectedItems = (selectedItems, peopleCount = 1) => {
+  if (!selectedItems || !Array.isArray(selectedItems)) {
+    return [];
+  }
+
+  return selectedItems.map((item) => ({
+    name: item.name || "",
+    description: item.description || "",
+    pricePerPerson: item.pricePerPerson || 0,
+    pricePerUnit: item.pricePerUnit || 0,
+    pricePerOrder: item.pricePerOrder || 0,
+    totalPrice: item.totalPrice || item.pricePerPerson * peopleCount || 0,
+    category: item.category || "other",
+    type: item.type || "selected",
+    quantity: item.quantity || 1,
+    groupName: item.groupName || item.category || "",
+    isVegetarian: item.isVegetarian || false,
+    isVegan: item.isVegan || false,
+    allergens: Array.isArray(item.allergens) ? item.allergens : [],
+    notes: item.notes || "",
+  }));
+};
+
+// Helper function to convert menu selections to booking items
+const convertMenuSelectionsToBookingItems = (menu, selections, peopleCount) => {
   const items = [];
 
-  if (sourceType === "menu") {
-    // Handle menu package selections
-    if (source.packageType === "simple" && source.simpleItems && selections) {
-      source.simpleItems.forEach((item, itemIndex) => {
-        const itemSelection = selections[`simple-${itemIndex}`];
+  if (!menu || !selections) {
+    return items;
+  }
 
-        // Add base item
-        items.push({
-          name: item.name,
-          description: item.description || "",
-          pricePerPerson: item.priceModifier || 0,
-          pricePerOrder: 0,
-          totalPrice: (item.priceModifier || 0) * peopleCount,
-          category: "package",
-          type: "package",
-          quantity: item.quantity || 1,
-          groupName: "Package Items",
-          isVegetarian: item.isVegetarian || false,
-          isVegan: item.isVegan || false,
-          allergens: item.allergens || [],
-          notes: "",
-        });
+  // Handle simple package items
+  if (menu.packageType === "simple" && menu.simpleItems) {
+    menu.simpleItems.forEach((item, itemIndex) => {
+      const itemSelection = selections[`simple-${itemIndex}`];
 
-        // Add selected choices
-        if (itemSelection?.choices && item.choices) {
-          itemSelection.choices.forEach((choiceIndex) => {
-            const choice = item.choices[choiceIndex];
-            if (choice) {
-              items.push({
-                name: `${item.name} - ${choice.name}`,
-                description: choice.description || "",
-                pricePerPerson: choice.priceModifier || 0,
-                pricePerOrder: 0,
-                totalPrice: (choice.priceModifier || 0) * peopleCount,
-                category: "choices",
-                type: "choice",
-                quantity: 1,
-                groupName: item.name,
-                isVegetarian: choice.isVegetarian || false,
-                isVegan: choice.isVegan || false,
-                allergens: choice.allergens || [],
-                notes: "",
-              });
-            }
-          });
-        }
-
-        // Add selected options
-        if (itemSelection?.options && item.options) {
-          itemSelection.options.forEach((optionIndex) => {
-            const option = item.options[optionIndex];
-            if (option) {
-              items.push({
-                name: `${item.name} - ${option.name}`,
-                description: option.description || "",
-                pricePerPerson: option.priceModifier || 0,
-                pricePerOrder: 0,
-                totalPrice: (option.priceModifier || 0) * peopleCount,
-                category: "options",
-                type: "option",
-                quantity: 1,
-                groupName: item.name,
-                isVegetarian: option.isVegetarian || false,
-                isVegan: option.isVegan || false,
-                allergens: option.allergens || [],
-                notes: "",
-              });
-            }
-          });
-        }
+      // Add base item
+      items.push({
+        name: item.name,
+        description: item.description || "",
+        pricePerPerson: item.priceModifier || 0,
+        pricePerOrder: 0,
+        totalPrice: (item.priceModifier || 0) * peopleCount,
+        category: "package",
+        type: "package",
+        quantity: item.quantity || 1,
+        groupName: "Package Items",
+        isVegetarian: item.isVegetarian || false,
+        isVegan: item.isVegan || false,
+        allergens: item.allergens || [],
+        notes: "",
       });
-    }
 
-    // Handle categorized menu items
-    if (
-      source.packageType === "categorized" &&
-      source.categories &&
-      selections
-    ) {
-      source.categories.forEach((category, categoryIndex) => {
-        if (!category.enabled) return;
-
-        // Add included items
-        if (category.includedItems) {
-          category.includedItems.forEach((item) => {
+      // Add selected choices
+      if (itemSelection?.choices && item.choices) {
+        itemSelection.choices.forEach((choiceIndex) => {
+          const choice = item.choices[choiceIndex];
+          if (choice) {
             items.push({
-              name: item.name,
-              description: item.description || "",
-              pricePerPerson: item.priceModifier || 0,
+              name: `${item.name} - ${choice.name}`,
+              description: choice.description || "",
+              pricePerPerson: choice.priceModifier || 0,
               pricePerOrder: 0,
-              totalPrice: (item.priceModifier || 0) * peopleCount,
-              category: category.name.toLowerCase(),
-              type: "included",
+              totalPrice: (choice.priceModifier || 0) * peopleCount,
+              category: "choices",
+              type: "choice",
               quantity: 1,
-              groupName: category.name,
-              isVegetarian: item.isVegetarian || false,
-              isVegan: item.isVegan || false,
-              allergens: item.allergens || [],
-              notes: "",
-            });
-          });
-        }
-
-        // Add selected items from selection groups
-        if (category.selectionGroups) {
-          category.selectionGroups.forEach((group, groupIndex) => {
-            const key = `category-${categoryIndex}-group-${groupIndex}`;
-            const selectedItems = selections[key] || [];
-
-            selectedItems.forEach((itemIndex) => {
-              const item = group.items[itemIndex];
-              if (item) {
-                items.push({
-                  name: item.name,
-                  description: item.description || "",
-                  pricePerPerson: item.priceModifier || 0,
-                  pricePerOrder: 0,
-                  totalPrice: (item.priceModifier || 0) * peopleCount,
-                  category: category.name.toLowerCase(),
-                  type: "selected",
-                  quantity: 1,
-                  groupName: `${category.name} - ${group.name}`,
-                  isVegetarian: item.isVegetarian || false,
-                  isVegan: item.isVegan || false,
-                  allergens: item.allergens || [],
-                  notes: "",
-                });
-              }
-            });
-          });
-        }
-      });
-    }
-
-    // Handle menu addons
-    if (source.addons?.enabled && selections) {
-      // Fixed addons
-      if (selections["addons-fixed"] && source.addons.fixedAddons) {
-        selections["addons-fixed"].forEach((addonIndex) => {
-          const addon = source.addons.fixedAddons[addonIndex];
-          if (addon) {
-            const totalPrice = addon.pricePerPerson * peopleCount;
-            items.push({
-              name: addon.name,
-              description: addon.description || "",
-              pricePerPerson: addon.pricePerPerson,
-              pricePerOrder: 0,
-              totalPrice: totalPrice,
-              category: "addons",
-              type: "addon",
-              quantity: peopleCount,
-              groupName: "Add-ons",
-              isVegetarian: addon.isVegetarian || false,
-              isVegan: addon.isVegan || false,
-              allergens: addon.allergens || [],
+              groupName: item.name,
+              isVegetarian: choice.isVegetarian || false,
+              isVegan: choice.isVegan || false,
+              allergens: choice.allergens || [],
               notes: "",
             });
           }
         });
       }
 
-      // Variable addons
-      if (selections["addons-variable"] && source.addons.variableAddons) {
-        Object.entries(selections["addons-variable"]).forEach(
-          ([addonIndex, quantity]) => {
-            const addon = source.addons.variableAddons[parseInt(addonIndex)];
-            if (addon && quantity > 0) {
-              const totalPrice = addon.pricePerUnit * quantity;
+      // Add selected options
+      if (itemSelection?.options && item.options) {
+        itemSelection.options.forEach((optionIndex) => {
+          const option = item.options[optionIndex];
+          if (option) {
+            items.push({
+              name: `${item.name} - ${option.name}`,
+              description: option.description || "",
+              pricePerPerson: option.priceModifier || 0,
+              pricePerOrder: 0,
+              totalPrice: (option.priceModifier || 0) * peopleCount,
+              category: "options",
+              type: "option",
+              quantity: 1,
+              groupName: item.name,
+              isVegetarian: option.isVegetarian || false,
+              isVegan: option.isVegan || false,
+              allergens: option.allergens || [],
+              notes: "",
+            });
+          }
+        });
+      }
+    });
+  }
+
+  // Handle categorized package items
+  if (menu.packageType === "categorized" && menu.categories) {
+    menu.categories.forEach((category, categoryIndex) => {
+      if (!category.enabled) return;
+
+      // Add included items
+      if (category.includedItems) {
+        category.includedItems.forEach((item) => {
+          items.push({
+            name: item.name,
+            description: item.description || "",
+            pricePerPerson: item.priceModifier || 0,
+            pricePerOrder: 0,
+            totalPrice: (item.priceModifier || 0) * peopleCount,
+            category: category.name.toLowerCase(),
+            type: "included",
+            quantity: 1,
+            groupName: category.name,
+            isVegetarian: item.isVegetarian || false,
+            isVegan: item.isVegan || false,
+            allergens: item.allergens || [],
+            notes: "",
+          });
+        });
+      }
+
+      // Add selected items from selection groups
+      if (category.selectionGroups) {
+        category.selectionGroups.forEach((group, groupIndex) => {
+          const key = `category-${categoryIndex}-group-${groupIndex}`;
+          const selectedItems = selections[key] || [];
+
+          selectedItems.forEach((itemIndex) => {
+            const item = group.items[itemIndex];
+            if (item) {
               items.push({
-                name: `${addon.name} (${quantity} ${addon.unit || "pieces"})`,
-                description: addon.description || "",
-                pricePerPerson: 0,
-                pricePerOrder: addon.pricePerUnit,
-                totalPrice: totalPrice,
-                category: "addons",
-                type: "addon",
-                quantity: quantity,
-                groupName: "Add-ons",
-                isVegetarian: addon.isVegetarian || false,
-                isVegan: addon.isVegan || false,
-                allergens: addon.allergens || [],
+                name: item.name,
+                description: item.description || "",
+                pricePerPerson: item.priceModifier || 0,
+                pricePerOrder: 0,
+                totalPrice: (item.priceModifier || 0) * peopleCount,
+                category: category.name.toLowerCase(),
+                type: "selected",
+                quantity: 1,
+                groupName: `${category.name} - ${group.name}`,
+                isVegetarian: item.isVegetarian || false,
+                isVegan: item.isVegan || false,
+                allergens: item.allergens || [],
                 notes: "",
               });
             }
-          }
-        );
-      }
-    }
-  } else if (sourceType === "customOrder") {
-    // Handle custom order selections
-    if (selections.categories) {
-      source.categories.forEach((category) => {
-        const categorySelections = selections.categories[category.name] || [];
-
-        categorySelections.forEach((selection) => {
-          const item = category.items.id(selection.itemId);
-          if (item && item.isAvailable) {
-            const totalPrice = item.pricePerPerson * peopleCount;
-            items.push({
-              name: item.name,
-              description: item.description || "",
-              pricePerPerson: item.pricePerPerson,
-              pricePerOrder: 0,
-              totalPrice: totalPrice,
-              category: category.name,
-              type: "selected",
-              quantity: selection.quantity || 1,
-              groupName: category.displayName,
-              isVegetarian: item.isVegetarian || false,
-              isVegan: item.isVegan || false,
-              allergens: item.allergens || [],
-              notes: "",
-            });
-          }
+          });
         });
-      });
-    }
+      }
+    });
+  }
 
-    // Handle custom order addons
-    if (selections.addons) {
-      selections.addons.forEach((addonSelection) => {
-        const addon = source.addons.id(addonSelection.addonId);
-        if (addon && addon.isAvailable) {
-          const quantity = addonSelection.quantity || 1;
-          const totalPrice = addon.pricePerOrder * quantity;
+  // Handle menu addons
+  if (menu.addons?.enabled && selections) {
+    // Fixed addons
+    if (selections["addons-fixed"] && menu.addons.fixedAddons) {
+      selections["addons-fixed"].forEach((addonIndex) => {
+        const addon = menu.addons.fixedAddons[addonIndex];
+        if (addon) {
+          const totalPrice = addon.pricePerPerson * peopleCount;
           items.push({
             name: addon.name,
             description: addon.description || "",
-            pricePerPerson: 0,
-            pricePerOrder: addon.pricePerOrder,
+            pricePerPerson: addon.pricePerPerson,
+            pricePerOrder: 0,
             totalPrice: totalPrice,
             category: "addons",
             type: "addon",
-            quantity: quantity,
+            quantity: peopleCount,
             groupName: "Add-ons",
             isVegetarian: addon.isVegetarian || false,
             isVegan: addon.isVegan || false,
@@ -279,6 +214,156 @@ const convertSelectionsToBookingItems = (
         }
       });
     }
+
+    // Variable addons
+    if (selections["addons-variable"] && menu.addons.variableAddons) {
+      Object.entries(selections["addons-variable"]).forEach(
+        ([addonIndex, quantity]) => {
+          const addon = menu.addons.variableAddons[parseInt(addonIndex)];
+          if (addon && quantity > 0) {
+            const totalPrice = addon.pricePerUnit * quantity;
+            items.push({
+              name: `${addon.name} (${quantity} ${addon.unit || "pieces"})`,
+              description: addon.description || "",
+              pricePerPerson: 0,
+              pricePerOrder: addon.pricePerUnit,
+              totalPrice: totalPrice,
+              category: "addons",
+              type: "addon",
+              quantity: quantity,
+              groupName: "Add-ons",
+              isVegetarian: addon.isVegetarian || false,
+              isVegan: addon.isVegan || false,
+              allergens: addon.allergens || [],
+              notes: "",
+            });
+          }
+        }
+      );
+    }
+  }
+
+  return items;
+};
+
+// Helper function to convert custom order selections to booking items
+const convertCustomOrderSelectionsToBookingItems = (
+  customOrder,
+  selections,
+  peopleCount
+) => {
+  const items = [];
+
+  if (!customOrder || !selections) {
+    return items;
+  }
+
+  // Handle custom order category selections
+  if (selections.categories) {
+    Object.entries(selections.categories).forEach(
+      ([categoryName, categorySelections]) => {
+        const category = customOrder.categories?.find(
+          (cat) => cat.name === categoryName
+        );
+
+        if (category && categorySelections) {
+          categorySelections.forEach((selection) => {
+            const item = category.items?.find(
+              (item) => item._id.toString() === selection.itemId
+            );
+
+            if (item) {
+              const totalPrice =
+                (item.pricePerPerson || 0) *
+                peopleCount *
+                (selection.quantity || 1);
+
+              items.push({
+                name: item.name,
+                description: item.description || "",
+                pricePerPerson: item.pricePerPerson || 0,
+                pricePerOrder: 0,
+                totalPrice: totalPrice,
+                category:
+                  categoryName === "entree"
+                    ? "entree"
+                    : categoryName === "mains"
+                    ? "mains"
+                    : categoryName.toLowerCase(),
+                type: "selected",
+                quantity: selection.quantity || 1,
+                groupName: category.displayName || categoryName,
+                isVegetarian: item.isVegetarian || false,
+                isVegan: item.isVegan || false,
+                allergens: item.allergens || [],
+                notes: "",
+              });
+            }
+          });
+        }
+      }
+    );
+  }
+
+  // Handle custom order addons
+  if (selections.addons && customOrder.addons?.enabled) {
+    selections.addons.forEach((addonSelection) => {
+      // Check fixed addons
+      if (customOrder.addons.fixedAddons) {
+        const addon = customOrder.addons.fixedAddons.find(
+          (a) => a._id.toString() === addonSelection.addonId
+        );
+        if (addon) {
+          const totalPrice =
+            (addon.pricePerPerson || 0) * peopleCount * addonSelection.quantity;
+
+          items.push({
+            name: addon.name,
+            description: addon.description || "",
+            pricePerPerson: addon.pricePerPerson || 0,
+            pricePerOrder: 0,
+            totalPrice: totalPrice,
+            category: "addons",
+            type: "addon",
+            quantity: addonSelection.quantity,
+            groupName: "Add-ons",
+            isVegetarian: addon.isVegetarian || false,
+            isVegan: addon.isVegan || false,
+            allergens: addon.allergens || [],
+            notes: "",
+          });
+        }
+      }
+
+      // Check variable addons
+      if (customOrder.addons.variableAddons) {
+        const addon = customOrder.addons.variableAddons.find(
+          (a) => a._id.toString() === addonSelection.addonId
+        );
+        if (addon) {
+          const totalPrice =
+            (addon.pricePerUnit || 0) * addonSelection.quantity;
+
+          items.push({
+            name: `${addon.name} (${addonSelection.quantity} ${
+              addon.unit || "pieces"
+            })`,
+            description: addon.description || "",
+            pricePerPerson: 0,
+            pricePerOrder: addon.pricePerUnit || 0,
+            totalPrice: totalPrice,
+            category: "addons",
+            type: "addon",
+            quantity: addonSelection.quantity,
+            groupName: "Add-ons",
+            isVegetarian: addon.isVegetarian || false,
+            isVegan: addon.isVegan || false,
+            allergens: addon.allergens || [],
+            notes: "",
+          });
+        }
+      }
+    });
   }
 
   return items;
@@ -290,38 +375,92 @@ const convertSelectionsToBookingItems = (
 const createBooking = asyncHandler(async (req, res) => {
   try {
     const {
-      orderSource,
+      menu, // From frontend: { menuId, locationId, serviceId, name, basePrice }
       customerDetails,
       peopleCount,
-      selectedItems,
-      rawSelections,
+      selectedItems, // Processed items from frontend
+      menuSelections, // Raw menu selections for reference
       pricing,
+      deliveryType,
+      deliveryDate,
+      address,
+      isCustomOrder,
     } = req.body;
 
-    if (!orderSource || !orderSource.sourceType) {
-      return sendResponse(
-        res,
-        400,
-        false,
-        "Order source information is required"
-      );
+    console.log("📝 Creating booking with data:", {
+      hasMenu: !!menu,
+      hasCustomerDetails: !!customerDetails,
+      peopleCount,
+      selectedItemsCount: selectedItems?.length || 0,
+      hasMenuSelections: !!menuSelections,
+      hasPricing: !!pricing,
+      deliveryType,
+      isCustomOrder,
+    });
+
+    // Validate required fields
+    if (
+      !customerDetails ||
+      !customerDetails.name ||
+      !customerDetails.email ||
+      !customerDetails.phone
+    ) {
+      return sendResponse(res, 400, false, "Customer details are required");
+    }
+
+    if (!peopleCount || peopleCount < 1) {
+      return sendResponse(res, 400, false, "Valid people count is required");
+    }
+
+    if (!deliveryDate) {
+      return sendResponse(res, 400, false, "Delivery date is required");
+    }
+
+    if (!menu || (!menu.menuId && !isCustomOrder)) {
+      return sendResponse(res, 400, false, "Menu information is required");
     }
 
     let source = null;
     let location = null;
+    let processedItems = [];
 
-    // Validate and get source information
-    if (orderSource.sourceType === "menu") {
-      if (!orderSource.sourceId) {
+    if (isCustomOrder) {
+      // Handle Custom Order
+      console.log("🎨 Processing Custom Order");
+
+      if (!menu.locationId || !menu.serviceId) {
         return sendResponse(
           res,
           400,
           false,
-          "Menu ID is required for menu orders"
+          "Location and service are required for custom orders"
         );
       }
 
-      source = await Menu.findById(orderSource.sourceId)
+      // For custom orders, we might not have a specific customOrder document
+      // Instead, we use the location and service directly
+      location = await Location.findById(menu.locationId);
+      if (!location) {
+        return sendResponse(res, 404, false, "Location not found");
+      }
+
+      // Process selected items directly from frontend
+      if (selectedItems && selectedItems.length > 0) {
+        processedItems = processSelectedItems(selectedItems, peopleCount);
+        console.log(`✅ Processed ${processedItems.length} custom order items`);
+      } else {
+        return sendResponse(
+          res,
+          400,
+          false,
+          "Selected items are required for custom orders"
+        );
+      }
+    } else {
+      // Handle Menu Order
+      console.log("📋 Processing Menu Order");
+
+      source = await Menu.findById(menu.menuId)
         .populate("locationId")
         .populate("serviceId");
 
@@ -340,53 +479,30 @@ const createBooking = asyncHandler(async (req, res) => {
           `Number of people must be between ${source.minPeople} and ${source.maxPeople}`
         );
       }
-    } else if (orderSource.sourceType === "customOrder") {
-      if (!orderSource.sourceId) {
-        return sendResponse(
-          res,
-          400,
-          false,
-          "Custom Order ID is required for custom orders"
+
+      // Process selected items
+      if (selectedItems && selectedItems.length > 0) {
+        processedItems = processSelectedItems(selectedItems, peopleCount);
+        console.log(
+          `✅ Processed ${processedItems.length} menu items from selectedItems`
         );
-      }
-
-      source = await CustomOrder.findById(orderSource.sourceId)
-        .populate("locationId")
-        .populate("serviceId");
-
-      if (!source || !source.isActive) {
-        return sendResponse(
-          res,
-          404,
-          false,
-          "Custom Order configuration not found or inactive"
-        );
-      }
-
-      location = source.locationId;
-
-      // Verify people count is within custom order limits
-      if (peopleCount < source.minPeople || peopleCount > source.maxPeople) {
-        return sendResponse(
-          res,
-          400,
-          false,
-          `Number of people must be between ${source.minPeople} and ${source.maxPeople}`
-        );
-      }
-
-      // Validate custom order selections
-      if (rawSelections) {
-        const validation = source.validateSelections(
-          rawSelections,
+      } else if (menuSelections) {
+        processedItems = convertMenuSelectionsToBookingItems(
+          source,
+          menuSelections,
           peopleCount
         );
-        if (!validation.isValid) {
-          return sendResponse(res, 400, false, validation.errors[0]);
-        }
+        console.log(
+          `✅ Converted ${processedItems.length} items from menuSelections`
+        );
+      } else {
+        return sendResponse(
+          res,
+          400,
+          false,
+          "Either selectedItems or menuSelections must be provided"
+        );
       }
-    } else {
-      return sendResponse(res, 400, false, "Invalid order source type");
     }
 
     // Generate booking reference
@@ -404,7 +520,7 @@ const createBooking = asyncHandler(async (req, res) => {
         const random = Math.floor(Math.random() * 1000)
           .toString()
           .padStart(3, "0");
-        const prefix = orderSource.sourceType === "customOrder" ? "CU" : "BK";
+        const prefix = isCustomOrder ? "CU" : "BK";
         reference = `${prefix}${year}${month}${day}${random}`;
 
         const existingBooking = await Booking.findOne({
@@ -425,65 +541,43 @@ const createBooking = asyncHandler(async (req, res) => {
 
     const bookingReference = await generateReference();
 
-    // Convert selections to booking items if not provided
-    let bookingItems = selectedItems;
-    if (!bookingItems || bookingItems.length === 0) {
-      if (rawSelections) {
-        bookingItems = convertSelectionsToBookingItems(
-          source,
-          rawSelections,
-          peopleCount,
-          orderSource.sourceType
-        );
-      } else {
-        return sendResponse(
-          res,
-          400,
-          false,
-          "Either selectedItems or rawSelections must be provided"
-        );
-      }
-    }
-
     // Prepare booking data
     const bookingData = {
       bookingReference,
       orderSource: {
-        sourceType: orderSource.sourceType,
-        sourceId: source._id,
-        sourceName: source.name,
+        sourceType: isCustomOrder ? "customOrder" : "menu",
+        sourceId: isCustomOrder ? new mongoose.Types.ObjectId() : source._id, // For custom orders without specific document
+        sourceName: menu.name || (source ? source.name : "Custom Order"),
         basePrice:
-          orderSource.sourceType === "menu"
-            ? source.basePrice || source.price || 0
-            : 0,
+          menu.basePrice ||
+          (source ? source.basePrice || source.price || 0 : 0),
         locationId: location._id,
         locationName: location.name,
-        serviceId: source.serviceId._id,
-        serviceName: source.serviceId.name,
+        serviceId: isCustomOrder ? menu.serviceId : source.serviceId._id,
+        serviceName: isCustomOrder ? menu.serviceName : source.serviceId.name,
       },
       customerDetails: {
         name: customerDetails.name,
-        email: customerDetails.email,
+        email: customerDetails.email.toLowerCase(),
         phone: customerDetails.phone,
         specialInstructions: customerDetails.specialInstructions || "",
         dietaryRequirements: customerDetails.dietaryRequirements || [],
         spiceLevel: customerDetails.spiceLevel || "medium",
       },
       peopleCount,
-      selectedItems: bookingItems,
+      selectedItems: processedItems,
       pricing: pricing || {
-        basePrice:
-          orderSource.sourceType === "menu"
-            ? (source.basePrice || source.price || 0) * peopleCount
-            : 0,
+        basePrice: isCustomOrder
+          ? 0
+          : (source?.basePrice || source?.price || 0) * peopleCount,
         modifierPrice: 0,
         itemsPrice: 0,
         addonsPrice: 0,
-        total: 0,
+        total: pricing?.total || 0,
       },
-      deliveryType: req.body.deliveryType || "Pickup",
-      deliveryDate: new Date(req.body.deliveryDate),
-      address: req.body.address || null,
+      deliveryType: deliveryType || "Pickup",
+      deliveryDate: new Date(deliveryDate),
+      address: deliveryType === "Delivery" ? address : undefined,
       status: "pending",
       paymentStatus: "pending",
       depositAmount: 0,
@@ -493,9 +587,21 @@ const createBooking = asyncHandler(async (req, res) => {
       isDeleted: false,
     };
 
+    console.log("💾 Saving booking with:", {
+      bookingReference: bookingData.bookingReference,
+      sourceType: bookingData.orderSource.sourceType,
+      itemsCount: bookingData.selectedItems.length,
+      totalPrice: bookingData.pricing.total,
+    });
+
     // Create booking
     const booking = new Booking(bookingData);
     const savedBooking = await booking.save();
+
+    console.log(
+      "✅ Booking saved successfully:",
+      savedBooking.bookingReference
+    );
 
     // Get location with bank details for customer email
     let locationWithBankDetails = null;
@@ -552,10 +658,9 @@ const createBooking = asyncHandler(async (req, res) => {
     // Return booking reference for customer
     sendResponse(res, 201, true, "Booking created successfully", {
       bookingReference: savedBooking.bookingReference,
-      message:
-        orderSource.sourceType === "customOrder"
-          ? "Your custom order has been submitted successfully. You will receive a confirmation email and SMS shortly."
-          : "Your booking has been submitted successfully. You will receive a confirmation email and SMS shortly.",
+      message: isCustomOrder
+        ? "Your custom order has been submitted successfully. You will receive a confirmation email and SMS shortly."
+        : "Your booking has been submitted successfully. You will receive a confirmation email and SMS shortly.",
     });
   } catch (error) {
     console.error("Create booking error:", error);
@@ -867,7 +972,12 @@ const updateBooking = asyncHandler(async (req, res) => {
     if (deliveryType) booking.deliveryType = deliveryType;
     if (deliveryDate) booking.deliveryDate = new Date(deliveryDate);
     if (address && deliveryType === "Delivery") booking.address = address;
-    if (selectedItems) booking.selectedItems = selectedItems;
+    if (selectedItems) {
+      booking.selectedItems = processSelectedItems(
+        selectedItems,
+        booking.peopleCount
+      );
+    }
     if (pricing) booking.pricing = pricing;
     if (adminNotes !== undefined) booking.adminNotes = adminNotes;
 
@@ -888,12 +998,13 @@ const updateBooking = asyncHandler(async (req, res) => {
   }
 });
 
-// @desc    Get booking statistics
+// @desc    Get booking statistics with unique dishes for dashboard
 // @route   GET /api/bookings/stats
 // @access  Private (Admin only)
 const getBookingStats = asyncHandler(async (req, res) => {
   try {
-    const { locationId, serviceId, sourceType, startDate, endDate } = req.query;
+    const { locationId, serviceId, sourceType, startDate, endDate, date } =
+      req.query;
 
     // Build match query
     const matchQuery = { isDeleted: false };
@@ -945,7 +1056,7 @@ const getBookingStats = asyncHandler(async (req, res) => {
               $cond: [{ $eq: ["$orderSource.sourceType", "menu"] }, 1, 0],
             },
           },
-          statusCounts: {
+          statusBreakdown: {
             $push: "$status",
           },
           dietaryBreakdown: {
@@ -965,33 +1076,276 @@ const getBookingStats = asyncHandler(async (req, res) => {
       {
         $group: {
           _id: "$selectedItems.name",
-          count: { $sum: 1 },
+          count: { $sum: "$selectedItems.quantity" },
           category: { $first: "$selectedItems.category" },
           type: { $first: "$selectedItems.type" },
           totalRevenue: { $sum: "$selectedItems.totalPrice" },
+          averagePrice: { $avg: "$selectedItems.totalPrice" },
         },
       },
       { $sort: { count: -1 } },
-      { $limit: 10 },
+      { $limit: 15 },
     ]);
 
-    sendResponse(res, 200, true, "Booking statistics retrieved successfully", {
-      overview: stats || {
-        totalBookings: 0,
-        totalRevenue: 0,
-        totalPeople: 0,
-        averageOrderValue: 0,
-        customOrders: 0,
-        menuOrders: 0,
-        statusCounts: {},
-        dietaryBreakdown: [],
-        spiceLevelBreakdown: [],
+    // Get unique dishes for today if date is provided
+    let uniqueDishesToday = 0;
+    if (date) {
+      const targetDate = new Date(date);
+      const startOfDay = new Date(targetDate.setHours(0, 0, 0, 0));
+      const endOfDay = new Date(targetDate.setHours(23, 59, 59, 999));
+
+      const todayMatchQuery = {
+        ...matchQuery,
+        deliveryDate: {
+          $gte: startOfDay,
+          $lte: endOfDay,
+        },
+      };
+
+      const uniqueDishesResult = await Booking.aggregate([
+        { $match: todayMatchQuery },
+        { $unwind: "$selectedItems" },
+        {
+          $group: {
+            _id: "$selectedItems.name",
+            totalQuantity: { $sum: "$selectedItems.quantity" },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            uniqueDishes: { $sum: 1 },
+            totalItems: { $sum: "$totalQuantity" },
+          },
+        },
+      ]);
+
+      if (uniqueDishesResult.length > 0) {
+        uniqueDishesToday = uniqueDishesResult[0].uniqueDishes;
+      }
+    }
+
+    // Get daily booking trends (last 7 days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const dailyTrends = await Booking.aggregate([
+      {
+        $match: {
+          ...matchQuery,
+          orderDate: { $gte: sevenDaysAgo },
+        },
       },
+      {
+        $group: {
+          _id: {
+            $dateToString: {
+              format: "%Y-%m-%d",
+              date: "$orderDate",
+            },
+          },
+          bookings: { $sum: 1 },
+          revenue: { $sum: "$pricing.total" },
+          people: { $sum: "$peopleCount" },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    // Get category breakdown
+    const categoryBreakdown = await Booking.aggregate([
+      { $match: matchQuery },
+      { $unwind: "$selectedItems" },
+      {
+        $group: {
+          _id: "$selectedItems.category",
+          count: { $sum: "$selectedItems.quantity" },
+          revenue: { $sum: "$selectedItems.totalPrice" },
+        },
+      },
+      { $sort: { count: -1 } },
+    ]);
+
+    // Process status breakdown
+    const statusCounts = {};
+    if (stats && stats.statusBreakdown) {
+      stats.statusBreakdown.forEach((status) => {
+        statusCounts[status] = (statusCounts[status] || 0) + 1;
+      });
+    }
+
+    // Process dietary requirements breakdown
+    const dietaryCounts = {};
+    if (stats && stats.dietaryBreakdown) {
+      stats.dietaryBreakdown.forEach((requirements) => {
+        if (Array.isArray(requirements)) {
+          requirements.forEach((req) => {
+            dietaryCounts[req] = (dietaryCounts[req] || 0) + 1;
+          });
+        }
+      });
+    }
+
+    // Process spice level breakdown
+    const spiceCounts = {};
+    if (stats && stats.spiceLevelBreakdown) {
+      stats.spiceLevelBreakdown.forEach((level) => {
+        spiceCounts[level] = (spiceCounts[level] || 0) + 1;
+      });
+    }
+
+    const responseData = {
+      overview: stats
+        ? {
+            ...stats,
+            statusBreakdown: statusCounts,
+            dietaryBreakdown: dietaryCounts,
+            spiceLevelBreakdown: spiceCounts,
+            uniqueDishesToday,
+          }
+        : {
+            totalBookings: 0,
+            totalRevenue: 0,
+            totalPeople: 0,
+            averageOrderValue: 0,
+            customOrders: 0,
+            menuOrders: 0,
+            statusBreakdown: {},
+            dietaryBreakdown: {},
+            spiceLevelBreakdown: {},
+            uniqueDishesToday: 0,
+          },
       popularItems,
-    });
+      dailyTrends,
+      categoryBreakdown,
+    };
+
+    sendResponse(
+      res,
+      200,
+      true,
+      "Booking statistics retrieved successfully",
+      responseData
+    );
   } catch (error) {
     console.error("Get booking stats error:", error);
     sendResponse(res, 500, false, "Failed to retrieve booking statistics", {
+      error: error.message,
+    });
+  }
+});
+
+// @desc    Get unique dishes count for specific date (Dashboard feature)
+// @route   GET /api/bookings/unique-dishes
+// @access  Private (Admin only)
+const getUniqueDishesCount = asyncHandler(async (req, res) => {
+  try {
+    const { date, locationId, serviceId } = req.query;
+
+    if (!date) {
+      return sendResponse(res, 400, false, "Date parameter is required");
+    }
+
+    const targetDate = new Date(date);
+    const startOfDay = new Date(targetDate.setHours(0, 0, 0, 0));
+    const endOfDay = new Date(targetDate.setHours(23, 59, 59, 999));
+
+    // Build match query
+    const matchQuery = {
+      isDeleted: false,
+      deliveryDate: {
+        $gte: startOfDay,
+        $lte: endOfDay,
+      },
+    };
+
+    if (locationId) {
+      matchQuery["orderSource.locationId"] = new mongoose.Types.ObjectId(
+        locationId
+      );
+    }
+
+    if (serviceId) {
+      matchQuery["orderSource.serviceId"] = new mongoose.Types.ObjectId(
+        serviceId
+      );
+    }
+
+    // Get unique dishes with details
+    const dishesData = await Booking.aggregate([
+      { $match: matchQuery },
+      { $unwind: "$selectedItems" },
+      {
+        $group: {
+          _id: {
+            name: "$selectedItems.name",
+            category: "$selectedItems.category",
+          },
+          totalQuantity: { $sum: "$selectedItems.quantity" },
+          totalOrders: { $sum: 1 },
+          totalRevenue: { $sum: "$selectedItems.totalPrice" },
+          averagePrice: { $avg: "$selectedItems.totalPrice" },
+          bookings: {
+            $push: {
+              bookingReference: "$bookingReference",
+              customerName: "$customerDetails.name",
+              quantity: "$selectedItems.quantity",
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          dishName: "$_id.name",
+          category: "$_id.category",
+          totalQuantity: 1,
+          totalOrders: 1,
+          totalRevenue: 1,
+          averagePrice: 1,
+          bookings: 1,
+          _id: 0,
+        },
+      },
+      { $sort: { totalQuantity: -1 } },
+    ]);
+
+    const uniqueDishesCount = dishesData.length;
+    const totalQuantity = dishesData.reduce(
+      (sum, dish) => sum + dish.totalQuantity,
+      0
+    );
+    const totalRevenue = dishesData.reduce(
+      (sum, dish) => sum + dish.totalRevenue,
+      0
+    );
+
+    // Group by category
+    const categoryBreakdown = {};
+    dishesData.forEach((dish) => {
+      const category = dish.category || "other";
+      if (!categoryBreakdown[category]) {
+        categoryBreakdown[category] = {
+          uniqueDishes: 0,
+          totalQuantity: 0,
+          totalRevenue: 0,
+        };
+      }
+      categoryBreakdown[category].uniqueDishes += 1;
+      categoryBreakdown[category].totalQuantity += dish.totalQuantity;
+      categoryBreakdown[category].totalRevenue += dish.totalRevenue;
+    });
+
+    sendResponse(res, 200, true, "Unique dishes data retrieved successfully", {
+      date: date,
+      uniqueDishesCount,
+      totalQuantity,
+      totalRevenue,
+      dishes: dishesData,
+      categoryBreakdown,
+    });
+  } catch (error) {
+    console.error("Get unique dishes count error:", error);
+    sendResponse(res, 500, false, "Failed to retrieve unique dishes data", {
       error: error.message,
     });
   }
@@ -1293,6 +1647,7 @@ module.exports = {
   updatePaymentStatus,
   updateBooking,
   getBookingStats,
+  getUniqueDishesCount,
   cancelBooking,
   getBookingsByCustomer,
   getBookingByReference,

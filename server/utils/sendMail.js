@@ -1,3 +1,5 @@
+// utils/sendMail.js - Complete file with all email functions
+
 const {
   ADMIN_INQUIRY_NOTIFICATION_TEMPLATE,
   CUSTOMER_INQUIRY_CONFIRMATION_TEMPLATE,
@@ -38,6 +40,29 @@ const formatTime = (date) => {
   });
 };
 
+// Helper function to format currency properly
+const formatCurrency = (amount) => {
+  const num = parseFloat(amount) || 0;
+  return num.toFixed(2);
+};
+
+// Helper function to format address
+const formatAddress = (address) => {
+  if (!address) return "";
+  if (typeof address === "string") return address;
+
+  // Handle object address format
+  const parts = [];
+  if (address.street) parts.push(address.street);
+  if (address.suburb) parts.push(address.suburb);
+  if (address.state && address.postcode)
+    parts.push(`${address.state} ${address.postcode}`);
+  else if (address.state) parts.push(address.state);
+  else if (address.postcode) parts.push(address.postcode);
+
+  return parts.join(", ");
+};
+
 // Helper function to check if event date is urgent (within 7 days)
 const getEventDateUrgency = (eventDate) => {
   const today = new Date();
@@ -45,25 +70,16 @@ const getEventDateUrgency = (eventDate) => {
   const diffTime = event - today;
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-  return diffDays <= 7 ? "urgent" : "";
+  return diffDays <= 7 && diffDays >= 0 ? "urgent" : "";
 };
 
-// Helper function to format address
-const formatAddress = (address) => {
-  if (!address) return "";
-  return `${address.street}, ${address.suburb}, ${address.state} ${address.postcode}`;
-};
-
-// Helper function to replace template conditionals
-const replaceConditionals = (template, condition, content) => {
-  if (condition) {
-    return template
-      .replace(/{{#if [^}]+}}/g, "")
-      .replace(/{{\/if}}/g, "")
-      .replace(/{{[^}]+}}/g, (match) => content[match.slice(2, -2)] || match);
-  } else {
-    return template.replace(/{{#if [^}]+}}.*?{{\/if}}/gs, "");
-  }
+// Helper function to check if event date is urgent (within 7 days) - boolean
+const isEventUrgent = (eventDate) => {
+  const today = new Date();
+  const event = new Date(eventDate);
+  const diffTime = event - today;
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays <= 7 && diffDays >= 0;
 };
 
 // Send admin notification email for inquiries
@@ -209,206 +225,248 @@ const sendCustomerInquiryConfirmation = async (inquiryData) => {
   }
 };
 
-// Fixed email service functions with proper template processing
-
-// Helper function to format currency properly
-const formatCurrency = (amount) => {
-  const num = parseFloat(amount) || 0;
-  return num.toFixed(2);
-};
-
-// Helper function to process conditional sections
-const processConditionals = (template, data) => {
-  // Process {{#if condition}} blocks
-  let processedTemplate = template;
-
-  // Handle {{#if isCustomOrder}} blocks
-  if (data.isCustomOrder) {
-    processedTemplate = processedTemplate
-      .replace(/\{\{#if isCustomOrder\}\}/g, "")
-      .replace(/\{\{\/if\}\}/g, "");
-  } else {
-    processedTemplate = processedTemplate.replace(
-      /\{\{#if isCustomOrder\}\}.*?\{\{\/if\}\}/gs,
-      ""
-    );
-  }
-
-  // Handle {{#if selectedItems}} blocks
-  if (data.selectedItems && data.selectedItems.length > 0) {
-    processedTemplate = processedTemplate
-      .replace(/\{\{#if selectedItems\}\}/g, "")
-      .replace(/\{\{\/selectedItems\}\}/g, "");
-  } else {
-    processedTemplate = processedTemplate.replace(
-      /\{\{#if selectedItems\}\}.*?\{\{\/selectedItems\}\}/gs,
-      ""
-    );
-  }
-
-  // Handle {{#if deliveryAddress}} blocks
-  if (data.deliveryAddress) {
-    processedTemplate = processedTemplate
-      .replace(/\{\{#if deliveryAddress\}\}/g, "")
-      .replace(/\{\{\/deliveryAddress\}\}/g, "");
-  } else {
-    processedTemplate = processedTemplate.replace(
-      /\{\{#if deliveryAddress\}\}.*?\{\{\/deliveryAddress\}\}/gs,
-      ""
-    );
-  }
-
-  // Handle {{#if specialInstructions}} blocks
-  if (data.specialInstructions) {
-    processedTemplate = processedTemplate
-      .replace(/\{\{#if specialInstructions\}\}/g, "")
-      .replace(/\{\{\/specialInstructions\}\}/g, "");
-  } else {
-    processedTemplate = processedTemplate.replace(
-      /\{\{#if specialInstructions\}\}.*?\{\{\/specialInstructions\}\}/gs,
-      ""
-    );
-  }
-
-  // Handle {{#if message}} blocks
-  if (data.message) {
-    processedTemplate = processedTemplate
-      .replace(/\{\{#if message\}\}/g, "")
-      .replace(/\{\{\/message\}\}/g, "");
-  } else {
-    processedTemplate = processedTemplate.replace(
-      /\{\{#if message\}\}.*?\{\{\/message\}\}/gs,
-      ""
-    );
-  }
-
-  return processedTemplate;
-};
-
 // Updated sendAdminBookingNotification function
 const sendAdminBookingNotification = async (bookingData) => {
   try {
     console.log("🚀 Starting admin booking email notification...");
+    console.log("📋 Booking data structure:", {
+      hasOrderSource: !!bookingData.orderSource,
+      orderSourceType: bookingData.orderSource?.sourceType,
+      hasMenu: !!bookingData.menu,
+      hasCustomerDetails: !!bookingData.customerDetails,
+      hasPricing: !!bookingData.pricing,
+    });
 
-    const eventDateUrgency = getEventDateUrgency(bookingData.deliveryDate);
+    // Format dates properly
     const formattedEventDate = formatDate(bookingData.deliveryDate);
     const formattedEventTime = formatTime(bookingData.deliveryDate);
-    const submittedAt = formatDateTime(bookingData.createdAt || new Date());
+    const submittedAt = formatDateTime(
+      bookingData.createdAt || bookingData.orderDate || new Date()
+    );
 
-    // Format delivery address if available
-    const deliveryAddress =
-      bookingData.deliveryType === "Delivery" && bookingData.address
-        ? formatAddress(bookingData.address)
-        : "";
+    // Check if event is urgent (within 7 days)
+    const urgent = isEventUrgent(bookingData.deliveryDate);
 
-    // Format delivery address section
-    const deliveryAddressSection = deliveryAddress
-      ? `<div class="detail-row">
-           <span class="detail-label">Delivery Address:</span>
-           <span class="detail-value">${deliveryAddress}</span>
-         </div>`
-      : "";
+    // Determine if it's a custom order or menu package
+    const isCustomOrder =
+      bookingData.orderSource?.sourceType === "customOrder" ||
+      bookingData.isCustomOrder === true;
 
-    // Format selected items HTML
-    let selectedItemsHtml = "";
-    if (bookingData.selectedItems && bookingData.selectedItems.length > 0) {
-      selectedItemsHtml = bookingData.selectedItems
-        .map((item) => `<li>${item.name} - $${formatCurrency(item.price)}</li>`)
-        .join("");
+    console.log("🔍 Order type determination:", { isCustomOrder });
+
+    // Get order type name properly
+    let orderType = "Catering Order";
+    if (bookingData.orderSource?.sourceName) {
+      orderType = bookingData.orderSource.sourceName;
+    } else if (bookingData.menu?.name) {
+      orderType = bookingData.menu.name;
     }
 
-    const selectedItemsSection = selectedItemsHtml
-      ? `<div class="items-section">
-           <div class="items-title">Selected Items:</div>
-           <ul class="item-list">${selectedItemsHtml}</ul>
-         </div>`
-      : "";
+    // Get service and location names properly
+    let serviceName = "Catering Service";
+    let locationName = "Our Location";
+
+    if (bookingData.orderSource?.serviceName) {
+      serviceName = bookingData.orderSource.serviceName;
+    } else if (bookingData.menu?.serviceName) {
+      serviceName = bookingData.menu.serviceName;
+    }
+
+    if (bookingData.orderSource?.locationName) {
+      locationName = bookingData.orderSource.locationName;
+    } else if (bookingData.menu?.locationName) {
+      locationName = bookingData.menu.locationName;
+    }
+
+    console.log("📍 Service & Location:", { serviceName, locationName });
+
+    // Create order type badge
+    let orderTypeBadge = "";
+    if (isCustomOrder) {
+      orderTypeBadge =
+        '<span class="order-type-badge custom-order-badge">Custom Order</span>';
+    } else {
+      orderTypeBadge = '<span class="order-type-badge">Menu Package</span>';
+    }
+
+    // Create urgent badge
+    let urgentBadge = "";
+    if (urgent) {
+      urgentBadge =
+        '<span class="urgent-badge">Urgent - Event within 7 days</span>';
+    }
+
+    // Format delivery address
+    let deliveryAddressSection = "";
+    if (bookingData.deliveryType === "Delivery" && bookingData.address) {
+      const deliveryAddress = formatAddress(bookingData.address);
+      deliveryAddressSection = `
+        <div class="detail-row">
+          <span class="detail-label">Delivery Address:</span>
+          <span class="detail-value">${deliveryAddress}</span>
+        </div>
+      `;
+    }
 
     // Format special instructions
-    const specialInstructionsSection = bookingData.customerDetails
-      ?.specialInstructions
-      ? `<div class="message-section">
-           <div class="message-label">Special Instructions:</div>
-           <div>${bookingData.customerDetails.specialInstructions}</div>
-         </div>`
-      : "";
-
-    // Format dietary requirements
-    let dietaryHtml = "";
-    if (bookingData.customerDetails?.dietaryRequirements?.length > 0) {
-      dietaryHtml = bookingData.customerDetails.dietaryRequirements
-        .map(
-          (req) =>
-            `<li>${
-              req.charAt(0).toUpperCase() + req.slice(1).replace("-", " ")
-            }</li>`
-        )
-        .join("");
+    let specialInstructionsSection = "";
+    if (bookingData.customerDetails?.specialInstructions) {
+      specialInstructionsSection = `
+        <div class="special-section">
+          <div class="special-title">📝 Special Instructions from Customer</div>
+          <div class="special-content">${bookingData.customerDetails.specialInstructions}</div>
+        </div>
+      `;
     }
 
-    const dietarySection = dietaryHtml
-      ? `<div class="items-section">
-           <div class="items-title">Dietary Requirements:</div>
-           <ul class="item-list">${dietaryHtml}</ul>
-         </div>`
-      : "";
+    // Format dietary requirements
+    let dietaryRequirementsSection = "";
+    const dietaryRequirements = [];
 
-    // Custom order badge
-    const customOrderBadge = bookingData.isCustomOrder
-      ? '<span class="custom-order-badge">Custom</span>'
-      : "";
+    if (bookingData.customerDetails?.dietaryRequirements?.length > 0) {
+      dietaryRequirements.push(
+        ...bookingData.customerDetails.dietaryRequirements
+      );
+    }
 
-    // Prepare template data
-    const templateData = {
+    if (bookingData.customerDetails?.spiceLevel) {
+      dietaryRequirements.push(
+        `Spice Level: ${
+          bookingData.customerDetails.spiceLevel.charAt(0).toUpperCase() +
+          bookingData.customerDetails.spiceLevel.slice(1)
+        }`
+      );
+    }
+
+    if (dietaryRequirements.length > 0) {
+      dietaryRequirementsSection = `
+        <div class="special-section">
+          <div class="special-title">🥗 Dietary Requirements</div>
+          <div class="special-content">${dietaryRequirements.join(", ")}</div>
+        </div>
+      `;
+    }
+
+    // ✅ START: REFACTORED ITEM DISPLAY LOGIC
+    let selectedItemsSection = "";
+    if (bookingData.selectedItems?.length > 0) {
+      const itemsHtml = bookingData.selectedItems
+        .map((item) => {
+          // Conditionally add price only for custom orders
+          const priceHtml = isCustomOrder
+            ? `<span class="item-price">$${formatCurrency(
+                item.totalPrice ||
+                  item.pricePerPerson * bookingData.peopleCount ||
+                  0
+              )}</span>`
+            : "";
+
+          return `
+            <li class="item">
+              <span class="item-name">${item.name}</span>
+              <span class="item-quantity"> x ${
+                item.quantity > 0 ? item.quantity : ""
+              }</span>
+              ${priceHtml}
+            </li>
+          `;
+        })
+        .join("");
+
+      // Use a dynamic header based on the order type
+      const itemsHeader = isCustomOrder
+        ? "🍽️ Customer Selected Items"
+        : "📦 Menu Package Items";
+
+      selectedItemsSection = `
+        <div class="items-section">
+          <div class="items-header">${itemsHeader}</div>
+          <ul class="items-list">
+            ${itemsHtml}
+          </ul>
+        </div>
+      `;
+    }
+    // ✅ END: REFACTORED ITEM DISPLAY LOGIC
+
+    // Create urgent warning if needed
+    let urgentWarning = "";
+    if (urgent) {
+      urgentWarning = `
+        <div class="alert-message" style="background-color: #f8d7da; border-left: 4px solid #dc3545; color: #721c24;">
+          ⚠️ <strong>Urgent:</strong> This event is scheduled within the next 7 days. Please process this booking immediately and contact the customer to confirm details.
+        </div>
+      `;
+    }
+
+    // Prepare all template replacements
+    const replacements = {
+      // Company info
+      companyName: process.env.COMPANY_NAME || "MC Catering Services",
+      currentYear: new Date().getFullYear().toString(),
+
+      // Booking info
       bookingReference: bookingData.bookingReference || "N/A",
-      orderType: bookingData.menu?.name || "N/A",
-      isCustomOrder: bookingData.isCustomOrder || false,
+      orderType: orderType,
+      orderTypeBadge: orderTypeBadge,
+
+      // Customer info
       customerName: bookingData.customerDetails?.name || "N/A",
       customerEmail: bookingData.customerDetails?.email || "N/A",
       customerPhone: bookingData.customerDetails?.phone || "N/A",
+
+      // Event details
       eventDate: formattedEventDate,
       eventTime: formattedEventTime,
-      eventDateUrgency: eventDateUrgency,
+      eventDateClass: urgent ? "urgent-date" : "",
       numberOfPeople: bookingData.peopleCount || "N/A",
-      serviceName: bookingData.menu?.serviceName || "N/A",
-      locationName: bookingData.menu?.locationName || "N/A",
+      serviceName: serviceName,
+      locationName: locationName,
       deliveryType: bookingData.deliveryType || "N/A",
-      deliveryAddress: deliveryAddress,
-      deliveryAddressSection: deliveryAddressSection,
+
+      // Pricing
       totalAmount: formatCurrency(bookingData.pricing?.total || 0),
+
+      // Timestamps
       submittedAt: submittedAt,
-      specialInstructions:
-        bookingData.customerDetails?.specialInstructions || "",
+
+      // Dynamic sections
+      urgentBadge: urgentBadge,
+      urgentWarning: urgentWarning,
+      deliveryAddressSection: deliveryAddressSection,
+      selectedItemsSection: selectedItemsSection, // Correctly updated
       specialInstructionsSection: specialInstructionsSection,
-      selectedItemsHtml: selectedItemsHtml,
-      selectedItemsSection: selectedItemsSection,
-      dietarySection: dietarySection,
-      customOrderBadge: customOrderBadge,
+      dietaryRequirementsSection: dietaryRequirementsSection,
+
+      // Admin URLs
       adminDashboardUrl:
         process.env.ADMIN_DASHBOARD_URL || "https://www.example.com",
     };
 
-    // Process the template
+    // Apply all replacements to template
     let emailContent = ADMIN_BOOKING_NOTIFICATION_TEMPLATE;
 
-    // Replace all template variables
-    Object.keys(templateData).forEach((key) => {
+    Object.keys(replacements).forEach((key) => {
       const regex = new RegExp(`\\{\\{${key}\\}\\}`, "g");
-      emailContent = emailContent.replace(regex, templateData[key]);
+      emailContent = emailContent.replace(regex, replacements[key] || "");
     });
 
-    // Remove any remaining unmatched template tags
+    // Clean up any remaining template tags
     emailContent = emailContent.replace(/\{\{[^}]+\}\}/g, "");
+
+    // Determine email priority and subject
+    const priority = urgent ? "high" : "normal";
+    const urgentFlag = urgent ? "🚨 URGENT - " : "";
 
     const mailOptions = {
       from: {
-        name: process.env.COMPANY_NAME || "Your Company",
+        name: process.env.COMPANY_NAME || "Booking System",
         address: process.env.EMAIL,
       },
       to: process.env.ADMIN_EMAIL,
-      subject: `🎉 New Booking: ${bookingData.bookingReference} - $${templateData.totalAmount}`,
+      subject: `${urgentFlag}🎉 New Booking: ${bookingData.bookingReference} - $${replacements.totalAmount}`,
       html: emailContent,
-      priority: eventDateUrgency === "urgent" ? "high" : "normal",
+      priority: priority,
     };
 
     console.log("📧 Sending admin booking email to:", mailOptions.to);
@@ -430,6 +488,7 @@ const sendAdminBookingNotification = async (bookingData) => {
     };
   }
 };
+
 // Updated sendCustomerBookingConfirmation function
 const sendCustomerBookingConfirmation = async (
   bookingData,
@@ -437,160 +496,234 @@ const sendCustomerBookingConfirmation = async (
 ) => {
   try {
     console.log("🚀 Starting customer booking email confirmation...");
+    console.log("📋 Booking data structure:", {
+      hasOrderSource: !!bookingData.orderSource,
+      orderSourceType: bookingData.orderSource?.sourceType,
+      hasMenu: !!bookingData.menu,
+      hasCustomerDetails: !!bookingData.customerDetails,
+      hasPricing: !!bookingData.pricing,
+    });
 
+    // Format dates properly
     const formattedEventDate = formatDate(bookingData.deliveryDate);
     const formattedEventTime = formatTime(bookingData.deliveryDate);
-    const submittedAt = formatDateTime(bookingData.createdAt || new Date());
+    const submittedAt = formatDateTime(
+      bookingData.createdAt || bookingData.orderDate || new Date()
+    );
 
-    // Format delivery address if available
-    const deliveryAddress =
-      bookingData.deliveryType === "Delivery" && bookingData.address
-        ? formatAddress(bookingData.address)
-        : "";
+    // Determine if it's a custom order or menu package
+    const isCustomOrder =
+      bookingData.orderSource?.sourceType === "customOrder" ||
+      bookingData.isCustomOrder === true;
 
-    // Format selected items HTML
-    let selectedItemsHtml = "";
-    if (bookingData.selectedItems && bookingData.selectedItems.length > 0) {
-      selectedItemsHtml = bookingData.selectedItems
-        .map((item) => `<li>${item.name} - $${formatCurrency(item.price)}</li>`)
-        .join("");
+    console.log("🔍 Order type determination:", { isCustomOrder });
+
+    // Get order type name properly
+    let orderType = "Catering Order";
+    if (bookingData.orderSource?.sourceName) {
+      orderType = bookingData.orderSource.sourceName;
+    } else if (bookingData.menu?.name) {
+      orderType = bookingData.menu.name;
     }
 
-    // Format total amount properly
-    const totalAmount = formatCurrency(bookingData.pricing?.total || 0);
+    // Get service and location names properly
+    let serviceName = "Catering Service";
+    let locationName = "Our Location";
 
-    // Create delivery address section HTML if needed
+    if (bookingData.orderSource?.serviceName) {
+      serviceName = bookingData.orderSource.serviceName;
+    } else if (bookingData.menu?.serviceName) {
+      serviceName = bookingData.menu.serviceName;
+    }
+
+    if (bookingData.orderSource?.locationName) {
+      locationName = bookingData.orderSource.locationName;
+    } else if (bookingData.menu?.locationName) {
+      locationName = bookingData.menu.locationName;
+    }
+
+    console.log("📍 Service & Location:", { serviceName, locationName });
+
+    // Create order type badge
+    let orderTypeBadge = "";
+    if (isCustomOrder) {
+      orderTypeBadge =
+        '<span class="order-type-badge custom-order-badge">Custom Order</span>';
+    } else {
+      orderTypeBadge = '<span class="order-type-badge">Menu Package</span>';
+    }
+
+    // Format delivery address
     let deliveryAddressSection = "";
-    if (deliveryAddress) {
+    if (bookingData.deliveryType === "Delivery" && bookingData.address) {
+      const deliveryAddress = formatAddress(bookingData.address);
       deliveryAddressSection = `
         <div class="detail-row">
-          <span class="detail-label">🏠 Delivery Address:</span>
+          <span class="detail-label">Delivery Address:</span>
           <span class="detail-value">${deliveryAddress}</span>
         </div>
       `;
     }
 
-    // Create selected items section HTML if needed
+    // Format special instructions
+    let specialInstructionsSection = "";
+    if (bookingData.customerDetails?.specialInstructions) {
+      specialInstructionsSection = `
+        <div class="special-section">
+          <div class="special-title">📝 Special Instructions</div>
+          <div class="special-content">${bookingData.customerDetails.specialInstructions}</div>
+        </div>
+      `;
+    }
+
+    // Format dietary requirements
+    let dietaryRequirementsSection = "";
+    const dietaryRequirements = [];
+
+    if (bookingData.customerDetails?.dietaryRequirements?.length > 0) {
+      dietaryRequirements.push(
+        ...bookingData.customerDetails.dietaryRequirements
+      );
+    }
+
+    if (bookingData.customerDetails?.spiceLevel) {
+      dietaryRequirements.push(
+        `Spice Level: ${
+          bookingData.customerDetails.spiceLevel.charAt(0).toUpperCase() +
+          bookingData.customerDetails.spiceLevel.slice(1)
+        }`
+      );
+    }
+
+    if (dietaryRequirements.length > 0) {
+      dietaryRequirementsSection = `
+        <div class="special-section">
+          <div class="special-title">🥗 Dietary Requirements</div>
+          <div class="special-content">${dietaryRequirements.join(", ")}</div>
+        </div>
+      `;
+    }
+
+    // ✅ START: REFACTORED ITEM DISPLAY LOGIC
     let selectedItemsSection = "";
-    if (selectedItemsHtml) {
+    if (bookingData.selectedItems?.length > 0) {
+      const itemsHtml = bookingData.selectedItems
+        .map((item) => {
+          // Conditionally add price only for custom orders
+          const priceHtml = isCustomOrder
+            ? `<span class="item-price">$${formatCurrency(
+                item.totalPrice ||
+                  item.pricePerPerson * bookingData.peopleCount ||
+                  0
+              )}</span>`
+            : "";
+
+          return `
+            <li class="item">
+              <span class="item-name">${item.name}</span>
+              <span class="item-quantity"> x ${
+                item.quantity > 0 ? item.quantity : ""
+              }</span>
+              ${priceHtml}
+            </li>
+          `;
+        })
+        .join("");
+
+      // Use a dynamic, customer-friendly header
+      const itemsHeader = isCustomOrder
+        ? "🍽️ Your Selected Items"
+        : "📦 Items Included in Your Package";
+
       selectedItemsSection = `
         <div class="items-section">
-          <div class="items-title">Selected Items:</div>
-          <ul class="item-list">
-            ${selectedItemsHtml}
+          <div class="items-header">${itemsHeader}</div>
+          <ul class="items-list">
+            ${itemsHtml}
           </ul>
         </div>
       `;
     }
+    // ✅ END: REFACTORED ITEM DISPLAY LOGIC
 
-    // Create special instructions section HTML if needed
-    let specialInstructionsSection = "";
-    if (bookingData.customerDetails?.specialInstructions) {
-      specialInstructionsSection = `
-        <div class="items-section">
-          <div class="items-title">Special Instructions:</div>
-          <div>${bookingData.customerDetails.specialInstructions}</div>
-        </div>
-      `;
-    }
-
-    // Create dietary requirements section HTML if needed
-    let dietarySection = "";
-    if (
-      bookingData.customerDetails?.dietaryRequirements?.length > 0 ||
-      bookingData.customerDetails?.spiceLevel
-    ) {
-      let dietaryContent = "";
-
-      if (bookingData.customerDetails.dietaryRequirements?.length > 0) {
-        const dietaryList = bookingData.customerDetails.dietaryRequirements
-          .map(
-            (req) =>
-              `<li>${
-                req.charAt(0).toUpperCase() + req.slice(1).replace("-", " ")
-              }</li>`
-          )
-          .join("");
-
-        dietaryContent += `
-      <div style="margin-bottom: 10px;">
-        <strong>Dietary Requirements:</strong>
-        <ul style="margin: 5px 0 0 20px; padding-left: 15px;">
-          ${dietaryList}
-        </ul>
-      </div>
-    `;
-      }
-
-      if (bookingData.customerDetails.spiceLevel) {
-        dietaryContent += `
-      <div>
-        <strong>Spice Preference:</strong> 
-        ${
-          bookingData.customerDetails.spiceLevel.charAt(0).toUpperCase() +
-          bookingData.customerDetails.spiceLevel.slice(1)
-        }
-      </div>
-    `;
-      }
-
-      dietarySection = `
-    <div class="items-section" style="background-color: #f8f9fa; padding: 15px; border-radius: 6px; margin: 20px 0;">
-      <div class="items-title" style="font-weight: 600; color: #492a00; margin-bottom: 10px;">Dietary Preferences</div>
-      ${dietaryContent}
-    </div>
-  `;
-    }
-
-    // Create bank details section HTML if needed
+    // Format bank details section
     let bankDetailsSection = "";
     if (locationBankDetails) {
       bankDetailsSection = `
         <div class="bank-details">
-          <h3>🏦 Payment Details</h3>
+          <div class="bank-title">🏦 Payment Details</div>
+          <p style="text-align: center; margin-bottom: 15px; color: #155724;">
+            Please use the details below to make your payment:
+          </p>
           <div class="bank-info">
-            <strong>Bank Name:</strong> ${locationBankDetails.bankName}<br>
-            <strong>Account Name:</strong> ${locationBankDetails.accountName}<br>
-            <strong>BSB:</strong> ${locationBankDetails.bsb}<br>
-            <strong>Account Number:</strong> ${locationBankDetails.accountNumber}<br>
-            <strong>Reference:</strong> ${bookingData.bookingReference}
+            <div class="bank-row">
+              <span class="bank-label">Bank Name:</span>
+              <span class="bank-value">${locationBankDetails.bankName}</span>
+            </div>
+            <div class="bank-row">
+              <span class="bank-label">Account Name:</span>
+              <span class="bank-value">${locationBankDetails.accountName}</span>
+            </div>
+            <div class="bank-row">
+              <span class="bank-label">BSB:</span>
+              <span class="bank-value">${locationBankDetails.bsb}</span>
+            </div>
+            <div class="bank-row">
+              <span class="bank-label">Account Number:</span>
+              <span class="bank-value">${locationBankDetails.accountNumber}</span>
+            </div>
+            <div class="bank-row">
+              <span class="bank-label">Payment Reference:</span>
+              <span class="bank-value"><strong>${bookingData.bookingReference}</strong></span>
+            </div>
           </div>
-          <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;">
-            Please use your booking reference <strong>${bookingData.bookingReference}</strong> when making the payment.
+          <p style="text-align: center; margin-top: 15px; font-size: 14px; color: #155724;">
+            ⚠️ Please use your booking reference <strong>${bookingData.bookingReference}</strong> as the payment description.
           </p>
         </div>
       `;
     }
 
-    // Create custom order badge if needed
-    const customOrderBadge = bookingData.isCustomOrder
-      ? '<span class="custom-order-badge">Custom</span>'
-      : "";
+    // Prepare all template replacements
+    const replacements = {
+      // Company info
+      companyName: process.env.COMPANY_NAME || "MC Catering Services",
 
-    // Prepare template data
-    const templateData = {
+      // Customer info
       customerName: bookingData.customerDetails?.name || "Valued Customer",
+      customerPhone: bookingData.customerDetails?.phone || "N/A",
+
+      // Booking info
       bookingReference: bookingData.bookingReference || "N/A",
+      orderType: orderType,
+      orderTypeBadge: orderTypeBadge,
+
+      // Event details
       eventDate: formattedEventDate,
       eventTime: formattedEventTime,
       numberOfPeople: bookingData.peopleCount || "N/A",
-      serviceName: bookingData.menu?.serviceName || "N/A",
-      customOrderBadge: customOrderBadge,
-      locationName: bookingData.menu?.locationName || "N/A",
+      serviceName: serviceName,
+      locationName: locationName,
       deliveryType: bookingData.deliveryType || "N/A",
-      deliveryAddressSection: deliveryAddressSection,
-      customerPhone: bookingData.customerDetails?.phone || "N/A",
-      totalAmount: totalAmount,
-      submittedAt: submittedAt,
-      selectedItemsSection: selectedItemsSection,
-      specialInstructionsSection: specialInstructionsSection,
-      dietarySection: dietarySection,
 
+      // Pricing
+      totalAmount: formatCurrency(bookingData.pricing?.total || 0),
+
+      // Timestamps
+      submittedAt: submittedAt,
+
+      // Dynamic sections
+      deliveryAddressSection: deliveryAddressSection,
+      selectedItemsSection: selectedItemsSection, // Correctly updated
+      specialInstructionsSection: specialInstructionsSection,
+      dietaryRequirementsSection: dietaryRequirementsSection,
       bankDetailsSection: bankDetailsSection,
-      supportEmail: process.env.EMAIL,
+
+      // Contact info
+      supportEmail: process.env.EMAIL || "info@mccatering.com",
       supportPhone: process.env.SUPPORT_PHONE || "+61 XXX XXX XXX",
-      businessHours: process.env.BUSINESS_HOURS || "Mon-Fri 9:00 AM - 6:00 PM",
-      companyName: process.env.COMPANY_NAME || "MC Catering Services",
+      businessHours:
+        process.env.BUSINESS_HOURS || "Mon-Fri 9:00 AM - 6:00 PM",
       websiteUrl:
         process.env.ADMIN_DASHBOARD_URL || "https://www.mccatering.com.au",
       facebookUrl: process.env.FACEBOOK_URL || "#",
@@ -598,14 +731,16 @@ const sendCustomerBookingConfirmation = async (
       currentYear: new Date().getFullYear().toString(),
     };
 
-    // Start with the template
+    // Apply all replacements to template
     let emailContent = CUSTOMER_BOOKING_CONFIRMATION_TEMPLATE;
 
-    // Replace all template variables
-    Object.keys(templateData).forEach((key) => {
+    Object.keys(replacements).forEach((key) => {
       const regex = new RegExp(`\\{\\{${key}\\}\\}`, "g");
-      emailContent = emailContent.replace(regex, templateData[key] || "");
+      emailContent = emailContent.replace(regex, replacements[key] || "");
     });
+
+    // Clean up any remaining template tags
+    emailContent = emailContent.replace(/\{\{[^}]+\}\}/g, "");
 
     const mailOptions = {
       from: {

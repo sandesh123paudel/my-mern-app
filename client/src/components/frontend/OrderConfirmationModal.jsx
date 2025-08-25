@@ -54,12 +54,6 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [locations, setLocations] = useState([]);
   const [services, setServices] = useState([]);
-  const [selectedLocation, setSelectedLocation] = useState(
-    orderData?.menu?.locationId || ""
-  );
-  const [selectedService, setSelectedService] = useState(
-    orderData?.menu?.serviceId || ""
-  );
 
   // Inquiry auto-fill states
   const [inquiries, setInquiries] = useState([]);
@@ -81,6 +75,8 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
       }
 
       if (orderData?.isCustomOrder) {
+        // We still load locations and services for potential display purposes
+        // but don't use them for selection since they're already chosen
         try {
           const [locationsResult, servicesResult] = await Promise.all([
             getLocations(),
@@ -157,21 +153,6 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
     setShowInquiryDropdown(false);
     setSearchTerm("");
     toast.success(`Contact details filled from ${inquiry.name}'s inquiry!`);
-  };
-
-  // Get filtered services based on selected location
-  const getFilteredServices = () => {
-    if (!selectedLocation) return [];
-    return services.filter(
-      (service) =>
-        (service.locationId?._id || service.locationId) === selectedLocation
-    );
-  };
-
-  // Handle location change
-  const handleLocationChange = (locationId) => {
-    setSelectedLocation(locationId);
-    setSelectedService("");
   };
 
   // Handle dietary requirements toggle
@@ -280,7 +261,7 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
               name: addon.name,
               description: addon.description || "",
               category: "addons",
-              type: "fixedAddon",
+              type: "addon",
               pricePerPerson: addon.pricePerPerson || 0,
               totalPrice: totalPrice,
               quantity: addonSelection.quantity,
@@ -306,7 +287,7 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
               })`,
               description: addon.description || "",
               category: "addons",
-              type: "variableAddon",
+              type: "addon",
               pricePerUnit: addon.pricePerUnit || 0,
               totalPrice: totalPrice,
               quantity: addonSelection.quantity,
@@ -516,7 +497,10 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
           name: item.name,
           description: item.description || "",
           category: item.category || "other",
-          type: item.type || "selected",
+          type:
+            item.type === "fixedAddon" || item.type === "variableAddon"
+              ? "addon"
+              : item.type || "selected",
           pricePerPerson: item.pricePerPerson || 0,
           pricePerUnit: item.pricePerUnit || 0,
           totalPrice: item.totalPrice || 0,
@@ -757,11 +741,11 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
     }
 
     if (orderData?.isCustomOrder) {
-      if (!selectedLocation) {
-        errors.push("Please select a location");
+      if (!orderData?.menu?.locationId && !orderData?.locationId) {
+        errors.push("Location information is missing");
       }
-      if (!selectedService) {
-        errors.push("Please select a service type");
+      if (!orderData?.menu?.serviceId && !orderData?.serviceId) {
+        errors.push("Service information is missing");
       }
     }
 
@@ -795,39 +779,26 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
     setIsSubmitting(true);
 
     try {
-      let finalOrderData = { ...orderData };
-
-      if (orderData?.isCustomOrder) {
-        const selectedLocationObj = locations.find(
-          (loc) => loc._id === selectedLocation
-        );
-        const selectedServiceObj = services.find(
-          (service) => service._id === selectedService
-        );
-
-        finalOrderData.menu = {
-          ...orderData.menu,
-          menuId: null,
-          locationId: selectedLocation,
-          locationName: selectedLocationObj?.name || "Selected Location",
-          serviceId: selectedService,
-          serviceName: selectedServiceObj?.name || "Selected Service",
-        };
-      }
-
-      // Construct booking data with proper structure
+      // Prepare the booking data in the format expected by the backend
       const bookingData = {
         // Menu information
         menu: {
-          menuId:
-            finalOrderData?.menuId || finalOrderData?.menu?.menuId || null,
-          name: finalOrderData?.menu?.name || "Order",
-          basePrice:
-            finalOrderData?.menu?.basePrice || finalOrderData?.menu?.price || 0,
-          locationId: finalOrderData?.menu?.locationId,
-          locationName: finalOrderData?.menu?.locationName,
-          serviceId: finalOrderData?.menu?.serviceId,
-          serviceName: finalOrderData?.menu?.serviceName,
+          menuId: orderData?.menuId || orderData?.menu?.menuId || null,
+          name: orderData?.menu?.name || "Order",
+          basePrice: orderData?.menu?.basePrice || orderData?.menu?.price || 0,
+          locationId: orderData?.isCustomOrder
+            ? orderData?.menu?.locationId || orderData?.locationId
+            : orderData?.menu?.locationId || orderData?.menu?.locationId?._id,
+          locationName: orderData?.isCustomOrder
+            ? orderData?.menu?.locationName || orderData?.locationName
+            : orderData?.menu?.locationId?.name ||
+              orderData?.menu?.locationName,
+          serviceId: orderData?.isCustomOrder
+            ? orderData?.menu?.serviceId || orderData?.serviceId
+            : orderData?.menu?.serviceId || orderData?.menu?.serviceId?._id,
+          serviceName: orderData?.isCustomOrder
+            ? orderData?.menu?.serviceName || orderData?.serviceName
+            : orderData?.menu?.serviceId?.name || orderData?.menu?.serviceName,
         },
 
         // Customer details with dietary requirements
@@ -843,7 +814,7 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
         },
 
         // Order details
-        peopleCount: finalOrderData?.peopleCount || 1,
+        peopleCount: orderData?.peopleCount || 1,
         deliveryType: formData.deliveryType,
         deliveryDate: formData.deliveryDate,
 
@@ -859,27 +830,40 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
               }
             : undefined,
 
-        // Convert menu selections to selectedItems format
-        selectedItems: convertSelectionsToItems,
+        // Selected items - use convertSelectionsToItems which is already properly formatted
+        // Fix any invalid type values before sending
+        selectedItems: convertSelectionsToItems.map((item) => ({
+          ...item,
+          type:
+            item.type === "fixedAddon" || item.type === "variableAddon"
+              ? "addon"
+              : item.type,
+        })),
 
-        // Menu selections (keep original format for reference)
-        menuSelections: finalOrderData?.selections || {},
+        // Menu selections (keep original format for reference if available)
+        menuSelections: orderData?.selections || {},
 
         // Pricing
         pricing: {
-          basePrice: finalOrderData?.pricing?.basePrice || 0,
-          modifierPrice: finalOrderData?.pricing?.modifierPrice || 0,
-          addonsPrice: finalOrderData?.pricing?.addonsPrice || 0,
-          total: finalOrderData?.pricing?.total || 0,
+          basePrice: orderData?.pricing?.basePrice || 0,
+          modifierPrice: orderData?.pricing?.modifierPrice || 0,
+          itemsPrice: orderData?.pricing?.itemsPrice || 0,
+          addonsPrice: orderData?.pricing?.addonsPrice || 0,
+          total: orderData?.pricing?.total || 0,
         },
 
-        // Addon breakdown
-        addonBreakdown: finalOrderData?.addonBreakdown || [],
-
         // Custom order flag
-        isCustomOrder: finalOrderData?.isCustomOrder || false,
+        isCustomOrder: orderData?.isCustomOrder || false,
       };
-      console.log(bookingData);
+
+      console.log("📤 Sending booking data:", {
+        menu: bookingData.menu,
+        customerDetails: bookingData.customerDetails,
+        peopleCount: bookingData.peopleCount,
+        selectedItemsCount: bookingData.selectedItems?.length,
+        pricing: bookingData.pricing,
+        isCustomOrder: bookingData.isCustomOrder,
+      });
 
       const result = await createBooking(bookingData);
 
@@ -972,7 +956,11 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
             </div>
             <div className="flex items-center gap-1">
               <MapPin size={14} />
-              <span>{orderData?.menu?.locationId.name || "Location"}</span>
+              <span>
+                {orderData?.menu?.locationId?.name ||
+                  orderData?.menu?.locationName ||
+                  "Location"}
+              </span>
             </div>
           </div>
         </div>
@@ -1079,9 +1067,7 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
                               >
                                 <div
                                   className={`rounded-full p-0.5 mr-2 mt-0.5 flex-shrink-0 ${
-                                    item.type === "addon" ||
-                                    item.type === "fixedAddon" ||
-                                    item.type === "variableAddon"
+                                    item.type === "addon"
                                       ? "bg-blue-500"
                                       : item.type === "included"
                                       ? "bg-green-500"
@@ -1094,9 +1080,7 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
                                   <div className="flex items-center flex-wrap">
                                     <span
                                       className={`${
-                                        item.type === "addon" ||
-                                        item.type === "fixedAddon" ||
-                                        item.type === "variableAddon"
+                                        item.type === "addon"
                                           ? "text-blue-700"
                                           : "text-gray-700"
                                       }`}
@@ -1106,7 +1090,7 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
                                     {renderInlineDietaryInfo(item)}
                                   </div>
 
-                                  {/* MODIFICATION START: Conditionally render price info */}
+                                  {/* Conditionally render price info */}
                                   {!orderData?.isCustomOrder && (
                                     <div className="text-xs mt-1">
                                       {/* For custom order items with pricePerPerson */}
@@ -1144,7 +1128,9 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
                                         item.priceModifier !== 0 && (
                                           <span className="text-primary-green block">
                                             {item.priceModifier > 0 ? "+" : ""}
-                                            {formatPrice(item.priceModifier)}{" "}
+                                            {formatPrice(
+                                              item.priceModifier
+                                            )}{" "}
                                             per person
                                           </span>
                                         )}
@@ -1169,7 +1155,6 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
                                         )}
                                     </div>
                                   )}
-                                  {/* MODIFICATION END */}
                                 </div>
                               </div>
                             ))}
@@ -1185,84 +1170,64 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
           {/* Form Content */}
           <div className="flex-1 p-3 sm:p-4 lg:overflow-y-auto">
             <div className="space-y-6">
-              {/* Custom Order Location & Service Selection */}
+              {/* Custom Order Location & Service Information */}
               {orderData?.isCustomOrder && (
                 <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
                   <h3 className="font-semibold text-blue-900 mb-4 flex items-center gap-2">
                     <MapPin size={18} />
-                    Location & Service Selection
+                    Selected Location & Service
                   </h3>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* Location Selection */}
+                    {/* Location Information */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Location *
+                        Location
                       </label>
-                      <div className="relative">
+                      <div className="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-lg">
                         <MapPin
-                          className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                          className="text-blue-600 flex-shrink-0"
                           size={16}
                         />
-                        <select
-                          value={selectedLocation}
-                          onChange={(e) => handleLocationChange(e.target.value)}
-                          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 appearance-none bg-white text-sm"
-                          required
-                        >
-                          <option value="">Select a location</option>
-                          {locations.map((location) => (
-                            <option key={location._id} value={location._id}>
-                              {location.name} - {location.city}
-                            </option>
-                          ))}
-                        </select>
+                        <div>
+                          <div className="font-medium text-gray-900">
+                            {orderData?.menu?.locationName ||
+                              orderData?.locationName ||
+                              "Selected Location"}
+                          </div>
+                          {orderData?.menu?.locationId?.city && (
+                            <div className="text-sm text-gray-600">
+                              {orderData.menu.locationId.city}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
 
-                    {/* Service Selection */}
+                    {/* Service Information */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Service Type *
+                        Service Type
                       </label>
-                      <div className="relative">
+                      <div className="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-lg">
                         <Briefcase
-                          className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                          className="text-blue-600 flex-shrink-0"
                           size={16}
                         />
-                        <select
-                          value={selectedService}
-                          onChange={(e) => setSelectedService(e.target.value)}
-                          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 appearance-none bg-white text-sm"
-                          disabled={!selectedLocation}
-                          required
-                        >
-                          <option value="">
-                            {!selectedLocation
-                              ? "Select location first"
-                              : "Select a service"}
-                          </option>
-                          {getFilteredServices().map((service) => (
-                            <option key={service._id} value={service._id}>
-                              {service.name}
-                            </option>
-                          ))}
-                        </select>
+                        <div>
+                          <div className="font-medium text-gray-900">
+                            {orderData?.menu?.serviceName ||
+                              orderData?.serviceName ||
+                              "Selected Service"}
+                          </div>
+                          {orderData?.menu?.serviceDescription && (
+                            <div className="text-sm text-gray-600">
+                              {orderData.menu.serviceDescription}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      {!selectedLocation && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          Please select a location first to see available
-                          services
-                        </p>
-                      )}
                     </div>
-                  </div>
-
-                  <div className="mt-3 p-3 bg-blue-100 rounded-lg">
-                    <p className="text-sm text-blue-800">
-                      <strong>Custom Order:</strong> Please select the location
-                      and service type for your custom menu selection.
-                    </p>
                   </div>
                 </div>
               )}

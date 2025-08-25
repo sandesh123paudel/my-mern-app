@@ -1,143 +1,98 @@
 import React, { useState, useMemo } from "react";
+import { MapPin, Briefcase, Filter, X } from "lucide-react";
 
 const BookingFilters = ({
   filters,
   onFilterChange,
   allBookings,
   totalCount,
+  selectedLocation,
+  selectedService,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Helper function to safely extract ID as string
-  const extractId = (id) => {
-    if (!id) return null;
-    if (typeof id === "string") return id;
-    if (typeof id === "object" && id._id) return id._id.toString();
-    if (typeof id === "object" && id.toString) return id.toString();
-    return String(id);
-  };
-
-  // Get unique locations with proper ID extraction
-  const uniqueLocations = useMemo(() => {
-    const locationMap = new Map();
-    allBookings.forEach((booking) => {
-      if (booking.menu?.locationId && booking.menu?.locationName) {
-        const locationId = extractId(booking.menu.locationId);
-        const locationName = booking.menu.locationName.trim();
-
-        if (locationId && !locationMap.has(locationId)) {
-          locationMap.set(locationId, {
-            id: locationId,
-            name: locationName,
-          });
-        }
-      }
-    });
-
-    // Convert to array and sort by name
-    return Array.from(locationMap.values()).sort((a, b) =>
-      a.name.localeCompare(b.name)
-    );
-  }, [allBookings]);
-
-  // Get unique services with proper ID extraction
-  const uniqueServices = useMemo(() => {
-    const serviceMap = new Map();
-    allBookings
-      .filter((booking) => !booking.isCustomOrder)
-      .forEach((booking) => {
-        if (booking.menu?.serviceId && booking.menu?.serviceName) {
-          const serviceId = extractId(booking.menu.serviceId);
-          const serviceName = booking.menu.serviceName.trim();
-          const locationId = extractId(booking.menu.locationId);
-
-          if (serviceId && !serviceMap.has(serviceId)) {
-            serviceMap.set(serviceId, {
-              id: serviceId,
-              name: serviceName,
-              locationId: locationId,
-            });
-          }
-        }
-      });
-
-    return Array.from(serviceMap.values()).sort((a, b) =>
-      a.name.localeCompare(b.name)
-    );
-  }, [allBookings]);
-
-  // Get services for selected location
-  const servicesForLocation = useMemo(() => {
-    if (filters.locationId === "all") {
-      return uniqueServices;
-    }
-
-    return uniqueServices.filter(
-      (service) => service.locationId === filters.locationId
-    );
-  }, [uniqueServices, filters.locationId]);
-
-  // Calculate order type counts
+  // Calculate order type counts based on filtered bookings
   const orderTypeCounts = useMemo(() => {
     const total = allBookings.length;
     const custom = allBookings.filter(
-      (booking) => booking.isCustomOrder
+      (booking) => booking.isCustomOrder || booking.orderSource?.sourceType === "customOrder"
     ).length;
     const regular = total - custom;
 
     return { total, custom, regular };
   }, [allBookings]);
 
-  // Calculate booking counts for each location with proper ID extraction
-  const locationBookingCounts = useMemo(() => {
-    const counts = {};
-    allBookings.forEach((booking) => {
-      const locationId = extractId(booking.menu?.locationId);
-      if (locationId) {
-        counts[locationId] = (counts[locationId] || 0) + 1;
+  // Calculate status breakdown
+  const statusBreakdown = useMemo(() => {
+    const breakdown = {
+      all: allBookings.length,
+      pending: 0,
+      confirmed: 0,
+      preparing: 0,
+      ready: 0,
+      completed: 0,
+      cancelled: 0,
+    };
+
+    allBookings.forEach(booking => {
+      const status = booking.status || 'pending';
+      if (breakdown.hasOwnProperty(status)) {
+        breakdown[status]++;
       }
     });
-    return counts;
+
+    return breakdown;
   }, [allBookings]);
 
-  // Calculate booking counts for each service with proper ID extraction
-  const serviceBookingCounts = useMemo(() => {
-    const counts = {};
-    const filteredBookings = allBookings.filter((booking) => {
-      const locationId = extractId(booking.menu?.locationId);
-      const locationMatch =
-        filters.locationId === "all" || locationId === filters.locationId;
-      const notCustom = !booking.isCustomOrder;
-      return locationMatch && notCustom;
-    });
+  // Calculate delivery type breakdown
+  const deliveryTypeBreakdown = useMemo(() => {
+    const breakdown = {
+      all: allBookings.length,
+      Pickup: 0,
+      Delivery: 0,
+    };
 
-    filteredBookings.forEach((booking) => {
-      const serviceId = extractId(booking.menu?.serviceId);
-      if (serviceId) {
-        counts[serviceId] = (counts[serviceId] || 0) + 1;
+    allBookings.forEach(booking => {
+      const deliveryType = booking.deliveryType;
+      if (breakdown.hasOwnProperty(deliveryType)) {
+        breakdown[deliveryType]++;
       }
     });
 
-    return counts;
-  }, [allBookings, filters.locationId]);
+    return breakdown;
+  }, [allBookings]);
+
+  // Calculate revenue breakdown (excluding cancelled)
+  const revenueBreakdown = useMemo(() => {
+    const activeBookings = allBookings.filter(b => b.status !== 'cancelled');
+    const totalRevenue = activeBookings.reduce((sum, b) => sum + (b.pricing?.total || 0), 0);
+    
+    const customRevenue = activeBookings
+      .filter(b => b.isCustomOrder || b.orderSource?.sourceType === "customOrder")
+      .reduce((sum, b) => sum + (b.pricing?.total || 0), 0);
+    
+    const regularRevenue = totalRevenue - customRevenue;
+
+    return { totalRevenue, customRevenue, regularRevenue };
+  }, [allBookings]);
+
+  const formatPrice = (price) => {
+    return new Intl.NumberFormat("en-AU", {
+      style: "currency",
+      currency: "AUD",
+      minimumFractionDigits: 0,
+    }).format(price);
+  };
 
   const handleFilterChange = (key, value) => {
-    if (key === "locationId") {
-      onFilterChange({ ...filters, [key]: value, serviceId: "all" });
-    } else if (key === "orderType" && value === "custom") {
-      onFilterChange({ ...filters, [key]: value, serviceId: "all" });
-    } else {
-      onFilterChange({ ...filters, [key]: value });
-    }
+    onFilterChange({ ...filters, [key]: value });
   };
 
   const clearAllFilters = () => {
     onFilterChange({
       status: "all",
       deliveryType: "all",
-      locationId: "all",
-      serviceId: "all",
-      orderType: "all",
+      sourceType: "all",
       search: "",
       sortBy: "deliveryDate",
       sortOrder: "asc",
@@ -147,10 +102,18 @@ const BookingFilters = ({
   const hasActiveFilters =
     filters.status !== "all" ||
     filters.deliveryType !== "all" ||
-    filters.locationId !== "all" ||
-    filters.serviceId !== "all" ||
-    filters.orderType !== "all" ||
+    filters.sourceType !== "all" ||
     filters.search.trim() !== "";
+
+  // Get context info for display
+  const getLocationName = () => {
+    // This would need to be passed from parent or stored in context
+    return selectedLocation ? "Selected Location" : "All Locations";
+  };
+
+  const getServiceName = () => {
+    return selectedService ? "Selected Service" : "All Services";
+  };
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -158,12 +121,17 @@ const BookingFilters = ({
       <div className="px-6 py-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <h3 className="text-lg font-semibold text-gray-800">
-              🔍 Filter Bookings
-            </h3>
+            <div className="flex items-center gap-2">
+              <Filter className="w-5 h-5 text-gray-600" />
+              <h3 className="text-lg font-semibold text-gray-800">
+                Filter Bookings
+              </h3>
+            </div>
+            
             <span className="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
               {totalCount} results
             </span>
+            
             <div className="flex gap-2 text-xs">
               <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded">
                 Regular: {orderTypeCounts.regular}
@@ -171,16 +139,22 @@ const BookingFilters = ({
               <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded">
                 Custom: {orderTypeCounts.custom}
               </span>
+              <span className="bg-green-100 text-green-800 px-2 py-1 rounded">
+                Revenue: {formatPrice(revenueBreakdown.totalRevenue)}
+              </span>
             </div>
+            
             {hasActiveFilters && (
               <button
                 onClick={clearAllFilters}
-                className="text-sm text-red-600 hover:text-red-800 underline"
+                className="text-sm text-red-600 hover:text-red-800 underline flex items-center gap-1"
               >
+                <X className="w-3 h-3" />
                 Clear all filters
               </button>
             )}
           </div>
+          
           <button
             onClick={() => setIsExpanded(!isExpanded)}
             className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
@@ -195,21 +169,44 @@ const BookingFilters = ({
             </span>
           </button>
         </div>
+
+        {/* Location/Service Context Display */}
+        <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center gap-4 text-sm">
+            <div className="flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-blue-600" />
+              <span className="text-blue-800 font-medium">
+                Location: {getLocationName()}
+              </span>
+            </div>
+            {selectedService && (
+              <div className="flex items-center gap-2">
+                <Briefcase className="w-4 h-4 text-blue-600" />
+                <span className="text-blue-800 font-medium">
+                  Service: {getServiceName()}
+                </span>
+              </div>
+            )}
+          </div>
+          <p className="text-xs text-blue-600 mt-1">
+            All data below is filtered by your location/service selection
+          </p>
+        </div>
       </div>
 
       {/* Quick Filters (Always Visible) */}
       <div className="px-6 py-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Quick Search
             </label>
             <input
               type="text"
-              placeholder="Search by name, email, phone..."
+              placeholder="Search by name, email, phone, reference..."
               value={filters.search}
               onChange={(e) => handleFilterChange("search", e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
             />
           </div>
 
@@ -218,15 +215,15 @@ const BookingFilters = ({
               Order Type
             </label>
             <select
-              value={filters.orderType || "all"}
-              onChange={(e) => handleFilterChange("orderType", e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
+              value={filters.sourceType || "all"}
+              onChange={(e) => handleFilterChange("sourceType", e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
             >
               <option value="all">All Orders ({orderTypeCounts.total})</option>
-              <option value="regular">
+              <option value="menu">
                 Regular Orders ({orderTypeCounts.regular})
               </option>
-              <option value="custom">
+              <option value="customOrder">
                 Custom Orders ({orderTypeCounts.custom})
               </option>
             </select>
@@ -239,15 +236,15 @@ const BookingFilters = ({
             <select
               value={filters.status}
               onChange={(e) => handleFilterChange("status", e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
             >
-              <option value="all">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="confirmed">Confirmed</option>
-              <option value="preparing">Preparing</option>
-              <option value="ready">Ready</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
+              <option value="all">All Status ({statusBreakdown.all})</option>
+              <option value="pending">Pending ({statusBreakdown.pending})</option>
+              <option value="confirmed">Confirmed ({statusBreakdown.confirmed})</option>
+              <option value="preparing">Preparing ({statusBreakdown.preparing})</option>
+              <option value="ready">Ready ({statusBreakdown.ready})</option>
+              <option value="completed">Completed ({statusBreakdown.completed})</option>
+              <option value="cancelled">Cancelled ({statusBreakdown.cancelled})</option>
             </select>
           </div>
 
@@ -260,80 +257,11 @@ const BookingFilters = ({
               onChange={(e) =>
                 handleFilterChange("deliveryType", e.target.value)
               }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
             >
-              <option value="all">All Types</option>
-              <option value="Pickup">Pickup</option>
-              <option value="Delivery">Delivery</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Location
-            </label>
-            <select
-              value={filters.locationId}
-              onChange={(e) => handleFilterChange("locationId", e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
-            >
-              <option value="all">All Locations</option>
-              {uniqueLocations.map((location) => {
-                const bookingCount = locationBookingCounts[location.id] || 0;
-                return (
-                  <option key={location.id} value={location.id}>
-                    {location.name} ({bookingCount} bookings)
-                  </option>
-                );
-              })}
-              {uniqueLocations.length === 0 && (
-                <option disabled>No locations available</option>
-              )}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Service Category
-              {filters.locationId !== "all" && (
-                <span className="text-xs text-blue-600 ml-2">
-                  (for{" "}
-                  {uniqueLocations.find((l) => l.id === filters.locationId)
-                    ?.name || "selected location"}
-                  )
-                </span>
-              )}
-            </label>
-            <select
-              value={filters.serviceId}
-              onChange={(e) => handleFilterChange("serviceId", e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
-              disabled={
-                filters.orderType === "custom" || filters.locationId === "all"
-              }
-            >
-              {filters.orderType === "custom" ? (
-                <option value="all">N/A for Custom Orders</option>
-              ) : filters.locationId === "all" ? (
-                <option value="all">Please select a location first</option>
-              ) : (
-                <>
-                  <option value="all">All Services</option>
-                  {servicesForLocation.map((service) => {
-                    const bookingCount = serviceBookingCounts[service.id] || 0;
-                    return (
-                      <option key={service.id} value={service.id}>
-                        {service.name} ({bookingCount} bookings)
-                      </option>
-                    );
-                  })}
-                  {servicesForLocation.length === 0 && (
-                    <option disabled>
-                      No services available for this location
-                    </option>
-                  )}
-                </>
-              )}
+              <option value="all">All Types ({deliveryTypeBreakdown.all})</option>
+              <option value="Pickup">Pickup ({deliveryTypeBreakdown.Pickup})</option>
+              <option value="Delivery">Delivery ({deliveryTypeBreakdown.Delivery})</option>
             </select>
           </div>
         </div>
@@ -343,9 +271,11 @@ const BookingFilters = ({
       {isExpanded && (
         <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
           <h4 className="text-sm font-medium text-gray-700 mb-3">
-            Advanced Filters
+            Advanced Filters & Analytics
           </h4>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          
+          {/* Sorting Options */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Sort By
@@ -353,7 +283,7 @@ const BookingFilters = ({
               <select
                 value={filters.sortBy}
                 onChange={(e) => handleFilterChange("sortBy", e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
               >
                 <option value="deliveryDate">Event Date</option>
                 <option value="orderDate">Order Date</option>
@@ -373,7 +303,7 @@ const BookingFilters = ({
                 onChange={(e) =>
                   handleFilterChange("sortOrder", e.target.value)
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
               >
                 <option value="asc">Ascending</option>
                 <option value="desc">Descending</option>
@@ -383,11 +313,8 @@ const BookingFilters = ({
             <div className="flex items-end">
               <button
                 onClick={() => {
-                  onFilterChange({
-                    ...filters,
-                    sortBy: "deliveryDate",
-                    sortOrder: "asc",
-                  });
+                  handleFilterChange("sortBy", "deliveryDate");
+                  handleFilterChange("sortOrder", "asc");
                 }}
                 className="w-full bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors text-sm"
               >
@@ -395,10 +322,116 @@ const BookingFilters = ({
               </button>
             </div>
           </div>
+
+          {/* Analytics Section */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Status Analytics */}
+            <div className="bg-white p-4 rounded-lg border border-gray-200">
+              <h5 className="font-medium text-gray-800 mb-3 flex items-center gap-2">
+                📊 Status Breakdown
+              </h5>
+              <div className="space-y-2 text-sm">
+                {Object.entries(statusBreakdown)
+                  .filter(([status]) => status !== 'all' && statusBreakdown[status] > 0)
+                  .map(([status, count]) => (
+                    <div key={status} className="flex justify-between items-center">
+                      <span className="capitalize">{status}:</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{count}</span>
+                        <div className="w-12 bg-gray-200 rounded-full h-2">
+                          <div
+                            className="bg-blue-600 h-2 rounded-full"
+                            style={{
+                              width: `${(count / statusBreakdown.all) * 100}%`,
+                            }}
+                          ></div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+
+            {/* Revenue Analytics */}
+            <div className="bg-white p-4 rounded-lg border border-gray-200">
+              <h5 className="font-medium text-gray-800 mb-3 flex items-center gap-2">
+                💰 Revenue Breakdown
+              </h5>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span>Total Revenue:</span>
+                  <span className="font-bold text-green-600">
+                    {formatPrice(revenueBreakdown.totalRevenue)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Regular Orders:</span>
+                  <span className="font-medium text-blue-600">
+                    {formatPrice(revenueBreakdown.regularRevenue)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Custom Orders:</span>
+                  <span className="font-medium text-purple-600">
+                    {formatPrice(revenueBreakdown.customRevenue)}
+                  </span>
+                </div>
+                <div className="text-xs text-gray-500 mt-2 pt-2 border-t">
+                  *Excludes cancelled bookings
+                </div>
+              </div>
+            </div>
+
+            {/* Order Type Analytics */}
+            <div className="bg-white p-4 rounded-lg border border-gray-200">
+              <h5 className="font-medium text-gray-800 mb-3 flex items-center gap-2">
+                📋 Order Types
+              </h5>
+              <div className="space-y-3 text-sm">
+                {/* Regular Orders */}
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <span>Regular Orders:</span>
+                    <span className="font-medium">{orderTypeCounts.regular}</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-blue-600 h-2 rounded-full"
+                      style={{
+                        width: `${(orderTypeCounts.regular / orderTypeCounts.total) * 100}%`,
+                      }}
+                    ></div>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {((orderTypeCounts.regular / orderTypeCounts.total) * 100).toFixed(1)}%
+                  </div>
+                </div>
+
+                {/* Custom Orders */}
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <span>Custom Orders:</span>
+                    <span className="font-medium">{orderTypeCounts.custom}</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-purple-600 h-2 rounded-full"
+                      style={{
+                        width: `${(orderTypeCounts.custom / orderTypeCounts.total) * 100}%`,
+                      }}
+                    ></div>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {((orderTypeCounts.custom / orderTypeCounts.total) * 100).toFixed(1)}%
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Filter Summary */}
+      {/* Active Filters Summary */}
       {hasActiveFilters && (
         <div className="px-6 py-3 bg-blue-50 border-t border-blue-200">
           <div className="flex flex-wrap gap-2 items-center">
@@ -406,78 +439,50 @@ const BookingFilters = ({
               Active Filters:
             </span>
 
-            {filters.orderType !== "all" && (
-              <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs border border-blue-200">
-                Type: {filters.orderType}
+            {filters.sourceType !== "all" && (
+              <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs border border-blue-200 flex items-center gap-1">
+                Type: {filters.sourceType === "customOrder" ? "Custom" : "Regular"}
                 <button
-                  onClick={() => handleFilterChange("orderType", "all")}
-                  className="ml-1 text-blue-600 hover:text-blue-800"
+                  onClick={() => handleFilterChange("sourceType", "all")}
+                  className="text-blue-600 hover:text-blue-800"
                 >
-                  ×
+                  <X className="w-3 h-3" />
                 </button>
               </span>
             )}
 
             {filters.status !== "all" && (
-              <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs border border-blue-200">
+              <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs border border-blue-200 flex items-center gap-1">
                 Status: {filters.status}
                 <button
                   onClick={() => handleFilterChange("status", "all")}
-                  className="ml-1 text-blue-600 hover:text-blue-800"
+                  className="text-blue-600 hover:text-blue-800"
                 >
-                  ×
+                  <X className="w-3 h-3" />
                 </button>
               </span>
             )}
 
             {filters.deliveryType !== "all" && (
-              <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs border border-blue-200">
+              <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs border border-blue-200 flex items-center gap-1">
                 Service: {filters.deliveryType}
                 <button
                   onClick={() => handleFilterChange("deliveryType", "all")}
-                  className="ml-1 text-blue-600 hover:text-blue-800"
+                  className="text-blue-600 hover:text-blue-800"
                 >
-                  ×
-                </button>
-              </span>
-            )}
-
-            {filters.locationId !== "all" && (
-              <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs border border-blue-200">
-                Location:{" "}
-                {uniqueLocations.find((l) => l.id === filters.locationId)
-                  ?.name || "Unknown Location"}
-                <button
-                  onClick={() => handleFilterChange("locationId", "all")}
-                  className="ml-1 text-blue-600 hover:text-blue-800"
-                >
-                  ×
-                </button>
-              </span>
-            )}
-
-            {filters.serviceId !== "all" && filters.orderType !== "custom" && (
-              <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs border border-blue-200">
-                Service:{" "}
-                {uniqueServices.find((s) => s.id === filters.serviceId)?.name ||
-                  "Unknown Service"}
-                <button
-                  onClick={() => handleFilterChange("serviceId", "all")}
-                  className="ml-1 text-blue-600 hover:text-blue-800"
-                >
-                  ×
+                  <X className="w-3 h-3" />
                 </button>
               </span>
             )}
 
             {filters.search.trim() && (
-              <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs border border-blue-200">
+              <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs border border-blue-200 flex items-center gap-1">
                 Search: "{filters.search}"
                 <button
                   onClick={() => handleFilterChange("search", "")}
-                  className="ml-1 text-blue-600 hover:text-blue-800"
+                  className="text-blue-600 hover:text-blue-800"
                 >
-                  ×
+                  <X className="w-3 h-3" />
                 </button>
               </span>
             )}

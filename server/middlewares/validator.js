@@ -93,34 +93,28 @@ exports.loginValidator = () => {
   ];
 };
 
+// Updated booking form validation to match frontend data structure
 exports.bookingFormValidation = () => {
   return [
-    // Order source validation
-    body("orderSource").custom((value, { req }) => {
+    // Menu information validation (updated structure)
+    body("menu").custom((value, { req }) => {
       if (!value) {
-        throw new Error("Order source information is required");
+        throw new Error("Menu information is required");
       }
 
-      // Check source type
-      if (
-        !value.sourceType ||
-        !["menu", "customOrder"].includes(value.sourceType)
-      ) {
-        throw new Error("Source type must be either 'menu' or 'customOrder'");
+      // For custom orders, menuId can be null
+      if (!req.body.isCustomOrder && !value.menuId) {
+        throw new Error("Menu ID is required for regular orders");
       }
 
-      // Check source ID
-      if (!value.sourceId) {
-        throw new Error("Source ID is required");
-      }
-
-      // Check location and service info
+      // Location is always required
       if (!value.locationId) {
         throw new Error("Location ID is required");
       }
 
-      if (!value.serviceId) {
-        throw new Error("Service ID is required");
+      // For custom orders, serviceId is required
+      if (req.body.isCustomOrder && !value.serviceId) {
+        throw new Error("Service ID is required for custom orders");
       }
 
       return true;
@@ -153,7 +147,7 @@ exports.bookingFormValidation = () => {
       .isLength({ max: 1000 })
       .withMessage("Special instructions cannot exceed 1000 characters"),
 
-    // Simple dietary requirements validation
+    // Dietary requirements validation
     body("customerDetails.dietaryRequirements")
       .optional()
       .isArray()
@@ -207,9 +201,12 @@ exports.bookingFormValidation = () => {
           throw new Error("Delivery date must be in the future");
         }
 
-        // Check if it's Monday (0 = Sunday, 1 = Monday)
-        if (deliveryDate.getDay() === 1) {
-          throw new Error("Delivery and pickup are not available on Mondays");
+      
+
+        // Check if time is within business hours (11 AM - 8 PM)
+        const hours = deliveryDate.getHours();
+        if (hours < 11 || hours >= 20) {
+          throw new Error("Delivery/pickup time must be between 11 AM and 8 PM");
         }
 
         return true;
@@ -248,47 +245,131 @@ exports.bookingFormValidation = () => {
       .isLength({ min: 1, max: 50 })
       .withMessage("State is required for delivery"),
 
+    body("address.country")
+      .if(body("deliveryType").equals("Delivery"))
+      .optional()
+      .trim()
+      .isLength({ min: 1, max: 50 })
+      .withMessage("Country must be between 1 and 50 characters"),
+
     // Pricing validation
     body("pricing.total")
       .isFloat({ min: 0 })
       .withMessage("Total price must be a positive number"),
 
-    // Selected items validation
+    body("pricing.basePrice")
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage("Base price must be a positive number"),
+
+    body("pricing.modifierPrice")
+      .optional()
+      .isNumeric()
+      .withMessage("Modifier price must be a number"),
+
+    body("pricing.itemsPrice")
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage("Items price must be a positive number"),
+
+    body("pricing.addonsPrice")
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage("Addons price must be a positive number"),
+
+    // Selected items validation (more flexible for both menu and custom orders)
     body("selectedItems")
-      .isArray({ min: 1 })
-      .withMessage("At least one item must be selected")
-      .custom((items) => {
-        // Validate each item structure
-        items.forEach((item, index) => {
-          if (!item.name || typeof item.name !== "string") {
-            throw new Error(
-              `Item ${index + 1}: Name is required and must be a string`
-            );
+      .custom((items, { req }) => {
+        // For custom orders, selectedItems is required
+        if (req.body.isCustomOrder) {
+          if (!Array.isArray(items) || items.length === 0) {
+            throw new Error("At least one item must be selected for custom orders");
           }
+        } else {
+          // For menu orders, selectedItems can be optional if menuSelections is provided
+          if (items && !Array.isArray(items)) {
+            throw new Error("Selected items must be an array");
+          }
+        }
 
-          if (typeof item.totalPrice !== "number" || item.totalPrice < 0) {
-            throw new Error(
-              `Item ${index + 1}: Total price must be a positive number`
-            );
-          }
+        // If items exist, validate their structure
+        if (Array.isArray(items) && items.length > 0) {
+          items.forEach((item, index) => {
+            if (!item.name || typeof item.name !== "string") {
+              throw new Error(
+                `Item ${index + 1}: Name is required and must be a string`
+              );
+            }
 
-          if (!item.category || typeof item.category !== "string") {
-            throw new Error(`Item ${index + 1}: Category is required`);
-          }
+            if (typeof item.totalPrice !== "number" || item.totalPrice < 0) {
+              throw new Error(
+                `Item ${index + 1}: Total price must be a positive number`
+              );
+            }
 
-          if (!item.type || typeof item.type !== "string") {
-            throw new Error(`Item ${index + 1}: Type is required`);
-          }
-        });
+            if (!item.category || typeof item.category !== "string") {
+              throw new Error(`Item ${index + 1}: Category is required`);
+            }
+
+            if (!item.type || typeof item.type !== "string") {
+              throw new Error(`Item ${index + 1}: Type is required`);
+            }
+
+            // Validate quantity
+            if (item.quantity && (typeof item.quantity !== "number" || item.quantity < 1)) {
+              throw new Error(`Item ${index + 1}: Quantity must be a positive number`);
+            }
+
+            // Validate dietary information
+            if (item.isVegetarian !== undefined && typeof item.isVegetarian !== "boolean") {
+              throw new Error(`Item ${index + 1}: isVegetarian must be a boolean`);
+            }
+
+            if (item.isVegan !== undefined && typeof item.isVegan !== "boolean") {
+              throw new Error(`Item ${index + 1}: isVegan must be a boolean`);
+            }
+
+            if (item.allergens && !Array.isArray(item.allergens)) {
+              throw new Error(`Item ${index + 1}: allergens must be an array`);
+            }
+          });
+        }
+
         return true;
       }),
+
+    // Menu selections validation (optional, for menu orders)
+    body("menuSelections")
+      .optional()
+      .isObject()
+      .withMessage("Menu selections must be an object"),
+
+    // Custom order flag validation
+    body("isCustomOrder")
+      .optional()
+      .isBoolean()
+      .withMessage("isCustomOrder must be a boolean value"),
   ];
 };
 
 // Validation for custom order price calculation
 exports.customOrderCalculationValidation = () => {
   return [
-    body("selections").isObject().withMessage("Selections must be an object"),
+    body("selections")
+      .isObject()
+      .withMessage("Selections must be an object")
+      .custom((value) => {
+        // Validate selections structure for custom orders
+        if (value.categories && typeof value.categories !== "object") {
+          throw new Error("Categories must be an object");
+        }
+
+        if (value.addons && !Array.isArray(value.addons)) {
+          throw new Error("Addons must be an array");
+        }
+
+        return true;
+      }),
 
     body("peopleCount")
       .isInt({ min: 1, max: 1000 })
@@ -328,7 +409,14 @@ exports.paymentStatusValidation = () => {
     body("depositAmount")
       .optional()
       .isFloat({ min: 0 })
-      .withMessage("Deposit amount must be a positive number"),
+      .withMessage("Deposit amount must be a positive number")
+      .custom((value, { req }) => {
+        // If deposit amount is provided, validate it's not greater than total
+        if (value && req.body.totalAmount && value > req.body.totalAmount) {
+          throw new Error("Deposit amount cannot be greater than total amount");
+        }
+        return true;
+      }),
   ];
 };
 
@@ -364,7 +452,26 @@ exports.bookingUpdateValidation = () => {
     body("customerDetails.dietaryRequirements")
       .optional()
       .isArray()
-      .withMessage("Dietary requirements must be an array"),
+      .withMessage("Dietary requirements must be an array")
+      .custom((value) => {
+        if (value && value.length > 0) {
+          const validRequirements = [
+            "vegetarian",
+            "vegan",
+            "gluten-free",
+            "halal-friendly",
+          ];
+          const invalidRequirements = value.filter(
+            (req) => !validRequirements.includes(req)
+          );
+          if (invalidRequirements.length > 0) {
+            throw new Error(
+              `Invalid dietary requirements: ${invalidRequirements.join(", ")}`
+            );
+          }
+        }
+        return true;
+      }),
 
     body("customerDetails.spiceLevel")
       .optional()
@@ -385,12 +492,151 @@ exports.bookingUpdateValidation = () => {
     body("deliveryDate")
       .optional()
       .isISO8601()
-      .withMessage("Invalid date format"),
+      .withMessage("Invalid date format")
+      .custom((value) => {
+        if (value) {
+          const now = new Date();
+          const deliveryDate = new Date(value);
+
+          if (deliveryDate <= now) {
+            throw new Error("Delivery date must be in the future");
+          }
+
+          // Check if it's Monday
+          if (deliveryDate.getDay() === 1) {
+            throw new Error("Delivery and pickup are not available on Mondays");
+          }
+
+          // Check business hours
+          const hours = deliveryDate.getHours();
+          if (hours < 11 || hours >= 20) {
+            throw new Error("Delivery/pickup time must be between 11 AM and 8 PM");
+          }
+        }
+        return true;
+      }),
 
     body("adminNotes")
       .optional()
       .trim()
       .isLength({ max: 1000 })
       .withMessage("Admin notes cannot exceed 1000 characters"),
+
+    // Address validation for delivery updates
+    body("address.street")
+      .if(body("deliveryType").equals("Delivery"))
+      .optional()
+      .trim()
+      .isLength({ min: 1, max: 200 })
+      .withMessage("Street address must be between 1 and 200 characters"),
+
+    body("address.suburb")
+      .if(body("deliveryType").equals("Delivery"))
+      .optional()
+      .trim()
+      .isLength({ min: 1, max: 100 })
+      .withMessage("Suburb must be between 1 and 100 characters"),
+
+    body("address.postcode")
+      .if(body("deliveryType").equals("Delivery"))
+      .optional()
+      .trim()
+      .isLength({ min: 3, max: 10 })
+      .withMessage("Postcode must be between 3 and 10 characters"),
+
+    body("address.state")
+      .if(body("deliveryType").equals("Delivery"))
+      .optional()
+      .trim()
+      .isLength({ min: 1, max: 50 })
+      .withMessage("State must be between 1 and 50 characters"),
+
+    // Selected items validation for updates
+    body("selectedItems")
+      .optional()
+      .isArray()
+      .withMessage("Selected items must be an array")
+      .custom((items) => {
+        if (items && items.length > 0) {
+          items.forEach((item, index) => {
+            if (!item.name || typeof item.name !== "string") {
+              throw new Error(
+                `Item ${index + 1}: Name is required and must be a string`
+              );
+            }
+
+            if (typeof item.totalPrice !== "number" || item.totalPrice < 0) {
+              throw new Error(
+                `Item ${index + 1}: Total price must be a positive number`
+              );
+            }
+
+            if (!item.category || typeof item.category !== "string") {
+              throw new Error(`Item ${index + 1}: Category is required`);
+            }
+
+            if (!item.type || typeof item.type !== "string") {
+              throw new Error(`Item ${index + 1}: Type is required`);
+            }
+          });
+        }
+        return true;
+      }),
+
+    // Pricing validation for updates
+    body("pricing.total")
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage("Total price must be a positive number"),
+
+    body("pricing.basePrice")
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage("Base price must be a positive number"),
+
+    body("pricing.modifierPrice")
+      .optional()
+      .isNumeric()
+      .withMessage("Modifier price must be a number"),
+
+    body("pricing.addonsPrice")
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage("Addons price must be a positive number"),
+  ];
+};
+
+// Validation for cancellation
+exports.bookingCancellationValidation = () => {
+  return [
+    body("reason")
+      .optional()
+      .trim()
+      .isLength({ max: 500 })
+      .withMessage("Cancellation reason cannot exceed 500 characters"),
+  ];
+};
+
+// Validation for customer booking lookup
+exports.customerLookupValidation = () => {
+  return [
+    body("email")
+      .optional()
+      .isEmail()
+      .withMessage("Valid email is required")
+      .normalizeEmail(),
+
+    body("phone")
+      .optional()
+      .isLength({ min: 10, max: 15 })
+      .withMessage("Contact number must be between 10-15 digits")
+      .matches(/^[0-9+\-\s()]+$/)
+      .withMessage("Contact number contains invalid characters"),
+
+    body("name")
+      .optional()
+      .trim()
+      .isLength({ min: 2, max: 100 })
+      .withMessage("Name must be between 2 and 100 characters"),
   ];
 };

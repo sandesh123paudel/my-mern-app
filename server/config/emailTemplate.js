@@ -462,41 +462,61 @@ const CUSTOMER_BOOKING_CONFIRMATION_TEMPLATE = `
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap" rel="stylesheet" type="text/css">
   <style type="text/css">
-    body {
+    * {
       margin: 0;
       padding: 0;
-      font-family: 'Open Sans', Arial, sans-serif;
-      background-color: #f8f9fa;
-      color: #333333;
+      box-sizing: border-box;
     }
     
-    .container {
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f5f5f5;
+      color: #333;
+      line-height: 1.6;
+    }
+    
+    .email-container {
       max-width: 600px;
-      margin: 0 auto;
+      margin: 20px auto;
       background-color: #ffffff;
       border-radius: 8px;
       overflow: hidden;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
     
     .header {
-      background: linear-gradient(135deg, #a4cd3d, #492a00);
-      padding: 40px 20px;
+      background-color: #2c3e50;
+      color: white;
+      padding: 30px 20px;
       text-align: center;
     }
     
+    .logo-section {
+      margin-bottom: 20px;
+    }
+    
+    .logo {
+      width: 60px;
+      height: 60px;
+      background-color: #ffffff;
+      border-radius: 50%;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      color: #2c3e50;
+      font-size: 18px;
+    }
+    
     .header h1 {
-      color: #ffffff;
-      margin: 0;
-      font-size: 26px;
-      font-weight: 600;
+      font-size: 24px;
+      margin-bottom: 8px;
     }
     
     .header p {
-      color: #ffffff;
-      margin: 10px 0 0 0;
+      font-size: 16px;
       opacity: 0.9;
     }
     
@@ -504,272 +524,368 @@ const CUSTOMER_BOOKING_CONFIRMATION_TEMPLATE = `
       padding: 30px 20px;
     }
     
-    .success-badge {
-      background-color: #a4cd3d;
-      color: #ffffff;
-      padding: 10px 20px;
-      border-radius: 25px;
-      font-size: 14px;
-      font-weight: 600;
-      display: inline-block;
-      margin-bottom: 25px;
+    .greeting {
+      font-size: 16px;
+      margin-bottom: 20px;
     }
     
-    .booking-summary {
-      background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-      border-radius: 8px;
+    .booking-details {
+      background-color: #f8f9fa;
+      border-left: 4px solid #27ae60;
       padding: 25px;
       margin: 20px 0;
-      border-left: 5px solid #a4cd3d;
+      border-radius: 0 4px 4px 0;
     }
     
-    .summary-title {
+    .booking-title {
       font-size: 18px;
-      font-weight: 600;
-      color: #492a00;
-      margin-bottom: 15px;
+      font-weight: bold;
+      color: #2c3e50;
+      margin-bottom: 20px;
+      text-align: center;
     }
     
     .detail-row {
       display: flex;
-      margin-bottom: 10px;
-      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #e9ecef;
+    }
+    
+    .detail-row:last-child {
+      border-bottom: none;
     }
     
     .detail-label {
       font-weight: 600;
-      color: #492a00;
-      min-width: 120px;
-      margin-right: 10px;
+      color: #495057;
     }
     
     .detail-value {
-      color: #333333;
-      flex: 1;
+      color: #212529;
+      text-align: right;
     }
     
-    .amount-highlight {
-      background-color: #a4cd3d;
-      color: #ffffff;
-      padding: 20px;
-      border-radius: 8px;
-      text-align: center;
-      margin: 25px 0;
-      font-size: 24px;
+    .order-type-badge {
+      background-color: #27ae60;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 12px;
       font-weight: 600;
     }
     
+    .custom-order-badge {
+      background-color: #f39c12;
+    }
+    
+    .total-amount {
+      background-color: #27ae60;
+      color: white;
+      padding: 20px;
+      text-align: center;
+      margin: 20px 0;
+      border-radius: 4px;
+      font-size: 20px;
+      font-weight: bold;
+    }
+    
+    .items-section {
+      margin: 25px 0;
+      background-color: #ffffff;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+    }
+    
+    .items-header {
+      background-color: #f8f9fa;
+      padding: 15px 20px;
+      border-bottom: 1px solid #dee2e6;
+      font-weight: 600;
+      color: #495057;
+    }
+    
+    .items-list {
+      padding: 0;
+      margin: 0;
+      list-style: none;
+    }
+    
+    .item {
+      padding: 12px 20px;
+      border-bottom: 1px solid #f1f3f4;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .item:last-child {
+      border-bottom: none;
+    }
+    
+    .item-name {
+      font-weight: 500;
+      color: #212529;
+    }
+    
+    .item-price {
+      font-weight: 600;
+      color: #27ae60;
+    }
+    
+    .package-notice {
+      background-color: #e8f4fd;
+      border: 1px solid #b8daff;
+      color: #004085;
+      padding: 15px;
+      border-radius: 4px;
+      margin: 15px 0;
+      text-align: center;
+      font-size: 14px;
+    }
+    
+    .special-section {
+      background-color: #fff3cd;
+      border-left: 4px solid #ffc107;
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 0 4px 4px 0;
+    }
+    
+    .special-title {
+      font-weight: 600;
+      color: #856404;
+      margin-bottom: 8px;
+    }
+    
+    .special-content {
+      color: #856404;
+    }
+    
     .bank-details {
-      background-color: #fff8dc;
-      border: 2px solid #a4cd3d;
-      border-radius: 8px;
+      background-color: #d1ecf1;
+      border: 1px solid #b8daff;
+      border-radius: 4px;
       padding: 20px;
       margin: 25px 0;
     }
     
-    .bank-details h3 {
-      color: #492a00;
-      margin: 0 0 15px 0;
+    .bank-title {
       font-size: 16px;
+      font-weight: 600;
+      color: #155724;
+      margin-bottom: 15px;
+      text-align: center;
     }
     
     .bank-info {
       background-color: #ffffff;
       padding: 15px;
-      border-radius: 6px;
-      margin: 10px 0;
+      border-radius: 4px;
+      margin-top: 10px;
     }
     
-    .next-steps {
-      background-color: #f0f8ff;
-      border: 2px solid #a4cd3d;
-      border-radius: 8px;
+    .bank-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 5px 0;
+      border-bottom: 1px solid #e9ecef;
+    }
+    
+    .bank-row:last-child {
+      border-bottom: none;
+    }
+    
+    .bank-label {
+      font-weight: 600;
+      color: #495057;
+    }
+    
+    .bank-value {
+      color: #212529;
+      font-family: monospace;
+    }
+    
+    .contact-section {
+      background-color: #2c3e50;
+      color: white;
       padding: 20px;
-      margin: 25px 0;
-    }
-    
-    .next-steps h3 {
-      color: #492a00;
-      margin: 0 0 15px 0;
-      font-size: 16px;
-    }
-    
-    .steps-list {
-      margin: 0;
-      padding-left: 20px;
-    }
-    
-    .steps-list li {
-      margin-bottom: 8px;
-      color: #333333;
-    }
-    
-    .contact-info {
-      background-color: #492a00;
-      color: #ffffff;
-      padding: 20px;
-      border-radius: 8px;
       text-align: center;
       margin: 25px 0;
     }
     
-    .contact-info h3 {
-      margin: 0 0 10px 0;
-      color: #a4cd3d;
+    .contact-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+    
+    .contact-info {
+      font-size: 14px;
+      line-height: 1.8;
     }
     
     .footer {
       background-color: #f8f9fa;
-      padding: 25px 20px;
+      padding: 20px;
       text-align: center;
-      border-top: 1px solid #e9ecef;
-    }
-    
-    .footer p {
-      margin: 5px 0;
-      color: #6c757d;
+      border-top: 1px solid #dee2e6;
       font-size: 12px;
+      color: #6c757d;
     }
     
-    .social-links {
-      margin: 15px 0;
+    .footer-links {
+      margin: 10px 0;
     }
     
-    .social-links a {
-      display: inline-block;
-      margin: 0 5px;
-      color: #a4cd3d;
+    .footer-links a {
+      color: #27ae60;
       text-decoration: none;
+      margin: 0 10px;
     }
-
-    .custom-order-badge {
-      background-color: #ff9800;
-      color: #ffffff;
-      padding: 4px 8px;
-      border-radius: 12px;
-      font-size: 10px;
-      font-weight: 600;
-      text-transform: uppercase;
-      margin-left: 10px;
-    }
-
-    .items-section {
-      background-color: #ffffff;
-      border: 1px solid #e9ecef;
-      border-radius: 6px;
-      padding: 15px;
-      margin: 20px 0;
-    }
-
-    .items-title {
-      font-weight: 600;
-      color: #492a00;
-      margin-bottom: 10px;
-    }
-
-    .item-list {
-      margin: 0;
-      padding-left: 20px;
+    
+    @media (max-width: 600px) {
+      .email-container {
+        margin: 10px;
+        border-radius: 4px;
+      }
+      
+      .detail-row {
+        flex-direction: column;
+        gap: 4px;
+      }
+      
+      .detail-value {
+        text-align: left;
+      }
+      
+      .bank-row {
+        flex-direction: column;
+        gap: 2px;
+      }
+      
+      .item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="container">
+  <div class="email-container">
     <div class="header">
-      <h1>🎉 Booking Confirmed!</h1>
-      <p>Thank you for your order</p>
+      <div class="logo-section">
+        <div class="logo">
+          <img src="https://mulchowkkitchen.com.au/wp-content/uploads/2025/08/Main-Logo.png" alt="{{MC}} Logo" style="max-width: 40px; max-height: 40px;">
+        </div>
+      </div>
+      <h1>✅ Booking Confirmed!</h1>
+      <p>Thank you for choosing {{companyName}}</p>
     </div>
-    
+
     <div class="content">
-      <span class="success-badge">Booking Confirmed</span>
-      
-      <p>Dear <strong>{{customerName}}</strong>,</p>
-      <p>Thank you for your booking! We have successfully received your order and our team will process it shortly.</p>
-      
-      <div class="amount-highlight">
-        💰 Total Amount: $\{{totalAmount}}
+      <div class="greeting">
+        Dear <strong>{{customerName}}</strong>,
       </div>
       
-      <div class="booking-summary">
-        <div class="summary-title">📋 Your Booking Details</div>
+      <p>Thank you for your booking! We have successfully received your order and will process it shortly.</p>
+      
+      <div class="total-amount">
+        💰 Total Amount: \${{totalAmount}}
+      </div>
+      
+      <div class="booking-details">
+        <div class="booking-title">📋 Booking Details</div>
         
         <div class="detail-row">
-          <span class="detail-label">📋 Booking Ref:</span>
-          <span class="detail-value">{{bookingReference}}</span>
+          <span class="detail-label">Booking Reference:</span>
+          <span class="detail-value"><strong>{{bookingReference}}</strong></span>
         </div>
+        
         <div class="detail-row">
-          <span class="detail-label">📅 Event Date:</span>
+          <span class="detail-label">Order Type:</span>
+          <span class="detail-value">{{orderType}} {{orderTypeBadge}}</span>
+        </div>
+        
+        <div class="detail-row">
+          <span class="detail-label">Event Date:</span>
           <span class="detail-value">{{eventDate}}</span>
         </div>
+        
         <div class="detail-row">
-          <span class="detail-label">⏰ Event Time:</span>
+          <span class="detail-label">Event Time:</span>
           <span class="detail-value">{{eventTime}}</span>
         </div>
+        
         <div class="detail-row">
-          <span class="detail-label">👥 Guests:</span>
+          <span class="detail-label">Number of Guests:</span>
           <span class="detail-value">{{numberOfPeople}} people</span>
         </div>
+        
         <div class="detail-row">
-          <span class="detail-label">🎉 Service:</span>
-          <span class="detail-value">
-            {{serviceName}}{{customOrderBadge}}
-          </span>
+          <span class="detail-label">Service:</span>
+          <span class="detail-value">{{serviceName}}</span>
         </div>
+        
         <div class="detail-row">
-          <span class="detail-label">📍 Location:</span>
+          <span class="detail-label">Location:</span>
           <span class="detail-value">{{locationName}}</span>
         </div>
+        
         <div class="detail-row">
-          <span class="detail-label">🚚 Delivery Type:</span>
+          <span class="detail-label">Delivery Type:</span>
           <span class="detail-value">{{deliveryType}}</span>
         </div>
+        
         {{deliveryAddressSection}}
+        
         <div class="detail-row">
-          <span class="detail-label">📞 Contact:</span>
+          <span class="detail-label">Contact Phone:</span>
           <span class="detail-value">{{customerPhone}}</span>
         </div>
+        
         <div class="detail-row">
-          <span class="detail-label">⏰ Ordered:</span>
+          <span class="detail-label">Order Placed:</span>
           <span class="detail-value">{{submittedAt}}</span>
         </div>
       </div>
       
       {{selectedItemsSection}}
       
+      {{packageNoticeSection}}
+      
       {{specialInstructionsSection}}
-
-      {{dietarySection}}
+      
+      {{dietaryRequirementsSection}}
       
       {{bankDetailsSection}}
       
-      <div class="next-steps">
-        <h3>🚀 What Happens Next?</h3>
-        <ol class="steps-list">
-          <li>Make payment using the bank details above (if provided)</li>
-          <li>Our team will confirm your booking once payment is received</li>
-          <li>We'll contact you 24-48 hours before your event date</li>
-          <li>Enjoy your delicious meal on the event day!</li>
-        </ol>
+      <div class="contact-section">
+        <div class="contact-title">Need Help?</div>
+        <div class="contact-info">
+          📧 Email: {{supportEmail}}<br>
+          📞 Phone: {{supportPhone}}<br>
+          🕒 Business Hours: {{businessHours}}
+        </div>
       </div>
       
-      <div class="contact-info">
-        <h3>Need Assistance?</h3>
-        <p>📧 Email: {{supportEmail}}</p>
-        <p>📞 Phone: {{supportPhone}}</p>
-        <p>🕒 Business Hours: {{businessHours}}</p>
-      </div>
+      <p style="margin-top: 30px;">
+        We're excited to cater your event! If you have any questions or need to make changes to your booking, please contact us as soon as possible.
+      </p>
       
-      <p style="margin-top: 30px;">We're excited to cater your event! If you have any questions or need to make changes to your booking, please contact us immediately.</p>
-      
-      <p style="color: #492a00; font-weight: 600;">Best regards,<br>The {{companyName}} Team</p>
+      <p style="margin-top: 20px; color: #2c3e50; font-weight: 600;">
+        Best regards,<br>
+        The {{companyName}} Team
+      </p>
     </div>
     
     <div class="footer">
-      <p>This is an automated confirmation email.</p>
-      <div class="social-links">
-        <a href="{{websiteUrl}}">🌐 Website</a> |
-        <a href="{{facebookUrl}}">📘 Facebook</a> |
-        <a href="{{instagramUrl}}">📷 Instagram</a>
+      <p>This is an automated confirmation email from {{companyName}}.</p>
+      <div class="footer-links">
+        <a href="{{websiteUrl}}">Website</a> |
+        <a href="{{facebookUrl}}">Facebook</a> |
+        <a href="{{instagramUrl}}">Instagram</a>
       </div>
       <p>© {{currentYear}} {{companyName}}. All rights reserved.</p>
     </div>
@@ -786,108 +902,220 @@ const ADMIN_BOOKING_NOTIFICATION_TEMPLATE = `
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap" rel="stylesheet" type="text/css">
   <style type="text/css">
-    body {
+    * {
       margin: 0;
       padding: 0;
-      font-family: 'Open Sans', Arial, sans-serif;
-      background-color: #f8f9fa;
-      color: #333333;
+      box-sizing: border-box;
     }
     
-    .container {
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f5f5f5;
+      color: #333;
+      line-height: 1.6;
+    }
+    
+    .email-container {
       max-width: 600px;
-      margin: 0 auto;
+      margin: 20px auto;
       background-color: #ffffff;
       border-radius: 8px;
       overflow: hidden;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
     
     .header {
-      background: linear-gradient(135deg, #492a00, #a4cd3d);
+      background-color: #e74c3c;
+      color: white;
       padding: 30px 20px;
       text-align: center;
     }
     
+    .logo-section {
+      margin-bottom: 20px;
+    }
+    
+    .logo {
+      width: 60px;
+      height: 60px;
+      background-color: #ffffff;
+      border-radius: 50%;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      color: #e74c3c;
+      font-size: 18px;
+    }
+    
     .header h1 {
-      color: #ffffff;
-      margin: 0;
       font-size: 24px;
+      margin-bottom: 8px;
+    }
+    
+    .urgent-badge {
+      background-color: #ffffff;
+      color: #e74c3c;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
       font-weight: 600;
+      text-transform: uppercase;
+      display: inline-block;
+      margin-top: 10px;
     }
     
     .content {
       padding: 30px 20px;
     }
     
-    .alert-badge {
-      background-color: #a4cd3d;
-      color: #ffffff;
-      padding: 8px 16px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: 600;
-      text-transform: uppercase;
-      display: inline-block;
-      margin-bottom: 20px;
+    .alert-message {
+      background-color: #fff3cd;
+      border-left: 4px solid #ffc107;
+      padding: 15px;
+      margin-bottom: 25px;
+      border-radius: 0 4px 4px 0;
+      font-weight: 500;
     }
     
     .booking-details {
       background-color: #f8f9fa;
-      border-left: 4px solid #a4cd3d;
-      padding: 20px;
+      border-left: 4px solid #e74c3c;
+      padding: 25px;
       margin: 20px 0;
+      border-radius: 0 4px 4px 0;
+    }
+    
+    .booking-title {
+      font-size: 18px;
+      font-weight: bold;
+      color: #2c3e50;
+      margin-bottom: 20px;
+      text-align: center;
     }
     
     .detail-row {
       display: flex;
-      margin-bottom: 12px;
+      justify-content: space-between;
+      padding: 8px 0;
       border-bottom: 1px solid #e9ecef;
-      padding-bottom: 8px;
+    }
+    
+    .detail-row:last-child {
+      border-bottom: none;
     }
     
     .detail-label {
       font-weight: 600;
-      color: #492a00;
-      min-width: 140px;
-      margin-right: 10px;
+      color: #495057;
     }
     
     .detail-value {
-      color: #333333;
-      flex: 1;
+      color: #212529;
+      text-align: right;
     }
     
-    .amount-highlight {
-      background-color: #a4cd3d;
-      color: #ffffff;
-      padding: 15px;
-      border-radius: 6px;
+    .order-type-badge {
+      background-color: #28a745;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    
+    .custom-order-badge {
+      background-color: #f39c12;
+    }
+    
+    .urgent-date {
+      color: #e74c3c;
+      font-weight: bold;
+    }
+    
+    .total-amount {
+      background-color: #28a745;
+      color: white;
+      padding: 20px;
       text-align: center;
       margin: 20px 0;
-      font-size: 18px;
-      font-weight: 600;
+      border-radius: 4px;
+      font-size: 20px;
+      font-weight: bold;
     }
     
     .items-section {
+      margin: 25px 0;
       background-color: #ffffff;
-      border: 2px solid #a4cd3d;
-      border-radius: 6px;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+    }
+    
+    .items-header {
+      background-color: #f8f9fa;
+      padding: 15px 20px;
+      border-bottom: 1px solid #dee2e6;
+      font-weight: 600;
+      color: #495057;
+    }
+    
+    .items-list {
+      padding: 0;
+      margin: 0;
+      list-style: none;
+    }
+    
+    .item {
+      padding: 12px 20px;
+      border-bottom: 1px solid #f1f3f4;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .item:last-child {
+      border-bottom: none;
+    }
+    
+    .item-name {
+      font-weight: 500;
+      color: #212529;
+    }
+    
+    .item-price {
+      font-weight: 600;
+      color: #28a745;
+    }
+    
+    .package-notice {
+      background-color: #e8f4fd;
+      border: 1px solid #b8daff;
+      color: #004085;
+      padding: 15px;
+      border-radius: 4px;
+      margin: 15px 0;
+      text-align: center;
+      font-size: 14px;
+    }
+    
+    .special-section {
+      background-color: #fff3cd;
+      border-left: 4px solid #ffc107;
       padding: 15px;
       margin: 20px 0;
+      border-radius: 0 4px 4px 0;
     }
     
-    .items-title {
+    .special-title {
       font-weight: 600;
-      color: #492a00;
-      margin-bottom: 10px;
+      color: #856404;
+      margin-bottom: 8px;
     }
     
-    .item-list {
-      margin: 0;
-      padding-left: 20px;
+    .special-content {
+      color: #856404;
     }
     
     .action-buttons {
@@ -903,133 +1131,170 @@ const ADMIN_BOOKING_NOTIFICATION_TEMPLATE = `
       text-decoration: none;
       font-weight: 600;
       font-size: 14px;
+      color: white;
     }
     
     .btn-primary {
-      background-color: #a4cd3d;
-      color: #ffffff;
+      background-color: #007bff;
     }
     
     .btn-secondary {
-      background-color: #492a00;
-      color: #ffffff;
+      background-color: #6c757d;
+    }
+    
+    .btn:hover {
+      opacity: 0.9;
     }
     
     .footer {
       background-color: #f8f9fa;
       padding: 20px;
       text-align: center;
-      border-top: 1px solid #e9ecef;
-    }
-    
-    .footer p {
-      margin: 0;
-      color: #6c757d;
+      border-top: 1px solid #dee2e6;
       font-size: 12px;
+      color: #6c757d;
     }
     
-    .urgent {
-      color: #dc3545;
-      font-weight: 600;
-    }
-
-    .custom-order-badge {
-      background-color: #ff9800;
-      color: #ffffff;
-      padding: 4px 8px;
-      border-radius: 12px;
-      font-size: 10px;
-      font-weight: 600;
-      text-transform: uppercase;
-      margin-left: 10px;
+    @media (max-width: 600px) {
+      .email-container {
+        margin: 10px;
+        border-radius: 4px;
+      }
+      
+      .detail-row {
+        flex-direction: column;
+        gap: 4px;
+      }
+      
+      .detail-value {
+        text-align: left;
+      }
+      
+      .item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+      }
+      
+      .btn {
+        display: block;
+        margin: 10px 0;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="container">
+  <div class="email-container">
     <div class="header">
-      <h1>🎉 New Booking Received</h1>
+      <div class="logo-section">
+          <div class="logo">
+          <img src="https://mulchowkkitchen.com.au/wp-content/uploads/2025/08/Main-Logo.png" alt="{{MC}} Logo" style="max-width: 40px; max-height: 40px;">
+        
+        </div>
+      </div>
+      <h1>🔔 New Booking Alert!</h1>
+      {{urgentBadge}}
     </div>
-    
+
     <div class="content">
-      <span class="alert-badge">New Booking</span>
+      <div class="alert-message">
+        📋 <strong>Action Required:</strong> A new booking has been received and requires your attention.
+      </div>
       
-      <p>Hello Admin,</p>
-      <p>A new booking has been submitted. Please find the details below:</p>
-      
-      <div class="amount-highlight">
-        💰 Total Amount: $\{{totalAmount}}
+      <div class="total-amount">
+        💰 Total Revenue: \${{totalAmount}}
       </div>
       
       <div class="booking-details">
+        <div class="booking-title">📋 Booking Information</div>
+        
         <div class="detail-row">
           <span class="detail-label">Booking Reference:</span>
-          <span class="detail-value">{{bookingReference}}</span>
+          <span class="detail-value"><strong>{{bookingReference}}</strong></span>
         </div>
+        
         <div class="detail-row">
           <span class="detail-label">Order Type:</span>
-          <span class="detail-value">
-            {{orderType}}{{customOrderBadge}}
-          </span>
+          <span class="detail-value">{{orderType}} {{orderTypeBadge}}</span>
         </div>
+        
         <div class="detail-row">
           <span class="detail-label">Customer Name:</span>
-          <span class="detail-value">{{customerName}}</span>
+          <span class="detail-value"><strong>{{customerName}}</strong></span>
         </div>
+        
         <div class="detail-row">
-          <span class="detail-label">Email:</span>
+          <span class="detail-label">Customer Email:</span>
           <span class="detail-value">{{customerEmail}}</span>
         </div>
+        
         <div class="detail-row">
-          <span class="detail-label">Phone:</span>
+          <span class="detail-label">Customer Phone:</span>
           <span class="detail-value">{{customerPhone}}</span>
         </div>
+        
         <div class="detail-row">
           <span class="detail-label">Event Date:</span>
-          <span class="detail-value {{eventDateUrgency}}">{{eventDate}}</span>
+          <span class="detail-value {{eventDateClass}}">{{eventDate}}</span>
         </div>
+        
         <div class="detail-row">
           <span class="detail-label">Event Time:</span>
           <span class="detail-value">{{eventTime}}</span>
         </div>
+        
         <div class="detail-row">
-          <span class="detail-label">Number of People:</span>
-          <span class="detail-value">{{numberOfPeople}}</span>
+          <span class="detail-label">Number of Guests:</span>
+          <span class="detail-value">{{numberOfPeople}} people</span>
         </div>
+        
         <div class="detail-row">
           <span class="detail-label">Service:</span>
           <span class="detail-value">{{serviceName}}</span>
         </div>
+        
         <div class="detail-row">
           <span class="detail-label">Location:</span>
           <span class="detail-value">{{locationName}}</span>
         </div>
+        
         <div class="detail-row">
           <span class="detail-label">Delivery Type:</span>
           <span class="detail-value">{{deliveryType}}</span>
         </div>
+        
         {{deliveryAddressSection}}
+        
         <div class="detail-row">
-          <span class="detail-label">Submitted At:</span>
+          <span class="detail-label">Order Received:</span>
           <span class="detail-value">{{submittedAt}}</span>
         </div>
       </div>
       
       {{selectedItemsSection}}
       
+      {{packageNoticeSection}}
+      
       {{specialInstructionsSection}}
-
-      {{dietarySection}}
+      
+      {{dietaryRequirementsSection}}
       
       <div class="action-buttons">
-        <a href="{{adminDashboardUrl}}" class="btn btn-primary">View in Dashboard</a>
-        <a href="mailto:{{customerEmail}}" class="btn btn-secondary">Contact Customer</a>
+        <a href="{{adminDashboardUrl}}/bookings" class="btn btn-primary">View in Dashboard</a>
+        <a href="mailto:{{customerEmail}}?subject=Re: Booking {{bookingReference}}" class="btn btn-secondary">Email Customer</a>
+        <a href="tel:{{customerPhone}}" class="btn btn-secondary">Call Customer</a>
       </div>
+      
+      {{urgentWarning}}
+      
+      <p style="margin-top: 30px; text-align: center; color: #495057;">
+        Please process this booking promptly to ensure excellent customer service.
+      </p>
     </div>
     
     <div class="footer">
       <p>This is an automated notification from your booking management system.</p>
-      <p>Please process this booking promptly to ensure customer satisfaction.</p>
+      <p>© {{currentYear}} {{companyName}} Admin System. All rights reserved.</p>
     </div>
   </div>
 </body>
