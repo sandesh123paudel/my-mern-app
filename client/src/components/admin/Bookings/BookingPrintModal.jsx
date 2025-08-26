@@ -12,7 +12,7 @@ const BookingPrintModal = ({
 
   // Get location details based on booking location
   const getLocationDetails = () => {
-    const locationName = booking.menu?.locationName?.toLowerCase() || "";
+    const locationName = booking.orderSource?.locationName?.toLowerCase() || "";
 
     if (locationName.includes("sydney") || locationName.includes("campsie")) {
       return {
@@ -34,9 +34,9 @@ const BookingPrintModal = ({
         city: "Canberra",
       };
     } else {
-      // Default to Sydney if location not recognized
+      // Default location
       return {
-        name: "MC Catering Services Kathmandu",
+        name: "MC Catering Services",
         address: "66 Evaline St, Campsie NSW 2194, Australia",
         phone: "+61297873769 / 0452453028 / 0449 557 777",
         email: "anu_np43@hotmail.com",
@@ -113,6 +113,13 @@ const BookingPrintModal = ({
               font-size: 10px;
               margin-bottom: 3px;
             }
+            .item-line {
+              display: flex;
+              justify-content: space-between;
+              font-size: 9px;
+              margin-bottom: 2px;
+              margin-left: 5px;
+            }
             .total-line {
               font-weight: bold;
               font-size: 12px;
@@ -140,6 +147,18 @@ const BookingPrintModal = ({
               margin-top: 15px;
               border-top: 1px solid #000;
               padding-top: 10px;
+            }
+            .order-type-badge {
+              background: #E5E7EB;
+              color: #374151;
+              padding: 1px 4px;
+              border-radius: 2px;
+              font-size: 8px;
+              font-weight: bold;
+            }
+            .custom-order-badge {
+              background: #DDD6FE;
+              color: #6B21A8;
             }
             @media print {
               body { margin: 0; padding: 0; }
@@ -172,9 +191,10 @@ const BookingPrintModal = ({
   };
 
   const { total, paid, balance } = calculateTotals();
+  const isCustomOrder = booking.orderSource?.sourceType === "customOrder";
 
   return (
-    <div className="fixed inset-0 top-[-25px] bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
         {/* Modal Header */}
         <div className="flex items-center justify-between p-4 border-b">
@@ -209,9 +229,7 @@ const BookingPrintModal = ({
                     Ph: {locationDetails.phone}
                   </div>
                   <div className="company-info">{locationDetails.email}</div>
-                  <div className="website">
-                    https://mulchowkkitchen.com.au/catering-and-functions/
-                  </div>
+                  <div className="website">https://mccatering.com.au/</div>
                 </div>
 
                 {/* Booking Details */}
@@ -232,6 +250,18 @@ const BookingPrintModal = ({
                   <div className="line-item">
                     <span>Type:</span>
                     <span>{booking.deliveryType}</span>
+                  </div>
+                  <div className="line-item">
+                    <span>Order:</span>
+                    <span
+                      className={
+                        isCustomOrder
+                          ? "custom-order-badge order-type-badge"
+                          : "order-type-badge"
+                      }
+                    >
+                      {isCustomOrder ? "CUSTOM" : "MENU"}
+                    </span>
                   </div>
                   <div className="line-item">
                     <span>Status:</span>
@@ -260,6 +290,24 @@ const BookingPrintModal = ({
                     <span>People:</span>
                     <span>{booking.peopleCount}</span>
                   </div>
+
+                  {/* Dietary Requirements */}
+                  {booking.customerDetails?.dietaryRequirements?.length > 0 && (
+                    <div className="line-item">
+                      <span>Dietary:</span>
+                      <span>
+                        {booking.customerDetails.dietaryRequirements.join(", ")}
+                      </span>
+                    </div>
+                  )}
+
+                  {booking.customerDetails?.spiceLevel &&
+                    booking.customerDetails.spiceLevel !== "medium" && (
+                      <div className="line-item">
+                        <span>Spice:</span>
+                        <span>{booking.customerDetails.spiceLevel}</span>
+                      </div>
+                    )}
                 </div>
 
                 {/* Address (if delivery) */}
@@ -276,69 +324,155 @@ const BookingPrintModal = ({
                   </div>
                 )}
 
-                {/* Menu/Order Details */}
+                {/* Service Details */}
                 <div className="section">
-                  <div className="section-title">
-                    {booking.isCustomOrder ? "Custom Order" : "Menu"}
+                  <div className="section-title">Service Details</div>
+                  <div className="line-item">
+                    <span>Service:</span>
+                    <span>{booking.orderSource?.sourceName || "N/A"}</span>
                   </div>
-
-                  {/* Show menu info for non-custom orders */}
-                  {!booking.isCustomOrder && (
-                    <>
-                      <div className="line-item">
-                        <span>Menu:</span>
-                        <span>{booking.menu?.name}</span>
-                      </div>
-                      <div className="line-item">
-                        <span>Service:</span>
-                        <span>{booking.menu?.serviceName}</span>
-                      </div>
-                      <div className="line-item">
-                        <span>Location:</span>
-                        <span>{booking.menu?.locationName}</span>
-                      </div>
-                    </>
-                  )}
-
-                  {/* Always show selected items if they exist */}
-                  {booking.selectedItems?.length > 0 && (
-                    <>
-                      <div style={{ fontSize: "9px", marginTop: "5px" }}>
-                        <strong>Selected Items:</strong>
-                      </div>
-                      {booking.selectedItems.map((item, index) => (
-                        <div
-                          key={index}
-                          className="line-item"
-                          style={{ fontSize: "9px", marginLeft: "5px" }}
-                        >
-                          <span>• {item.name}</span>
-                          {item.price && <span>{formatPrice(item.price)}</span>}
-                        </div>
-                      ))}
-                    </>
-                  )}
+                  <div className="line-item">
+                    <span>Type:</span>
+                    <span>{booking.orderSource?.serviceName || "N/A"}</span>
+                  </div>
+                  <div className="line-item">
+                    <span>Location:</span>
+                    <span>{booking.orderSource?.locationName || "N/A"}</span>
+                  </div>
                 </div>
+
+                {/* Selected Items */}
+                {booking.selectedItems?.length > 0 && (
+                  <div className="section">
+                    <div className="section-title">Selected Items</div>
+                    {booking.selectedItems.map((item, index) => {
+                      const isAddon =
+                        item.category === "addons" || item.type === "addon";
+                      const showQuantity =
+                        isAddon && item.quantity && item.quantity > 1;
+
+                      return (
+                        <div key={index}>
+                          <div className="item-line">
+                            <span>• {item.name}</span>
+                            <span>
+                              {showQuantity
+                                ? `${item.quantity}x`
+                                : "per person"}
+                            </span>
+                          </div>
+                          {isCustomOrder && item.totalPrice && (
+                            <div
+                              className="item-line"
+                              style={{
+                                marginLeft: "10px",
+                                fontSize: "8px",
+                                color: "#666",
+                              }}
+                            >
+                              <span>Price:</span>
+                              <span>{formatPrice(item.totalPrice)}</span>
+                            </div>
+                          )}
+                          {item.category && (
+                            <div
+                              className="item-line"
+                              style={{
+                                marginLeft: "10px",
+                                fontSize: "8px",
+                                color: "#666",
+                              }}
+                            >
+                              <span>Category:</span>
+                              <span>{item.category}</span>
+                            </div>
+                          )}
+                          {item.allergens && item.allergens.length > 0 && (
+                            <div
+                              className="item-line"
+                              style={{
+                                marginLeft: "10px",
+                                fontSize: "8px",
+                                color: "#d97706",
+                              }}
+                            >
+                              <span>Allergens:</span>
+                              <span>{item.allergens.join(", ")}</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    {/* Items Summary */}
+                    <div
+                      style={{
+                        marginTop: "8px",
+                        fontSize: "9px",
+                        color: "#666",
+                        borderTop: "1px solid #ddd",
+                        paddingTop: "5px",
+                      }}
+                    >
+                      <div className="line-item">
+                        <span>Total Items:</span>
+                        <span>{booking.selectedItems.length}</span>
+                      </div>
+                      <div className="line-item">
+                        <span>Total Quantity:</span>
+                        <span>
+                          {booking.selectedItems.reduce(
+                            (sum, item) => sum + (item.quantity || 1),
+                            0
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Pricing */}
                 <div className="section">
                   <div className="section-title">Pricing</div>
-                  {!booking.isCustomOrder && (
+                  {!isCustomOrder && (
                     <>
                       <div className="line-item">
                         <span>Base Price:</span>
-                        <span>{formatPrice(booking.pricing?.basePrice)}</span>
+                        <span>
+                          {formatPrice(booking.pricing?.basePrice || 0)}
+                        </span>
                       </div>
                       {booking.pricing?.addonsPrice > 0 && (
                         <div className="line-item">
                           <span>Add-ons:</span>
                           <span>
-                            {formatPrice(booking.pricing?.addonsPrice)}
+                            {formatPrice(booking.pricing?.addonsPrice || 0)}
                           </span>
                         </div>
                       )}
                     </>
                   )}
+
+                  {/* For custom orders, show item-based pricing if available */}
+                  {isCustomOrder &&
+                    booking.selectedItems?.some((item) => item.totalPrice) && (
+                      <div style={{ fontSize: "9px", marginBottom: "5px" }}>
+                        <div>Items Total:</div>
+                        {booking.selectedItems
+                          .filter((item) => item.totalPrice)
+                          .map((item, index) => (
+                            <div
+                              key={index}
+                              className="line-item"
+                              style={{ marginLeft: "5px" }}
+                            >
+                              <span>{item.name}:</span>
+                              <span>{formatPrice(item.totalPrice)}</span>
+                            </div>
+                          ))}
+                      </div>
+                    )}
+
                   <div className="line-item total-line">
                     <span>TOTAL:</span>
                     <span>{formatPrice(total)}</span>
@@ -358,12 +492,20 @@ const BookingPrintModal = ({
                 </div>
 
                 {/* Special Instructions */}
-                {booking.specialInstructions && (
+                {booking.customerDetails?.specialInstructions && (
                   <div className="section">
                     <div className="section-title">Special Instructions</div>
                     <div style={{ fontSize: "9px" }}>
-                      {booking.specialInstructions}
+                      {booking.customerDetails.specialInstructions}
                     </div>
+                  </div>
+                )}
+
+                {/* Admin Notes */}
+                {booking.adminNotes && (
+                  <div className="section">
+                    <div className="section-title">Admin Notes</div>
+                    <div style={{ fontSize: "9px" }}>{booking.adminNotes}</div>
                   </div>
                 )}
 
@@ -374,10 +516,7 @@ const BookingPrintModal = ({
                     For tracking & updates call:{" "}
                     {locationDetails.phone.split(" / ")[0]}
                   </div>
-                  <div>
-                    Website:
-                    https://mulchowkkitchen.com.au/catering-and-functions/
-                  </div>
+                  <div>Website: https://mccatering.com.au//</div>
                   <div>Printed: {formatDateTime(new Date())}</div>
                 </div>
               </div>

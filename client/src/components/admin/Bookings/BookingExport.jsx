@@ -24,7 +24,7 @@ const BookingExport = ({
       customerDetails: true,
       pricingDetails: true,
       deliveryInfo: true,
-      menuDetails: true,
+      serviceDetails: true,
       selectedItems: true,
       statusInfo: true,
     }
@@ -49,11 +49,11 @@ const BookingExport = ({
     if (fields.deliveryInfo) {
       headers.push("Delivery Type", "Delivery Date", "Delivery Address");
     }
-    if (fields.menuDetails) {
-      headers.push("Menu/Package Name", "Service Name", "Location Name");
+    if (fields.serviceDetails) {
+      headers.push("Service Name", "Location Name", "Service Type");
     }
     if (fields.selectedItems) {
-      headers.push("Selected Items", "Items Count");
+      headers.push("Selected Items Details", "Items Count", "Total Quantities");
     }
     if (fields.pricingDetails) {
       headers.push("Base Price", "Addons Price", "Total Price", "Deposit Paid", "Balance Due");
@@ -72,7 +72,7 @@ const BookingExport = ({
         row.push(
           `"${booking.bookingReference || ''}"`,
           `"${formatDate(booking.orderDate)}"`,
-          `"${booking.isCustomOrder ? 'Custom Order' : 'Regular Order'}"`
+          `"${booking.orderSource?.sourceType === 'customOrder' ? 'Custom Order' : 'Menu Order'}"`
         );
       }
 
@@ -96,20 +96,37 @@ const BookingExport = ({
         );
       }
 
-      if (fields.menuDetails) {
+      if (fields.serviceDetails) {
         row.push(
-          `"${booking.menu?.name || ''}"`,
-          `"${booking.menu?.serviceName || ''}"`,
-          `"${booking.menu?.locationName || ''}"`
+          `"${booking.orderSource?.sourceName || ''}"`,
+          `"${booking.orderSource?.locationName || ''}"`,
+          `"${booking.orderSource?.serviceName || ''}"`
         );
       }
 
       if (fields.selectedItems) {
-        const items = booking.selectedItems?.map(item => item.name).join('; ') || '';
-        const itemCount = booking.selectedItems?.length || 0;
+        let itemsDetails = '';
+        let totalQuantity = 0;
+        
+        if (booking.selectedItems && booking.selectedItems.length > 0) {
+          const itemsList = booking.selectedItems.map(item => {
+            const quantity = item.quantity || 1;
+            totalQuantity += quantity;
+            
+            // Show price for custom orders
+            if (booking.orderSource?.sourceType === 'customOrder' && item.totalPrice) {
+              return `${item.name} (Qty: ${quantity}, Price: ${formatPrice(item.totalPrice)})`;
+            } else {
+              return `${item.name} (Qty: ${quantity})`;
+            }
+          });
+          itemsDetails = itemsList.join('; ');
+        }
+        
         row.push(
-          `"${items}"`,
-          `"${itemCount}"`
+          `"${itemsDetails}"`,
+          `"${booking.selectedItems?.length || 0}"`,
+          `"${totalQuantity}"`
         );
       }
 
@@ -192,10 +209,14 @@ const BookingExport = ({
 
       // Filter by order type
       if (!exportOptions.includeCustomOrders) {
-        bookingsToExport = bookingsToExport.filter(booking => !booking.isCustomOrder);
+        bookingsToExport = bookingsToExport.filter(booking => 
+          booking.orderSource?.sourceType !== 'customOrder'
+        );
       }
       if (!exportOptions.includeRegularOrders) {
-        bookingsToExport = bookingsToExport.filter(booking => booking.isCustomOrder);
+        bookingsToExport = bookingsToExport.filter(booking => 
+          booking.orderSource?.sourceType === 'customOrder'
+        );
       }
 
       if (bookingsToExport.length === 0) {
@@ -333,7 +354,7 @@ const BookingExport = ({
                 onChange={(e) => setExportOptions(prev => ({ ...prev, includeRegularOrders: e.target.checked }))}
                 className="mr-2"
               />
-              <span className="text-sm">Regular Orders</span>
+              <span className="text-sm">Menu Orders</span>
             </label>
             <label className="flex items-center">
               <input
@@ -357,8 +378,8 @@ const BookingExport = ({
               basicInfo: "Basic Info (Reference, Date, Type)",
               customerDetails: "Customer Details",
               deliveryInfo: "Delivery Information",
-              menuDetails: "Menu/Package Details",
-              selectedItems: "Selected Items",
+              serviceDetails: "Service & Location Details",
+              selectedItems: "Selected Items with Quantities",
               pricingDetails: "Pricing Information",
               statusInfo: "Status & Notes"
             }).map(([key, label]) => (

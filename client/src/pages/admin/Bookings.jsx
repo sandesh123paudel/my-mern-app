@@ -60,7 +60,7 @@ const AdminBookings = () => {
     sourceType: "all",
     search: "",
     sortBy: "deliveryDate",
-    sortOrder: "asc",
+    sortOrder: "priority", // Default to priority sorting
   });
 
   // Pagination state
@@ -114,6 +114,143 @@ const AdminBookings = () => {
       default:
         return "bg-gray-100 text-gray-800 border-gray-200";
     }
+  };
+
+  // Enhanced sorting function
+  const applySorting = (bookings, sortOrder = "priority") => {
+    const bookingsArray = [...bookings];
+
+    if (sortOrder === "latest") {
+      // Latest booking filter: Sort by booking creation date (orderDate), newest first
+      return bookingsArray.sort((a, b) => {
+        const orderDateA = new Date(a.orderDate);
+        const orderDateB = new Date(b.orderDate);
+        return orderDateB - orderDateA; // Newest booking first
+      });
+    }
+
+    if (sortOrder === "event_date_newest") {
+      // Sort by event date (deliveryDate), newest events first
+      return bookingsArray.sort((a, b) => {
+        const deliveryDateA = new Date(a.deliveryDate);
+        const deliveryDateB = new Date(b.deliveryDate);
+        return deliveryDateB - deliveryDateA; // Newest event first
+      });
+    }
+
+    if (sortOrder === "event_date_oldest") {
+      // Sort by event date (deliveryDate), oldest events first
+      return bookingsArray.sort((a, b) => {
+        const deliveryDateA = new Date(a.deliveryDate);
+        const deliveryDateB = new Date(b.deliveryDate);
+        return deliveryDateA - deliveryDateB; // Oldest event first
+      });
+    }
+
+    if (sortOrder === "priority") {
+      return bookingsArray.sort((a, b) => {
+        const statusA = a.status || "pending";
+        const statusB = b.status || "pending";
+        const paymentStatusA = a.paymentStatus || "pending";
+        const paymentStatusB = b.paymentStatus || "pending";
+
+        // Helper function to check if booking is fully completed
+        const isFullyCompleted = (booking) => {
+          const status = booking.status || "pending";
+          const paymentStatus = booking.paymentStatus || "pending";
+          return status === "completed" && paymentStatus === "fully_paid";
+        };
+
+        const isAFullyCompleted = isFullyCompleted(a);
+        const isBFullyCompleted = isFullyCompleted(b);
+
+        // 1. Fully completed bookings (status = completed AND payment = fully_paid) go to the bottom
+        if (isAFullyCompleted && !isBFullyCompleted) return 1;
+        if (!isAFullyCompleted && isBFullyCompleted) return -1;
+
+        // 2. If both are fully completed, sort by delivery date (latest event first)
+        if (isAFullyCompleted && isBFullyCompleted) {
+          const deliveryDateA = new Date(a.deliveryDate);
+          const deliveryDateB = new Date(b.deliveryDate);
+          return deliveryDateB - deliveryDateA;
+        }
+
+        // 3. For non-fully-completed bookings, prioritize by urgency and recency
+        const now = new Date();
+        const deliveryDateA = new Date(a.deliveryDate);
+        const deliveryDateB = new Date(b.deliveryDate);
+        const orderDateA = new Date(a.orderDate);
+        const orderDateB = new Date(b.orderDate);
+
+        // Calculate time until delivery
+        const timeUntilDeliveryA = deliveryDateA - now;
+        const timeUntilDeliveryB = deliveryDateB - now;
+
+        // Check if events are today
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const isATodayEvent = deliveryDateA.toDateString() === today.toDateString();
+        const isBTodayEvent = deliveryDateB.toDateString() === today.toDateString();
+
+        // Check if events are upcoming (within next 48 hours)
+        const isAUpcoming = timeUntilDeliveryA > 0 && timeUntilDeliveryA <= 48 * 60 * 60 * 1000;
+        const isBUpcoming = timeUntilDeliveryB > 0 && timeUntilDeliveryB <= 48 * 60 * 60 * 1000;
+
+        // Priority order:
+        // 1. Today's events (non-completed) - sorted by latest booking first, then by delivery time
+        if (isATodayEvent && !isBTodayEvent) return -1;
+        if (!isATodayEvent && isBTodayEvent) return 1;
+        
+        if (isATodayEvent && isBTodayEvent) {
+          // For today's events, prioritize by latest booking date first
+          const bookingTimeDiff = orderDateB - orderDateA;
+          if (bookingTimeDiff !== 0) return bookingTimeDiff;
+          // If booking dates are same, sort by delivery time (earlier delivery first)
+          return deliveryDateA - deliveryDateB;
+        }
+
+        // 2. Upcoming events (within 48 hours) - latest bookings first, then by delivery date
+        if (isAUpcoming && !isBUpcoming) return -1;
+        if (!isAUpcoming && isBUpcoming) return 1;
+        
+        if (isAUpcoming && isBUpcoming) {
+          // For upcoming events, prioritize latest booking first
+          const bookingTimeDiff = orderDateB - orderDateA;
+          if (bookingTimeDiff !== 0) return bookingTimeDiff;
+          // Then by earliest delivery date
+          return deliveryDateA - deliveryDateB;
+        }
+
+        // 3. Future events (more than 48 hours away) - latest bookings first
+        const bothFuture = timeUntilDeliveryA > 48 * 60 * 60 * 1000 && timeUntilDeliveryB > 48 * 60 * 60 * 1000;
+        if (bothFuture) {
+          // For future events, prioritize latest booking first
+          const bookingTimeDiff = orderDateB - orderDateA;
+          if (bookingTimeDiff !== 0) return bookingTimeDiff;
+          // Then by earliest delivery date
+          return deliveryDateA - deliveryDateB;
+        }
+
+        // 4. Past events - latest booking first, then by most recent delivery date
+        const bothPast = timeUntilDeliveryA < 0 && timeUntilDeliveryB < 0;
+        if (bothPast) {
+          // For past events, prioritize latest booking first
+          const bookingTimeDiff = orderDateB - orderDateA;
+          if (bookingTimeDiff !== 0) return bookingTimeDiff;
+          // Then by most recent delivery date
+          return deliveryDateB - deliveryDateA;
+        }
+
+        // 5. Mixed case (one past, one future) - future events first
+        if (timeUntilDeliveryA > 0 && timeUntilDeliveryB < 0) return -1;
+        if (timeUntilDeliveryA < 0 && timeUntilDeliveryB > 0) return 1;
+
+        // Fallback: sort by latest booking date
+        return orderDateB - orderDateA;
+      });
+    }
+
+    // Return unsorted array if no matching sort order
+    return bookingsArray;
   };
 
   // Load locations and services on component mount
@@ -172,7 +309,7 @@ const AdminBookings = () => {
 
   // Handle location change
   const handleLocationChange = (locationId) => {
-    console.log("📍 Location changed to:", locationId);
+    console.log("🗺️ Location changed to:", locationId);
     setSelectedLocation(locationId);
     setSelectedService(""); // Reset service selection
     setDataReady(false);
@@ -330,7 +467,7 @@ const AdminBookings = () => {
     }
   }, [dataReady, selectedLocation, selectedService]);
 
-  // Apply filters to bookings
+  // Enhanced apply filters function with sorting integration
   const applyFilters = (bookings = allBookings) => {
     let filtered = [...bookings];
 
@@ -379,57 +516,12 @@ const AdminBookings = () => {
       );
     }
 
-    // Apply sorting
-    filtered.sort((a, b) => {
-      const getStatusPriority = (status) => {
-        switch (status) {
-          case "pending":
-            return 1;
-          case "confirmed":
-            return 2;
-          case "preparing":
-            return 3;
-          case "ready":
-            return 4;
-          case "completed":
-            return 5;
-          case "cancelled":
-            return 6;
-          default:
-            return 7;
-        }
-      };
-
-      const statusA = getStatusPriority(a.status || "pending");
-      const statusB = getStatusPriority(b.status || "pending");
-
-      if (statusA !== statusB) {
-        return statusA - statusB;
-      }
-
-      const dateA = new Date(a.deliveryDate);
-      const dateB = new Date(b.deliveryDate);
-      const now = new Date();
-
-      if (statusA <= 4) {
-        if (dateA >= now && dateB >= now) {
-          return dateA - dateB;
-        } else if (dateA >= now) {
-          return -1;
-        } else if (dateB >= now) {
-          return 1;
-        } else {
-          return dateB - dateA;
-        }
-      } else {
-        return dateB - dateA;
-      }
-    });
-
-    setFilteredBookings(filtered);
+    // Apply sorting using the enhanced sorting function
+    const sorted = applySorting(filtered, filters.sortOrder);
+    setFilteredBookings(sorted);
 
     // Update pagination
-    const totalItems = filtered.length;
+    const totalItems = sorted.length;
     const itemsPerPage = 10;
     const totalPages = Math.ceil(totalItems / itemsPerPage);
 
@@ -762,6 +854,18 @@ const AdminBookings = () => {
           </div>
         )}
       </div>
+      
+      {/* Export Panel */}
+      {showExportPanel && (
+        <BookingExportComponent
+          filters={filters}
+          allBookings={allBookings}
+          filteredBookings={filteredBookings}
+          formatPrice={formatPrice}
+          formatDate={formatDate}
+          formatDateTime={formatDateTime}
+        />
+      )}
 
       {/* Show rest of the dashboard only if location is selected */}
       {!selectedLocation ? (
@@ -824,55 +928,7 @@ const AdminBookings = () => {
                 {formatPrice(summaryStats.totalRevenue)}
               </p>
             </div>
-            <div className="bg-orange-50 p-4 rounded-lg shadow-sm border border-orange-200">
-              <div className="flex items-center gap-2">
-                <ChefHat className="w-4 h-4 text-orange-600" />
-                <h3 className="text-sm font-medium text-orange-600">
-                  Kitchen Prep Today
-                </h3>
-              </div>
-              <p className="text-2xl font-bold text-orange-900">
-                {uniqueDishesData?.uniqueDishesCount || 0}
-              </p>
-              <div className="text-xs text-orange-600 mt-1 space-y-1">
-                <p>Total portions: {uniqueDishesData?.totalQuantity || 0}</p>
-              </div>
-            </div>
           </div>
-
-          {/* Enhanced Stats Overview */}
-          {bookingStats && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-indigo-50 p-4 rounded-lg shadow-sm border border-indigo-200">
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-indigo-600" />
-                  <h3 className="text-sm font-medium text-indigo-600">
-                    Average Order Value
-                  </h3>
-                </div>
-                <p className="text-lg font-bold text-rose-900">
-                  {bookingStats.popularItems?.[0]?.name || "N/A"}
-                </p>
-                {bookingStats.popularItems?.[0] && (
-                  <p className="text-xs text-rose-600">
-                    {bookingStats.popularItems[0].count} orders
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Export Panel */}
-          {showExportPanel && (
-            <BookingExportComponent
-              filters={filters}
-              allBookings={allBookings}
-              filteredBookings={filteredBookings}
-              formatPrice={formatPrice}
-              formatDate={formatDate}
-              formatDateTime={formatDateTime}
-            />
-          )}
 
           {/* Calendar Section */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -908,6 +964,9 @@ const AdminBookings = () => {
             formatPrice={formatPrice}
             formatDate={formatDate}
             formatDateTime={formatDateTime}
+            selectedLocation={selectedLocation}
+            selectedService={selectedService}
+            filters={filters}
           />
 
           {/* Day Detail Modal */}

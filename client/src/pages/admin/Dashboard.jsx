@@ -634,54 +634,6 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* Popular Items */}
-      <div className="bg-white rounded-lg shadow-md border border-gray-200">
-        <div className="px-6 py-4 border-b border-gray-200 bg-amber-50">
-          <h2 className="text-lg font-semibold text-amber-800">
-            Popular Menu Items
-          </h2>
-        </div>
-        <div className="p-6">
-          {stats.popularItems.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {stats.popularItems.map((item, index) => (
-                <div
-                  key={item._id}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                      {index + 1}
-                    </div>
-                    <div>
-                      <div className="font-medium text-amber-800">
-                        {item._id}
-                      </div>
-                      <div className="text-sm text-amber-600 capitalize">
-                        {item.category}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-semibold text-amber-800">
-                      {item.count}
-                    </div>
-                    <div className="text-xs text-amber-600">orders</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center text-amber-600">
-              <p className="text-lg">No popular items data</p>
-              <p className="text-sm mt-2">
-                Data will appear here once you have more orders.
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* Quick Actions */}
       <div className="bg-white rounded-lg shadow-md border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200 bg-amber-50">
