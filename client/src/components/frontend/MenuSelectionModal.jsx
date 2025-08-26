@@ -14,6 +14,11 @@ import { toast } from "react-hot-toast";
 const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
   const [selections, setSelections] = useState({});
   const [peopleCount, setPeopleCount] = useState("");
+  // Add these state variables after your existing useState declarations
+  const [isFunction, setIsFunction] = useState(false);
+  const [serviceVenueOptions, setServiceVenueOptions] = useState(null);
+  const [selectedVenue, setSelectedVenue] = useState("");
+  const [venueCharge, setVenueCharge] = useState(0);
 
   useEffect(() => {
     document.body.classList.add("no-scroll");
@@ -26,6 +31,30 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
     const initialCount = menu.minPeople || 1;
     setPeopleCount(String(initialCount));
   }, [menu.minPeople]);
+  useEffect(() => {
+    const checkIfFunctionService = async () => {
+      if (menu.serviceId) {
+        try {
+          // You'll need to import getServiceById from your service
+          const { getServiceById } = await import(
+            "../../services/serviceServices"
+          );
+          const serviceResult = await getServiceById(
+            menu.serviceId._id || menu.serviceId
+          );
+
+          if (serviceResult.success && serviceResult.data.service.isFunction) {
+            setIsFunction(true);
+            setServiceVenueOptions(serviceResult.data.service.venueOptions);
+          }
+        } catch (error) {
+          console.error("Error checking service details:", error);
+        }
+      }
+    };
+
+    checkIfFunctionService();
+  }, [menu.serviceId]);
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat("en-AU", {
@@ -181,6 +210,17 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
   // People count handlers
   const handlePeopleCountChange = (value) => {
     setPeopleCount(value);
+    if (
+      selectedVenue &&
+      serviceVenueOptions &&
+      serviceVenueOptions[selectedVenue]
+    ) {
+      const newCharge = calculateVenueCharge(
+        serviceVenueOptions[selectedVenue],
+        parseInt(value) || 0
+      );
+      setVenueCharge(newCharge);
+    }
   };
 
   const incrementPeople = () => {
@@ -188,6 +228,17 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
     const maxPeople = menu.maxPeople || 1000;
     if (current < maxPeople) {
       setPeopleCount(String(current + 1));
+      if (
+        selectedVenue &&
+        serviceVenueOptions &&
+        serviceVenueOptions[selectedVenue]
+      ) {
+        const newCharge = calculateVenueCharge(
+          serviceVenueOptions[selectedVenue],
+          newCount
+        );
+        setVenueCharge(newCharge);
+      }
     }
   };
 
@@ -196,6 +247,17 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
     const minPeople = menu.minPeople || 1;
     if (current > minPeople) {
       setPeopleCount(String(current - 1));
+      if (
+        selectedVenue &&
+        serviceVenueOptions &&
+        serviceVenueOptions[selectedVenue]
+      ) {
+        const newCharge = calculateVenueCharge(
+          serviceVenueOptions[selectedVenue],
+          newCount
+        );
+        setVenueCharge(newCharge);
+      }
     }
   };
 
@@ -311,11 +373,11 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
     const basePrice = calculateBasePrice();
     const modifierPrice = calculateItemModifiers();
     const addonData = calculateAddonsPrice();
-    return basePrice + modifierPrice + addonData.total;
+    return basePrice + modifierPrice + addonData.total + (venueCharge || 0);
   };
 
   // Validation
- const validateOrder = () => {
+  const validateOrder = () => {
     const errors = [];
     const numPeople = parseInt(peopleCount) || 0;
     const minPeople = menu.minPeople || 1;
@@ -328,6 +390,26 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
       errors.push(`Minimum ${minPeople} people required for this menu`);
     } else if (numPeople > maxPeople) {
       errors.push(`Maximum ${maxPeople} people allowed for this menu`);
+    }
+    if (isFunction) {
+      if (!selectedVenue) {
+        errors.push("Please select a venue for your function");
+      } else {
+        // Validate people count against venue capacity
+        const venueOption = getSelectedVenueOption();
+        if (venueOption) {
+          if (numPeople < venueOption.minPeople) {
+            errors.push(
+              `Selected venue requires minimum ${venueOption.minPeople} people`
+            );
+          }
+          if (numPeople > venueOption.maxPeople) {
+            errors.push(
+              `Selected venue allows maximum ${venueOption.maxPeople} people`
+            );
+          }
+        }
+      }
     }
 
     // **NEW: Validate required selections for simple packages**
@@ -382,6 +464,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
         basePrice: menu.basePrice || menu.price,
         packageType: menu.packageType,
         locationId: menu.locationId,
+        serviceId: menu.serviceId, // Make sure this is included
       },
       fullMenu: menu,
       peopleCount: parseInt(peopleCount),
@@ -390,15 +473,45 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
         basePrice: calculateBasePrice(),
         modifierPrice: calculateItemModifiers(),
         addonsPrice: calculateAddonsPrice().total,
+        venueCharge: venueCharge || 0, // Add venue charge
         total: calculateTotalPrice(),
       },
       addonBreakdown: calculateAddonsPrice().breakdown,
+      // Add venue selection data
+      isFunction: isFunction,
+      venueSelection: selectedVenue,
+      venueCharge: venueCharge,
     };
-    console.log("Order Details being passed:", orderDetails);
-    console.log("Menu object:", menu);
-    console.log("Selections object:", selections);
 
     onProceedToConfirmation(orderDetails);
+  };
+
+  // Add these helper functions before your render functions
+  const getSelectedVenueOption = () => {
+    if (!selectedVenue || !serviceVenueOptions) return null;
+    return serviceVenueOptions[selectedVenue];
+  };
+
+  const calculateVenueCharge = (venue, peopleCount) => {
+    if (!venue) return 0;
+
+    if (venue.chargeThreshold && peopleCount < venue.chargeThreshold) {
+      return venue.venueCharge || 0;
+    }
+
+    return 0;
+  };
+
+  const handleVenueSelection = (venueKey) => {
+    setSelectedVenue(venueKey);
+
+    if (serviceVenueOptions && serviceVenueOptions[venueKey]) {
+      const charge = calculateVenueCharge(
+        serviceVenueOptions[venueKey],
+        parseInt(peopleCount) || 0
+      );
+      setVenueCharge(charge);
+    }
   };
 
   // Render simple items
@@ -810,6 +923,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
   };
 
   // Render price breakdown
+
   const renderPriceBreakdown = () => {
     const basePrice = calculateBasePrice();
     const modifierPrice = calculateItemModifiers();
@@ -837,34 +951,17 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
             </div>
           )}
 
-          {addonData.breakdown.length > 0 && (
-            <>
-              {addonData.breakdown.map((addon, index) => (
-                <div key={index} className="flex justify-between text-xs">
-                  <span className="text-gray-600">
-                    {addon.name}
-                    {addon.type === "fixed"
-                      ? ` (${peopleCount} × ${formatPrice(
-                          addon.pricePerPerson
-                        )})`
-                      : ` (${addon.quantity} × ${formatPrice(
-                          addon.pricePerUnit
-                        )})`}
-                    :
-                  </span>
-                  <span className="text-orange-600 font-medium">
-                    {formatPrice(addon.totalPrice)}
-                  </span>
-                </div>
-              ))}
-              <div className="flex justify-between pt-2 border-t">
-                <span className="text-gray-600">Add-ons Total:</span>
-                <span className="text-orange-600 font-medium">
-                  {formatPrice(addonData.total)}
-                </span>
-              </div>
-            </>
+          {/* Add venue charge display */}
+          {isFunction && venueCharge > 0 && (
+            <div className="flex justify-between">
+              <span className="text-gray-600">Venue charge:</span>
+              <span className="text-orange-600 font-medium">
+                {formatPrice(venueCharge)}
+              </span>
+            </div>
           )}
+
+          {/* ... rest of existing addon breakdown code ... */}
 
           <div className="flex justify-between pt-2 border-t font-medium">
             <span className="text-gray-900">Grand Total:</span>
@@ -876,6 +973,20 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
       </div>
     );
   };
+
+  useEffect(() => {
+    if (
+      selectedVenue &&
+      serviceVenueOptions &&
+      serviceVenueOptions[selectedVenue]
+    ) {
+      const newCharge = calculateVenueCharge(
+        serviceVenueOptions[selectedVenue],
+        parseInt(peopleCount) || 0
+      );
+      setVenueCharge(newCharge);
+    }
+  }, [peopleCount, selectedVenue, serviceVenueOptions]);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-start justify-center p-4 overflow-y-auto">
@@ -975,6 +1086,114 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
                     ` | Max: ${menu.maxPeople}`}
                 </p>
               </div>
+
+              {/* Add this after the people count section in the right column */}
+              {isFunction && serviceVenueOptions && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select Venue *
+                  </label>
+
+                  <div className="space-y-2">
+                    {Object.entries(serviceVenueOptions).map(
+                      ([venueKey, venue]) => {
+                        if (!venue.available) return null;
+
+                        const numPeople = parseInt(peopleCount) || 0;
+                        const isValidForPeopleCount =
+                          numPeople >= venue.minPeople &&
+                          numPeople <= venue.maxPeople;
+                        const willHaveCharge =
+                          venue.chargeThreshold &&
+                          numPeople < venue.chargeThreshold &&
+                          numPeople > 0;
+
+                        const venueLabels = {
+                          both: "Both Venues (Indoor + Outdoor)",
+                          indoor: "Indoor Only",
+                          outdoor: "Outdoor Only",
+                        };
+
+                        return (
+                          <label
+                            key={venueKey}
+                            className={`block p-3 border rounded cursor-pointer transition-all ${
+                              selectedVenue === venueKey
+                                ? "border-green-500 bg-green-50"
+                                : isValidForPeopleCount
+                                ? "border-gray-300 hover:border-gray-400"
+                                : "border-red-300 bg-red-50 cursor-not-allowed"
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="venue"
+                              value={venueKey}
+                              checked={selectedVenue === venueKey}
+                              onChange={() => {
+                                if (isValidForPeopleCount) {
+                                  handleVenueSelection(venueKey);
+                                }
+                              }}
+                              disabled={!isValidForPeopleCount}
+                              className="sr-only"
+                            />
+
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div
+                                  className={`font-medium ${
+                                    isValidForPeopleCount
+                                      ? "text-gray-900"
+                                      : "text-red-600"
+                                  }`}
+                                >
+                                  {venueLabels[venueKey]}
+                                </div>
+                                <div className="text-xs text-gray-600">
+                                  {venue.minPeople}-{venue.maxPeople} people
+                                </div>
+                                {!isValidForPeopleCount && (
+                                  <div className="text-xs text-red-600">
+                                    Your group size doesn't meet requirements
+                                  </div>
+                                )}
+                              </div>
+
+                              {willHaveCharge && isValidForPeopleCount && (
+                                <div className="text-right">
+                                  <div className="text-sm font-semibold text-orange-600">
+                                    +{formatPrice(venue.venueCharge)}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    venue charge
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </label>
+                        );
+                      }
+                    )}
+                  </div>
+
+                  {selectedVenue && (
+                    <div className="mt-2 text-xs text-gray-600 bg-blue-50 p-2 rounded">
+                      {venueCharge > 0
+                        ? `Venue charge of ${formatPrice(
+                            venueCharge
+                          )} applies for groups under ${
+                            getSelectedVenueOption()?.chargeThreshold
+                          } people`
+                        : getSelectedVenueOption()?.chargeThreshold
+                        ? `No venue charge for groups of ${
+                            getSelectedVenueOption()?.chargeThreshold
+                          }+ people`
+                        : "No additional venue charge"}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Price Breakdown */}
               <div className="mb-4">{renderPriceBreakdown()}</div>

@@ -237,6 +237,7 @@ const orderSourceSchema = new mongoose.Schema(
       ref: "Service",
       required: true,
     },
+
     serviceName: {
       type: String,
       required: true,
@@ -286,7 +287,7 @@ const bookingSchema = new mongoose.Schema(
     // Delivery information
     deliveryType: {
       type: String,
-      enum: ["Pickup", "Delivery"],
+      enum: ["Pickup", "Delivery","Event"],
       required: true,
       default: "Pickup",
     },
@@ -350,6 +351,28 @@ const bookingSchema = new mongoose.Schema(
 
     // Soft delete
     isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+
+    venueSelection: {
+      type: String,
+      enum: ["both", "indoor", "outdoor"],
+      required: function () {
+        return (
+          this.orderSource?.sourceType === "menu" && this.isFunction === true
+        );
+      },
+    },
+
+    venueCharge: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    // Helper field to identify if this booking is for a function
+    isFunction: {
       type: Boolean,
       default: false,
     },

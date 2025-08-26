@@ -47,11 +47,29 @@ const LocationServices = () => {
   const [editingService, setEditingService] = useState(null);
   const [selectedLocationForService, setSelectedLocationForService] =
     useState("");
+  // Service form state
   const [serviceForm, setServiceForm] = useState({
     name: "",
     locationId: "",
     description: "",
     isActive: true,
+    isFunction: false,
+    venueOptions: {
+      both: { available: false, minPeople: 70, maxPeople: 120, venueCharge: 0 },
+      indoor: {
+        available: false,
+        minPeople: 35,
+        maxPeople: 60,
+        venueCharge: 0,
+      },
+      outdoor: {
+        available: false,
+        minPeople: 20,
+        maxPeople: 90,
+        venueCharge: 200,
+        chargeThreshold: 35,
+      },
+    },
   });
 
   // Load initial data
@@ -117,14 +135,19 @@ const LocationServices = () => {
         phone: location.contactInfo?.phone || "",
         email: location.contactInfo?.email || "",
       },
-      bankDetails: location.bankDetails ? {
-        bankName: location.bankDetails.bankName || "",
-        accountName: location.bankDetails.accountName || "",
-        bsb: location.bankDetails.bsb || "",
-        accountNumber: location.bankDetails.accountNumber || "",
-        reference: location.bankDetails.reference || "",
-        isActive: location.bankDetails.isActive !== undefined ? location.bankDetails.isActive : true,
-      } : null,
+      bankDetails: location.bankDetails
+        ? {
+            bankName: location.bankDetails.bankName || "",
+            accountName: location.bankDetails.accountName || "",
+            bsb: location.bankDetails.bsb || "",
+            accountNumber: location.bankDetails.accountNumber || "",
+            reference: location.bankDetails.reference || "",
+            isActive:
+              location.bankDetails.isActive !== undefined
+                ? location.bankDetails.isActive
+                : true,
+          }
+        : null,
       isActive: location.isActive,
     });
     setShowLocationForm(true);
@@ -143,8 +166,9 @@ const LocationServices = () => {
 
     // Validate bank details if provided
     if (locationForm.bankDetails) {
-      const { bankName, accountName, bsb, accountNumber } = locationForm.bankDetails;
-      
+      const { bankName, accountName, bsb, accountNumber } =
+        locationForm.bankDetails;
+
       // If any bank detail is provided, all required fields must be filled
       if (bankName || accountName || bsb || accountNumber) {
         if (!bankName) {
@@ -152,7 +176,9 @@ const LocationServices = () => {
           return false;
         }
         if (!accountName) {
-          toast.error("Account name is required when bank details are provided");
+          toast.error(
+            "Account name is required when bank details are provided"
+          );
           return false;
         }
         if (!bsb || !/^\d{6}$/.test(bsb)) {
@@ -179,9 +205,10 @@ const LocationServices = () => {
     try {
       // Clean up bank details - remove if all fields are empty
       let formData = { ...locationForm };
-      
+
       if (formData.bankDetails) {
-        const { bankName, accountName, bsb, accountNumber } = formData.bankDetails;
+        const { bankName, accountName, bsb, accountNumber } =
+          formData.bankDetails;
         if (!bankName && !accountName && !bsb && !accountNumber) {
           formData.bankDetails = null;
         }
@@ -206,7 +233,7 @@ const LocationServices = () => {
         resetLocationForm();
       } else {
         if (result.errors && Array.isArray(result.errors)) {
-          result.errors.forEach(error => toast.error(error));
+          result.errors.forEach((error) => toast.error(error));
         } else {
           toast.error(result.error || "Failed to save location");
         }
@@ -221,12 +248,10 @@ const LocationServices = () => {
 
   const handleDeleteLocation = async (locationId) => {
     // Check if location has active services
-    const hasActiveServices = services.some(
-      (service) => {
-        const serviceLocationId = service.locationId?._id || service.locationId;
-        return serviceLocationId === locationId && service.isActive;
-      }
-    );
+    const hasActiveServices = services.some((service) => {
+      const serviceLocationId = service.locationId?._id || service.locationId;
+      return serviceLocationId === locationId && service.isActive;
+    });
 
     if (hasActiveServices) {
       toast.error(
@@ -235,7 +260,11 @@ const LocationServices = () => {
       return;
     }
 
-    if (window.confirm("Are you sure you want to delete this location? This action cannot be undone.")) {
+    if (
+      window.confirm(
+        "Are you sure you want to delete this location? This action cannot be undone."
+      )
+    ) {
       setLoading(true);
 
       try {
@@ -268,6 +297,28 @@ const LocationServices = () => {
       locationId: selectedLocationForService || "",
       description: "",
       isActive: true,
+      isFunction: false,
+      venueOptions: {
+        both: {
+          available: false,
+          minPeople: 70,
+          maxPeople: 120,
+          venueCharge: 0,
+        },
+        indoor: {
+          available: false,
+          minPeople: 35,
+          maxPeople: 60,
+          venueCharge: 0,
+        },
+        outdoor: {
+          available: false,
+          minPeople: 20,
+          maxPeople: 90,
+          venueCharge: 200,
+          chargeThreshold: 35,
+        },
+      },
     });
   };
 
@@ -288,10 +339,31 @@ const LocationServices = () => {
       locationId: service.locationId._id || service.locationId,
       description: service.description || "",
       isActive: service.isActive,
+      isFunction: service.isFunction || false,
+      venueOptions: service.venueOptions || {
+        both: {
+          available: false,
+          minPeople: 70,
+          maxPeople: 120,
+          venueCharge: 0,
+        },
+        indoor: {
+          available: false,
+          minPeople: 35,
+          maxPeople: 60,
+          venueCharge: 0,
+        },
+        outdoor: {
+          available: false,
+          minPeople: 20,
+          maxPeople: 90,
+          venueCharge: 200,
+          chargeThreshold: 35,
+        },
+      },
     });
     setShowServiceForm(true);
   };
-
   const handleSaveService = async () => {
     if (!serviceForm.name.trim()) {
       toast.error("Service name is required");
@@ -304,6 +376,19 @@ const LocationServices = () => {
     }
 
     setLoading(true);
+    if (serviceForm.isFunction) {
+      const hasAvailableVenue =
+        serviceForm.venueOptions?.both?.available ||
+        serviceForm.venueOptions?.indoor?.available ||
+        serviceForm.venueOptions?.outdoor?.available;
+
+      if (!hasAvailableVenue) {
+        toast.error(
+          "At least one venue option must be available for function services"
+        );
+        return;
+      }
+    }
 
     try {
       let result;
@@ -325,7 +410,7 @@ const LocationServices = () => {
         resetServiceForm();
       } else {
         if (result.errors && Array.isArray(result.errors)) {
-          result.errors.forEach(error => toast.error(error));
+          result.errors.forEach((error) => toast.error(error));
         } else {
           toast.error(result.error || "Failed to save service");
         }
@@ -370,17 +455,20 @@ const LocationServices = () => {
   };
 
   // Calculate statistics
-  const locationsWithBankDetails = locations.filter(location => 
-    location.bankDetails && 
-    location.bankDetails.bankName && 
-    location.bankDetails.accountName && 
-    location.bankDetails.bsb && 
-    location.bankDetails.accountNumber &&
-    location.bankDetails.isActive
+  const locationsWithBankDetails = locations.filter(
+    (location) =>
+      location.bankDetails &&
+      location.bankDetails.bankName &&
+      location.bankDetails.accountName &&
+      location.bankDetails.bsb &&
+      location.bankDetails.accountNumber &&
+      location.bankDetails.isActive
   ).length;
 
-  const activeLocations = locations.filter(location => location.isActive).length;
-  const activeServices = services.filter(service => service.isActive).length;
+  const activeLocations = locations.filter(
+    (location) => location.isActive
+  ).length;
+  const activeServices = services.filter((service) => service.isActive).length;
 
   if (loading && locations.length === 0) {
     return (
@@ -395,47 +483,64 @@ const LocationServices = () => {
           Location & Service Management
         </h1>
         <p className="text-gray-600">
-          Manage your business locations and the services offered at each location
+          Manage your business locations and the services offered at each
+          location
         </p>
-        
+
         {/* Statistics */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="flex items-center gap-2">
               <Building className="text-blue-600" size={20} />
               <div>
-                <p className="text-sm text-blue-600 font-medium">Total Locations</p>
-                <p className="text-2xl font-bold text-blue-800">{locations.length}</p>
+                <p className="text-sm text-blue-600 font-medium">
+                  Total Locations
+                </p>
+                <p className="text-2xl font-bold text-blue-800">
+                  {locations.length}
+                </p>
               </div>
             </div>
           </div>
-          
+
           <div className="bg-green-50 border border-green-200 rounded-lg p-4">
             <div className="flex items-center gap-2">
               <Building className="text-green-600" size={20} />
               <div>
-                <p className="text-sm text-green-600 font-medium">Active Locations</p>
-                <p className="text-2xl font-bold text-green-800">{activeLocations}</p>
+                <p className="text-sm text-green-600 font-medium">
+                  Active Locations
+                </p>
+                <p className="text-2xl font-bold text-green-800">
+                  {activeLocations}
+                </p>
               </div>
             </div>
           </div>
-          
+
           <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
             <div className="flex items-center gap-2">
               <CreditCard className="text-purple-600" size={20} />
               <div>
-                <p className="text-sm text-purple-600 font-medium">With Bank Details</p>
-                <p className="text-2xl font-bold text-purple-800">{locationsWithBankDetails}</p>
+                <p className="text-sm text-purple-600 font-medium">
+                  With Bank Details
+                </p>
+                <p className="text-2xl font-bold text-purple-800">
+                  {locationsWithBankDetails}
+                </p>
               </div>
             </div>
           </div>
-          
+
           <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
             <div className="flex items-center gap-2">
               <div className="w-5 h-5 bg-orange-600 rounded"></div>
               <div>
-                <p className="text-sm text-orange-600 font-medium">Active Services</p>
-                <p className="text-2xl font-bold text-orange-800">{activeServices}</p>
+                <p className="text-sm text-orange-600 font-medium">
+                  Active Services
+                </p>
+                <p className="text-2xl font-bold text-orange-800">
+                  {activeServices}
+                </p>
               </div>
             </div>
           </div>

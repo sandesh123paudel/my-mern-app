@@ -55,6 +55,11 @@ export const createBooking = async (bookingData) => {
           ? bookingData.address
           : undefined,
 
+      // ADD THESE NEW VENUE FIELDS:
+      isFunction: bookingData.isFunction || false,
+      venueSelection: bookingData.venueSelection || undefined,
+      venueCharge: bookingData.venueCharge || 0,
+
       // Selected items - ensure proper format
       selectedItems: (bookingData.selectedItems || []).map((item) => ({
         name: item.name || "",
@@ -76,27 +81,22 @@ export const createBooking = async (bookingData) => {
       // Menu selections (for reference)
       menuSelections: bookingData.menuSelections || {},
 
-      // Pricing information
+      // Pricing information (UPDATE TO INCLUDE VENUE CHARGE)
       pricing: {
         basePrice: bookingData.pricing?.basePrice || 0,
         modifierPrice: bookingData.pricing?.modifierPrice || 0,
         itemsPrice: bookingData.pricing?.itemsPrice || 0,
         addonsPrice: bookingData.pricing?.addonsPrice || 0,
-        total: bookingData.pricing?.total || 0,
+        venueCharge: bookingData.venueCharge || 0, // Add venue charge here too
+        total:
+          (bookingData.pricing?.total || 0) + (bookingData.venueCharge || 0), // Include venue charge in total
       },
 
       // Custom order flag
       isCustomOrder: bookingData.isCustomOrder || false,
     };
 
-    console.log("📦 Transformed data for backend:", {
-      menu: transformedData.menu,
-      customerDetails: transformedData.customerDetails,
-      peopleCount: transformedData.peopleCount,
-      selectedItemsCount: transformedData.selectedItems.length,
-      pricing: transformedData.pricing,
-      isCustomOrder: transformedData.isCustomOrder,
-    });
+    console.log("📦 Transformed data for backend:", transformedData);
 
     const response = await axios.post(
       `${backendUrl}/api/bookings`,
@@ -105,7 +105,7 @@ export const createBooking = async (bookingData) => {
         headers: {
           "Content-Type": "application/json",
         },
-        timeout: 15000, // 15 second timeout
+        timeout: 15000,
       }
     );
 
@@ -116,10 +116,12 @@ export const createBooking = async (bookingData) => {
       data: response.data.data,
       message: response.data.message,
     };
+    // ... rest of the function remains the same
   } catch (error) {
     console.error("❌ Error creating booking:", error);
     console.error("Error response:", error.response?.data);
     console.error("Request data that failed:", error.config?.data);
+
     return {
       success: false,
       error:
@@ -811,11 +813,32 @@ export const validateBookingData = (bookingData) => {
   if (!bookingData.peopleCount || bookingData.peopleCount < 1) {
     errors.push("Number of people must be at least 1");
   }
+
+  if (bookingData.isFunction) {
+    if (!bookingData.venueSelection) {
+      errors.push("Venue selection is required for function bookings");
+    }
+
+    const validVenues = ["both", "indoor", "outdoor"];
+    if (
+      bookingData.venueSelection &&
+      !validVenues.includes(bookingData.venueSelection)
+    ) {
+      errors.push("Invalid venue selection");
+    }
+  }
+
   if (!bookingData.deliveryDate) {
     errors.push("Delivery/event date is required");
   }
-  if (!bookingData.deliveryType) {
-    errors.push("Service type (Pickup/Delivery) is required");
+  if (bookingData.isFunction) {
+    if (bookingData.deliveryType !== "Event") {
+      errors.push("Delivery type must be 'Event' for function services");
+    }
+  } else {
+    if (!["Pickup", "Delivery"].includes(bookingData.deliveryType)) {
+      errors.push("Service type (Pickup/Delivery) is required");
+    }
   }
 
   // Delivery specific validation
@@ -856,11 +879,6 @@ export const validateBookingData = (bookingData) => {
 
     if (deliveryDate < today) {
       errors.push("Delivery date cannot be in the past");
-    }
-
-    // Check if it's Monday (0 = Sunday, 1 = Monday)
-    if (deliveryDate.getDay() === 1) {
-      errors.push("Delivery and pickup are not available on Mondays");
     }
   }
 

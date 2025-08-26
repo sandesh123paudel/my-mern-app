@@ -3,6 +3,28 @@ const Menu = require("../models/menusModel.js");
 const Location = require("../models/locationModel.js");
 const Service = require("../models/serviceModel.js");
 
+const validateVenueOptions = (venueOptions, isFunction) => {
+  if (!isFunction) return true; // Skip validation for non-function services
+
+  if (!venueOptions) {
+    throw new Error("Venue options are required for function services");
+  }
+
+  // Validate that at least one venue option is available
+  const hasAvailableVenue =
+    venueOptions.both?.available ||
+    venueOptions.indoor?.available ||
+    venueOptions.outdoor?.available;
+
+  if (!hasAvailableVenue) {
+    throw new Error(
+      "At least one venue option must be available for function services"
+    );
+  }
+
+  return true;
+};
+
 // @desc    Get all active services
 // @route   GET /api/services
 // @access  Public
@@ -99,7 +121,7 @@ const getServiceById = async (req, res) => {
 // @route   POST /api/services
 // @access  Private/Admin
 const createService = async (req, res) => {
-  const { name, locationId } = req.body;
+  const { name, locationId, isFunction, venueOptions } = req.body;
 
   if (!mongoose.Types.ObjectId.isValid(locationId)) {
     return res
@@ -141,6 +163,9 @@ const createService = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Invalid or inactive location" });
     }
+    if (isFunction) {
+      validateVenueOptions(venueOptions, isFunction);
+    }
 
     const service = new Service(req.body);
     const savedService = await service.save();
@@ -161,6 +186,7 @@ const createService = async (req, res) => {
 // @access  Private/Admin
 const updateService = async (req, res) => {
   const { id } = req.params;
+  const { isFunction, venueOptions } = req.body;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res
@@ -188,6 +214,12 @@ const updateService = async (req, res) => {
       new: true,
       runValidators: true,
     }).populate("locationId", "name city");
+    if (
+      isFunction ||
+      (req.body.isFunction !== undefined && req.body.isFunction)
+    ) {
+      validateVenueOptions(venueOptions, isFunction);
+    }
 
     if (!updatedService) {
       return res

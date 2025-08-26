@@ -181,11 +181,53 @@ exports.bookingFormValidation = () => {
     body("peopleCount")
       .isInt({ min: 1, max: 1000 })
       .withMessage("Number of people must be between 1 and 1000"),
+    // Add this after your existing validations in bookingFormValidation()
+    // Venue validation for function services
+    body("venueSelection").custom((value, { req }) => {
+      // Only validate if this is a function service
+      if (req.body.isFunction) {
+        if (!value) {
+          throw new Error("Venue selection is required for function services");
+        }
 
-    // Delivery type validation
-    body("deliveryType")
-      .isIn(["Pickup", "Delivery"])
-      .withMessage("Delivery type must be either Pickup or Delivery"),
+        const validVenues = ["both", "indoor", "outdoor"];
+        if (!validVenues.includes(value)) {
+          throw new Error(
+            "Venue selection must be one of: both, indoor, outdoor"
+          );
+        }
+      }
+      return true;
+    }),
+
+    body("venueCharge")
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage("Venue charge must be a positive number"),
+
+    body("isFunction")
+      .optional()
+      .isBoolean()
+      .withMessage("isFunction must be a boolean value"),
+
+    // NEW delivery type validation that handles function services:
+    body("deliveryType").custom((value, { req }) => {
+      if (req.body.isFunction) {
+        // For function services, deliveryType should be "Event"
+        if (value !== "Event") {
+          throw new Error(
+            "Delivery type must be 'Event' for function services"
+          );
+        }
+      } else {
+        // For regular services, use existing validation
+        const validTypes = ["Pickup", "Delivery"];
+        if (!validTypes.includes(value)) {
+          throw new Error("Delivery type must be either Pickup or Delivery");
+        }
+      }
+      return true;
+    }),
 
     // Delivery date validation
     body("deliveryDate")
@@ -201,28 +243,30 @@ exports.bookingFormValidation = () => {
           throw new Error("Delivery date must be in the future");
         }
 
-      
-
         // Check if time is within business hours (11 AM - 8 PM)
         const hours = deliveryDate.getHours();
         if (hours < 11 || hours >= 20) {
-          throw new Error("Delivery/pickup time must be between 11 AM and 8 PM");
+          throw new Error(
+            "Delivery/pickup time must be between 11 AM and 8 PM"
+          );
         }
 
         return true;
       }),
 
-    // Address validation (conditional for delivery)
     body("address.street")
       .if(body("deliveryType").equals("Delivery"))
+      .if((value, { req }) => !req.body.isFunction) // Skip for function services
       .notEmpty()
       .withMessage("Street address is required for delivery")
       .trim()
       .isLength({ min: 1, max: 200 })
       .withMessage("Street address must be between 1 and 200 characters"),
 
+    // Apply the same pattern to other address fields:
     body("address.suburb")
       .if(body("deliveryType").equals("Delivery"))
+      .if((value, { req }) => !req.body.isFunction)
       .notEmpty()
       .withMessage("Suburb is required for delivery")
       .trim()
@@ -231,6 +275,7 @@ exports.bookingFormValidation = () => {
 
     body("address.postcode")
       .if(body("deliveryType").equals("Delivery"))
+      .if((value, { req }) => !req.body.isFunction)
       .notEmpty()
       .withMessage("Postcode is required for delivery")
       .trim()
@@ -239,6 +284,7 @@ exports.bookingFormValidation = () => {
 
     body("address.state")
       .if(body("deliveryType").equals("Delivery"))
+      .if((value, { req }) => !req.body.isFunction)
       .notEmpty()
       .withMessage("State is required for delivery")
       .trim()
@@ -247,15 +293,29 @@ exports.bookingFormValidation = () => {
 
     body("address.country")
       .if(body("deliveryType").equals("Delivery"))
+      .if((value, { req }) => !req.body.isFunction)
       .optional()
       .trim()
       .isLength({ min: 1, max: 50 })
       .withMessage("Country must be between 1 and 50 characters"),
 
     // Pricing validation
-    body("pricing.total")
-      .isFloat({ min: 0 })
-      .withMessage("Total price must be a positive number"),
+    // Update your pricing validation to include venue charges:
+    body("pricing.total").custom((value, { req }) => {
+      if (typeof value !== "number" || value < 0) {
+        throw new Error("Total price must be a positive number");
+      }
+
+      // For function services, validate that venue charge is included in total if applicable
+      if (req.body.isFunction && req.body.venueCharge > 0) {
+        const expectedMinimum = req.body.venueCharge;
+        if (value < expectedMinimum) {
+          throw new Error("Total price should include venue charges");
+        }
+      }
+
+      return true;
+    }),
 
     body("pricing.basePrice")
       .optional()
@@ -278,65 +338,76 @@ exports.bookingFormValidation = () => {
       .withMessage("Addons price must be a positive number"),
 
     // Selected items validation (more flexible for both menu and custom orders)
-    body("selectedItems")
-      .custom((items, { req }) => {
-        // For custom orders, selectedItems is required
-        if (req.body.isCustomOrder) {
-          if (!Array.isArray(items) || items.length === 0) {
-            throw new Error("At least one item must be selected for custom orders");
-          }
-        } else {
-          // For menu orders, selectedItems can be optional if menuSelections is provided
-          if (items && !Array.isArray(items)) {
-            throw new Error("Selected items must be an array");
-          }
+    body("selectedItems").custom((items, { req }) => {
+      // For custom orders, selectedItems is required
+      if (req.body.isCustomOrder) {
+        if (!Array.isArray(items) || items.length === 0) {
+          throw new Error(
+            "At least one item must be selected for custom orders"
+          );
         }
-
-        // If items exist, validate their structure
-        if (Array.isArray(items) && items.length > 0) {
-          items.forEach((item, index) => {
-            if (!item.name || typeof item.name !== "string") {
-              throw new Error(
-                `Item ${index + 1}: Name is required and must be a string`
-              );
-            }
-
-            if (typeof item.totalPrice !== "number" || item.totalPrice < 0) {
-              throw new Error(
-                `Item ${index + 1}: Total price must be a positive number`
-              );
-            }
-
-            if (!item.category || typeof item.category !== "string") {
-              throw new Error(`Item ${index + 1}: Category is required`);
-            }
-
-            if (!item.type || typeof item.type !== "string") {
-              throw new Error(`Item ${index + 1}: Type is required`);
-            }
-
-            // Validate quantity
-            if (item.quantity && (typeof item.quantity !== "number" || item.quantity < 1)) {
-              throw new Error(`Item ${index + 1}: Quantity must be a positive number`);
-            }
-
-            // Validate dietary information
-            if (item.isVegetarian !== undefined && typeof item.isVegetarian !== "boolean") {
-              throw new Error(`Item ${index + 1}: isVegetarian must be a boolean`);
-            }
-
-            if (item.isVegan !== undefined && typeof item.isVegan !== "boolean") {
-              throw new Error(`Item ${index + 1}: isVegan must be a boolean`);
-            }
-
-            if (item.allergens && !Array.isArray(item.allergens)) {
-              throw new Error(`Item ${index + 1}: allergens must be an array`);
-            }
-          });
+      } else {
+        // For menu orders, selectedItems can be optional if menuSelections is provided
+        if (items && !Array.isArray(items)) {
+          throw new Error("Selected items must be an array");
         }
+      }
 
-        return true;
-      }),
+      // If items exist, validate their structure
+      if (Array.isArray(items) && items.length > 0) {
+        items.forEach((item, index) => {
+          if (!item.name || typeof item.name !== "string") {
+            throw new Error(
+              `Item ${index + 1}: Name is required and must be a string`
+            );
+          }
+
+          if (typeof item.totalPrice !== "number" || item.totalPrice < 0) {
+            throw new Error(
+              `Item ${index + 1}: Total price must be a positive number`
+            );
+          }
+
+          if (!item.category || typeof item.category !== "string") {
+            throw new Error(`Item ${index + 1}: Category is required`);
+          }
+
+          if (!item.type || typeof item.type !== "string") {
+            throw new Error(`Item ${index + 1}: Type is required`);
+          }
+
+          // Validate quantity
+          if (
+            item.quantity &&
+            (typeof item.quantity !== "number" || item.quantity < 1)
+          ) {
+            throw new Error(
+              `Item ${index + 1}: Quantity must be a positive number`
+            );
+          }
+
+          // Validate dietary information
+          if (
+            item.isVegetarian !== undefined &&
+            typeof item.isVegetarian !== "boolean"
+          ) {
+            throw new Error(
+              `Item ${index + 1}: isVegetarian must be a boolean`
+            );
+          }
+
+          if (item.isVegan !== undefined && typeof item.isVegan !== "boolean") {
+            throw new Error(`Item ${index + 1}: isVegan must be a boolean`);
+          }
+
+          if (item.allergens && !Array.isArray(item.allergens)) {
+            throw new Error(`Item ${index + 1}: allergens must be an array`);
+          }
+        });
+      }
+
+      return true;
+    }),
 
     // Menu selections validation (optional, for menu orders)
     body("menuSelections")
@@ -486,8 +557,8 @@ exports.bookingUpdateValidation = () => {
 
     body("deliveryType")
       .optional()
-      .isIn(["Pickup", "Delivery"])
-      .withMessage("Delivery type must be either Pickup or Delivery"),
+      .isIn(["Pickup", "Delivery", "Event"])
+      .withMessage("Delivery type must be either Pickup, Delivery, or Event"),
 
     body("deliveryDate")
       .optional()
@@ -510,7 +581,9 @@ exports.bookingUpdateValidation = () => {
           // Check business hours
           const hours = deliveryDate.getHours();
           if (hours < 11 || hours >= 20) {
-            throw new Error("Delivery/pickup time must be between 11 AM and 8 PM");
+            throw new Error(
+              "Delivery/pickup time must be between 11 AM and 8 PM"
+            );
           }
         }
         return true;

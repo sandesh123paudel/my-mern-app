@@ -21,7 +21,7 @@ import {
 import { toast } from "react-hot-toast";
 import { createBooking } from "../../services/bookingService";
 import { getLocations } from "../../services/locationServices";
-import { getServices } from "../../services/serviceServices";
+import { getServices, getServiceById } from "../../services/serviceServices";
 import { getInquiries } from "../../services/inquiryService";
 import { AppContext } from "../../context/AppContext";
 
@@ -37,12 +37,13 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
   // Get user data from context
   const { userData, isLoggedIn, isAdmin } = useContext(AppContext);
 
+  // Update your initial formData state
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     phone: "",
     description: "",
-    deliveryType: "Pickup",
+    deliveryType: orderData?.isFunction ? "Event" : "Pickup", // Set to Event for functions
     deliveryDate: "",
     street: "",
     suburb: "",
@@ -50,6 +51,10 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
     state: "",
     country: "Australia",
   });
+  const [isFunction, setIsFunction] = useState(false);
+  const [availableVenues, setAvailableVenues] = useState([]);
+  const [selectedVenue, setSelectedVenue] = useState("");
+  const [venueCharge, setVenueCharge] = useState(0);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [locations, setLocations] = useState([]);
@@ -98,6 +103,67 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
           }
         } catch (error) {
           console.error("Error loading locations and services:", error);
+        }
+      }
+      // Check if this is a function service booking
+      if (orderData?.menu?.serviceId) {
+        try {
+          // Extract the actual service ID (could be object or string)
+          const serviceId =
+            orderData.menu.serviceId._id || orderData.menu.serviceId;
+
+          const serviceResult = await getServiceById(serviceId);
+          if (serviceResult.success && serviceResult.data.service.isFunction) {
+            setIsFunction(true);
+
+            // Get venue data from the order (passed from MenuSelectionModal)
+            if (
+              orderData.venueSelection &&
+              orderData.venueCharge !== undefined
+            ) {
+              setSelectedVenue(orderData.venueSelection);
+              setVenueCharge(orderData.venueCharge);
+            }
+
+            // Set available venues for display
+            const venues = [];
+            const venueOptions = serviceResult.data.service.venueOptions || {};
+
+            if (venueOptions.both?.available) {
+              venues.push({
+                key: "both",
+                label: "Both Venues (Indoor + Outdoor)",
+                minPeople: venueOptions.both.minPeople,
+                maxPeople: venueOptions.both.maxPeople,
+                charge: venueOptions.both.venueCharge,
+              });
+            }
+
+            if (venueOptions.indoor?.available) {
+              venues.push({
+                key: "indoor",
+                label: "Indoor Only",
+                minPeople: venueOptions.indoor.minPeople,
+                maxPeople: venueOptions.indoor.maxPeople,
+                charge: venueOptions.indoor.venueCharge,
+              });
+            }
+
+            if (venueOptions.outdoor?.available) {
+              venues.push({
+                key: "outdoor",
+                label: "Outdoor Only",
+                minPeople: venueOptions.outdoor.minPeople,
+                maxPeople: venueOptions.outdoor.maxPeople,
+                charge: venueOptions.outdoor.venueCharge,
+                chargeThreshold: venueOptions.outdoor.chargeThreshold,
+              });
+            }
+
+            setAvailableVenues(venues);
+          }
+        } catch (error) {
+          console.error("Error checking service details:", error);
         }
       }
     };
@@ -171,6 +237,66 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
         ? prev.filter((req) => req !== requirement)
         : [...prev, requirement]
     );
+  };
+
+  const checkSelectedVenueAvailability = async () => {
+    if (!isFunction || !selectedVenue || !formData.deliveryDate) {
+      return true; // Skip check if not applicable
+    }
+
+    try {
+      console.log("Checking venue availability with params:", {
+        locationId:
+          orderData?.menu?.locationId?._id || orderData?.menu?.locationId,
+        serviceId:
+          orderData?.menu?.serviceId?._id || orderData?.menu?.serviceId,
+        date: formData.deliveryDate,
+        venueType: selectedVenue,
+      });
+
+      const result = await checkVenueAvailability({
+        locationId:
+          orderData?.menu?.locationId?._id || orderData?.menu?.locationId,
+        serviceId:
+          orderData?.menu?.serviceId?._id || orderData?.menu?.serviceId,
+        date: formData.deliveryDate,
+        venueType: selectedVenue,
+      });
+
+      console.log("Venue availability result:", result);
+
+      if (!result) {
+        console.error("checkVenueAvailability returned undefined");
+        return true; // Allow booking if check fails
+      }
+
+      if (result.success && result.data && !result.data.isAvailable) {
+        const conflicts = result.data.conflictingBookings || [];
+        const conflictMessage =
+          conflicts.length > 0
+            ? `The ${
+                selectedVenue === "both"
+                  ? "venues are"
+                  : `${selectedVenue} venue is`
+              } already booked on this date. Conflicting booking: ${
+                conflicts[0].bookingReference
+              }`
+            : `The ${
+                selectedVenue === "both"
+                  ? "venues are"
+                  : `${selectedVenue} venue is`
+              } not available on this date.`;
+
+        toast.error(conflictMessage);
+        return false;
+      }
+
+      return true; // Available or check couldn't be performed
+    } catch (error) {
+      console.error("Error checking venue availability:", error);
+      // For now, allow booking if availability check fails
+      return true;
+    }
   };
 
   // Helper function to convert custom order selections to items
@@ -694,6 +820,45 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
             )}
           </motion.div>
         )}
+        {/* Venue Information - Only for function services */}
+        {isFunction && selectedVenue && (
+          <div className="bg-white rounded-lg p-4 border border-gray-200 mb-6">
+            <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              🏢 Selected Venue
+            </h3>
+
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="font-medium text-green-800">
+                  {selectedVenue === "both" && "Both Venues (Indoor + Outdoor)"}
+                  {selectedVenue === "indoor" && "Indoor Only"}
+                  {selectedVenue === "outdoor" && "Outdoor Only"}
+                </div>
+                {venueCharge > 0 && (
+                  <div className="text-orange-600 font-semibold">
+                    +{formatPrice(venueCharge)} venue charge
+                  </div>
+                )}
+              </div>
+
+              <div className="text-sm text-green-700">
+                <p>Group Size: {orderData?.peopleCount} people</p>
+                {selectedVenue === "outdoor" && venueCharge > 0 && (
+                  <p className="text-orange-700 mt-1">
+                    Venue charge applies for groups under 35 people
+                  </p>
+                )}
+                {selectedVenue === "outdoor" &&
+                  venueCharge === 0 &&
+                  orderData?.peopleCount >= 35 && (
+                    <p className="mt-1">
+                      No venue charge for groups of 35+ people
+                    </p>
+                  )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -724,6 +889,10 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
     if (!formData.phone.trim()) {
       errors.push("Phone number is required");
     }
+    if (isFunction && !selectedVenue) {
+      errors.push("Please select a venue for your function");
+    }
+
     if (!formData.deliveryDate) {
       errors.push("Please select a delivery/pickup date and time");
     } else {
@@ -775,6 +944,18 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
       toast.error(validationErrors[0]);
       return;
     }
+    // if (isFunction) {
+    //   try {
+    //     const isAvailable = await checkSelectedVenueAvailability();
+    //     if (!isAvailable) {
+    //       return; // Stop submission if venue is not available
+    //     }
+    //   } catch (error) {
+    //     console.error("Venue availability check error:", error);
+    //     toast.error("Could not verify venue availability");
+    //     return;
+    //   }
+    // }
 
     setIsSubmitting(true);
 
@@ -813,9 +994,14 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
           spiceLevel: hasDietaryRequirements ? spiceLevel : "medium",
         },
 
+        venueSelection: isFunction ? selectedVenue : undefined,
+        venueCharge: isFunction ? venueCharge : 0,
+        isFunction: isFunction,
+
         // Order details
         peopleCount: orderData?.peopleCount || 1,
-        deliveryType: formData.deliveryType,
+        deliveryType: isFunction ? "Event" : formData.deliveryType,
+
         deliveryDate: formData.deliveryDate,
 
         // Address (conditional)
@@ -866,7 +1052,11 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
       });
 
       const result = await createBooking(bookingData);
-
+      if (!result) {
+        console.error("createBooking returned undefined");
+        toast.error("Failed to submit order. Please try again.");
+        return;
+      }
       if (result.success) {
         toast.success(result.message || "Order submitted successfully!");
 
@@ -972,19 +1162,22 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
               <h3 className="font-bold text-gray-900 mb-3">Order Summary</h3>
 
               {/* Total Price Display */}
+
               <div className="text-center mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
                 <div className="text-xl sm:text-2xl font-bold text-green-700">
                   {formatPrice(totalPrice)}
                 </div>
                 <div className="text-sm text-green-600">
-                  {formatPrice(pricePerPerson)} per person
+                  {formatPrice(totalPrice / (orderData?.peopleCount || 1))} per
+                  person per person
                 </div>
               </div>
 
               {/* Pricing Breakdown */}
+              {/* Update the pricing breakdown in the sidebar */}
               <div className="mb-4 p-3 bg-gray-50 rounded-lg">
                 <div className="text-sm">
-                  {/* Base Package - Only show for menu orders */}
+                  {/* Base Package */}
                   {!orderData?.isCustomOrder && (
                     <div className="flex justify-between mb-1">
                       <span className="text-gray-600">Base Package:</span>
@@ -1022,14 +1215,27 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
                     </div>
                   )}
 
+                  {/* Venue Charge */}
+                  {isFunction && venueCharge > 0 && (
+                    <div className="flex justify-between mb-1">
+                      <span className="text-gray-600">Venue Charge:</span>
+                      <span className="font-medium text-orange-600">
+                        {formatPrice(venueCharge)}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Total */}
                   {/* Total */}
                   <div className="border-t pt-1 mt-2">
                     <div className="flex justify-between font-semibold">
                       <span>Total:</span>
-                      <span>{formatPrice(totalPrice)}</span>
+                      <span>{formatPrice(totalPrice)}</span>{" "}
+                      {/* Use totalPrice as-is */}
                     </div>
                     <div className="text-xs text-gray-500 text-right mt-1">
-                      {formatPrice(pricePerPerson)} per person
+                      {formatPrice(totalPrice / (orderData?.peopleCount || 1))}{" "}
+                      per person
                     </div>
                   </div>
                 </div>
@@ -1413,54 +1619,57 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
               <div className="bg-white rounded-lg p-4 border border-gray-200">
                 <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
                   <Calendar size={18} />
-                  Delivery Information
+                  {isFunction ? "Event Information" : "Delivery Information"}
                 </h3>
 
                 <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-sm text-blue-700">
-                    <strong>Note:</strong> Pickup and Delivery times are between
-                    11 AM and 8 PM.
+                    <strong>Note:</strong>{" "}
+                    {isFunction ? "Event" : "Pickup and Delivery"} times are
+                    between 11 AM and 8 PM.
                   </p>
                 </div>
 
                 {/* Delivery Type Selection */}
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                  <div
-                    onClick={() =>
-                      handleInputChange({
-                        target: { name: "deliveryType", value: "Pickup" },
-                      })
-                    }
-                    className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-all ${
-                      formData.deliveryType === "Pickup"
-                        ? "border-green-500 bg-green-50 text-green-700"
-                        : "border-gray-300 hover:border-gray-400"
-                    }`}
-                  >
-                    <Box size={20} />
-                    <span className="font-medium">Pickup</span>
+                {!isFunction && (
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div
+                      onClick={() =>
+                        handleInputChange({
+                          target: { name: "deliveryType", value: "Pickup" },
+                        })
+                      }
+                      className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-all ${
+                        formData.deliveryType === "Pickup"
+                          ? "border-green-500 bg-green-50 text-green-700"
+                          : "border-gray-300 hover:border-gray-400"
+                      }`}
+                    >
+                      <Box size={20} />
+                      <span className="font-medium">Pickup</span>
+                    </div>
+                    <div
+                      onClick={() =>
+                        handleInputChange({
+                          target: { name: "deliveryType", value: "Delivery" },
+                        })
+                      }
+                      className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-all ${
+                        formData.deliveryType === "Delivery"
+                          ? "border-green-500 bg-green-50 text-green-700"
+                          : "border-gray-300 hover:border-gray-400"
+                      }`}
+                    >
+                      <Truck size={20} />
+                      <span className="font-medium">Delivery</span>
+                    </div>
                   </div>
-                  <div
-                    onClick={() =>
-                      handleInputChange({
-                        target: { name: "deliveryType", value: "Delivery" },
-                      })
-                    }
-                    className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-all ${
-                      formData.deliveryType === "Delivery"
-                        ? "border-green-500 bg-green-50 text-green-700"
-                        : "border-gray-300 hover:border-gray-400"
-                    }`}
-                  >
-                    <Truck size={20} />
-                    <span className="font-medium">Delivery</span>
-                  </div>
-                </div>
+                )}
 
                 {/* Date and Time */}
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {formData.deliveryType} Date & Time *
+                    {isFunction ? "Event" : formData.deliveryType} Date & Time *
                   </label>
                   <p className="text-xs text-gray-500 mb-2">
                     Available times: 11 AM - 8 PM (7 days a week)
@@ -1485,7 +1694,7 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
                 </div>
 
                 {/* Delivery Address (conditional) */}
-                {formData.deliveryType === "Delivery" && (
+                {!isFunction && formData.deliveryType === "Delivery" && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}

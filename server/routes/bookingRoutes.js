@@ -15,6 +15,7 @@ const {
   getCustomOrderById,
   calculateCustomOrderPrice,
   getBookingItemsByCategory,
+  checkVenueAvailability,
 } = require("../controllers/bookingController.js");
 
 const {
@@ -72,6 +73,8 @@ bookingRouter.get("/stats", userAuth, getBookingStats);
 
 // Get unique dishes count for dashboard (NEW ROUTE)
 bookingRouter.get("/unique-dishes", userAuth, getUniqueDishesCount);
+// Add this route to your booking routes
+bookingRouter.get("/venue-availability", checkVenueAvailability);
 
 // Get single booking by ID
 bookingRouter.get("/:id", userAuth, getBookingById);

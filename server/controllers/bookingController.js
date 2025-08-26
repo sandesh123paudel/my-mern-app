@@ -385,6 +385,9 @@ const createBooking = asyncHandler(async (req, res) => {
       deliveryDate,
       address,
       isCustomOrder,
+      isFunction,
+      venueSelection,
+      venueCharge = 0,
     } = req.body;
 
     console.log("📝 Creating booking with data:", {
@@ -418,6 +421,27 @@ const createBooking = asyncHandler(async (req, res) => {
 
     if (!menu || (!menu.menuId && !isCustomOrder)) {
       return sendResponse(res, 400, false, "Menu information is required");
+    }
+    if (isFunction) {
+      if (!venueSelection) {
+        return sendResponse(
+          res,
+          400,
+          false,
+          "Venue selection is required for function bookings"
+        );
+      }
+      if (!["both", "indoor", "outdoor"].includes(venueSelection)) {
+        return sendResponse(res, 400, false, "Invalid venue selection");
+      }
+      if (deliveryType && deliveryType !== "Event") {
+        return sendResponse(
+          res,
+          400,
+          false,
+          "Delivery type must be 'Event' for function bookings"
+        );
+      }
     }
 
     let source = null;
@@ -575,9 +599,9 @@ const createBooking = asyncHandler(async (req, res) => {
         addonsPrice: 0,
         total: pricing?.total || 0,
       },
-      deliveryType: deliveryType || "Pickup",
+      deliveryType: isFunction ? "Event" : deliveryType || "Pickup", // ✅ Force Event for functions
       deliveryDate: new Date(deliveryDate),
-      address: deliveryType === "Delivery" ? address : undefined,
+      address: !isFunction && deliveryType === "Delivery" ? address : undefined,
       status: "pending",
       paymentStatus: "pending",
       depositAmount: 0,
@@ -585,7 +609,53 @@ const createBooking = asyncHandler(async (req, res) => {
       adminNotes: "",
       cancellationReason: "",
       isDeleted: false,
+      isFunction: !!isFunction, // ✅ Persist function flag
+      venueSelection: isFunction ? venueSelection : undefined, // ✅ Save venue selection
+      venueCharge: isFunction ? venueCharge : 0,
     };
+
+    if (isFunction) {
+      // Calculate start and end of day for given date
+      const targetDate = new Date(deliveryDate);
+      const startOfDay = new Date(targetDate.setHours(0, 0, 0, 0));
+      const endOfDay = new Date(targetDate.setHours(23, 59, 59, 999));
+
+      // Fetch existing bookings for same location + service + day
+      const existingBookings = await Booking.find({
+        "orderSource.locationId": new mongoose.Types.ObjectId(location._id),
+        "orderSource.serviceId": new mongoose.Types.ObjectId(
+          isCustomOrder ? menu.serviceId : source.serviceId._id
+        ),
+        isFunction: true,
+        deliveryDate: { $gte: startOfDay, $lte: endOfDay },
+        status: { $nin: ["cancelled"] }, // exclude cancelled
+        isDeleted: false,
+      });
+
+      // Check conflicts
+      let conflict = existingBookings.find((b) => {
+        const booked = b.venueSelection;
+
+        if (venueSelection === "both") {
+          // if requesting both, ANY existing indoor/outdoor/both blocks it
+          return ["indoor", "outdoor", "both"].includes(booked);
+        } else if (venueSelection === "indoor") {
+          return ["indoor", "both"].includes(booked);
+        } else if (venueSelection === "outdoor") {
+          return ["outdoor", "both"].includes(booked);
+        }
+        return false;
+      });
+
+      if (conflict) {
+        return sendResponse(
+          res,
+          400,
+          false,
+          `Venue (${conflict.venueSelection}) not available for the date. Please choose another date or venue option.`
+        );
+      }
+    }
 
     console.log("💾 Saving booking with:", {
       bookingReference: bookingData.bookingReference,
@@ -1639,6 +1709,101 @@ const getBookingItemsByCategory = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Check venue availability for specific date and location
+// @route   GET /api/bookings/venue-availability
+// @access  Public
+const checkVenueAvailability = asyncHandler(async (req, res) => {
+  try {
+    const { locationId, serviceId, date, venueType } = req.query;
+
+    if (!locationId || !serviceId || !date || !venueType) {
+      return sendResponse(
+        res,
+        400,
+        false,
+        "Location ID, Service ID, date, and venue type are required"
+      );
+    }
+
+    const targetDate = new Date(date);
+    const startOfDay = new Date(targetDate.setHours(0, 0, 0, 0));
+    const endOfDay = new Date(targetDate.setHours(23, 59, 59, 999));
+
+    // Check for existing bookings on this date
+    const existingBookings = await Booking.find({
+      "orderSource.locationId": new mongoose.Types.ObjectId(locationId),
+      "orderSource.serviceId": new mongoose.Types.ObjectId(serviceId),
+      isFunction: true,
+      deliveryDate: {
+        $gte: startOfDay,
+        $lte: endOfDay,
+      },
+      status: { $nin: ["cancelled"] }, // Exclude cancelled bookings
+      isDeleted: false,
+    });
+
+    // Check availability based on venue type
+    let isAvailable = true;
+    let conflictingBookings = [];
+
+    existingBookings.forEach((booking) => {
+      const bookedVenue = booking.venueSelection;
+
+      if (venueType === "both") {
+        // If requesting both venues, check if either is booked
+        if (
+          bookedVenue === "both" ||
+          bookedVenue === "indoor" ||
+          bookedVenue === "outdoor"
+        ) {
+          isAvailable = false;
+          conflictingBookings.push({
+            bookingReference: booking.bookingReference,
+            venueSelection: bookedVenue,
+            customerName: booking.customerDetails.name,
+            peopleCount: booking.peopleCount,
+          });
+        }
+      } else if (venueType === "indoor") {
+        // If requesting indoor, check if both or indoor is booked
+        if (bookedVenue === "both" || bookedVenue === "indoor") {
+          isAvailable = false;
+          conflictingBookings.push({
+            bookingReference: booking.bookingReference,
+            venueSelection: bookedVenue,
+            customerName: booking.customerDetails.name,
+            peopleCount: booking.peopleCount,
+          });
+        }
+      } else if (venueType === "outdoor") {
+        // If requesting outdoor, check if both or outdoor is booked
+        if (bookedVenue === "both" || bookedVenue === "outdoor") {
+          isAvailable = false;
+          conflictingBookings.push({
+            bookingReference: booking.bookingReference,
+            venueSelection: bookedVenue,
+            customerName: booking.customerDetails.name,
+            peopleCount: booking.peopleCount,
+          });
+        }
+      }
+    });
+
+    sendResponse(res, 200, true, "Venue availability checked successfully", {
+      isAvailable,
+      date: date,
+      venueType,
+      totalExistingBookings: existingBookings.length,
+      conflictingBookings,
+    });
+  } catch (error) {
+    console.error("Check venue availability error:", error);
+    sendResponse(res, 500, false, "Failed to check venue availability", {
+      error: error.message,
+    });
+  }
+});
+
 module.exports = {
   createBooking,
   getAllBookings,
@@ -1655,4 +1820,5 @@ module.exports = {
   getCustomOrderById,
   calculateCustomOrderPrice,
   getBookingItemsByCategory,
+  checkVenueAvailability,
 };

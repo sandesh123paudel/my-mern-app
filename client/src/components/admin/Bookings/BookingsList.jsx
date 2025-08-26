@@ -240,6 +240,7 @@ const BookingsList = ({
       locationName: booking.orderSource?.locationName || "Unknown Location",
       serviceName: booking.orderSource?.serviceName || "Unknown Service",
       sourceName: booking.orderSource?.sourceName || "Unknown Menu",
+      venue: booking?.venueSelection || "",
     };
   };
 
@@ -517,7 +518,10 @@ const BookingsList = ({
                         </p>
                         <p className="text-gray-600 flex items-center gap-1">
                           <Briefcase className="w-3 h-3" />
-                          {bookingInfo.serviceName}
+                          {bookingInfo.serviceName} |{" "}
+                          <span className="bg-red-300 px-3 rounded-full py-0">
+                            {bookingInfo.venue}
+                          </span>
                         </p>
                         <p className="text-gray-600">
                           {booking.deliveryType || "Not specified"}
