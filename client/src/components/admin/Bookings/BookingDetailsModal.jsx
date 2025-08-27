@@ -322,6 +322,16 @@ const BookingDetailsModal = ({
                   {booking.deliveryType || "Pickup"}
                 </p>
               </div>
+              {booking.venueSelection && (
+                <div>
+                  <label className="text-sm font-medium text-gray-600">
+                    Venue
+                  </label>
+                  <p className="text-gray-900 bg-red-400 rounded-full  text-center">
+                    {booking.venueSelection || "Not specified"}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Delivery Address */}

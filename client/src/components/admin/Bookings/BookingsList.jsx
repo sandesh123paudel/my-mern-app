@@ -518,9 +518,9 @@ const BookingsList = ({
                         </p>
                         <p className="text-gray-600 flex items-center gap-1">
                           <Briefcase className="w-3 h-3" />
-                          {bookingInfo.serviceName} |{" "}
-                          <span className="bg-red-300 px-3 rounded-full py-0">
-                            {bookingInfo.venue}
+                          {bookingInfo.serviceName}{" "}
+                          <span className="bg-red-300 rounded-3xl px-2">
+                            {bookingInfo.venue && `- ${bookingInfo.venue}`}
                           </span>
                         </p>
                         <p className="text-gray-600">
