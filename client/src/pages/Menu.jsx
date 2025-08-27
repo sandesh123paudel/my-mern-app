@@ -209,7 +209,7 @@ const Menu = () => {
       animate="animate"
       exit="exit"
     >
-      {/* Hero Section */}
+      {/* Hero Section - REMOVED Custom Order Button */}
       <motion.section
         className="relative py-16 md:py-24 bg-white"
         initial={{ opacity: 0 }}
@@ -266,22 +266,6 @@ const Menu = () => {
               occasion. From traditional Nepalese flavors to modern fusion
               dishes.
             </motion.p>
-
-            {/* CTA Button */}
-            <motion.button
-              onClick={() => setShowCustomOrderModal(true)}
-              className="inline-flex items-center gap-2 px-8 py-4 text-white font-semibold text-lg rounded-lg shadow-lg transition-all duration-300"
-              style={{ backgroundColor: "#FF6B35" }}
-              variants={heroVariants}
-              transition={{ delay: 0.6 }}
-              whileHover={{
-                scale: 1.05,
-                boxShadow: "0 10px 25px rgba(255, 107, 53, 0.3)",
-              }}
-              whileTap={{ scale: 0.95 }}
-            >
-              CREATE CUSTOM ORDER
-            </motion.button>
           </motion.div>
         </div>
       </motion.section>
@@ -312,7 +296,6 @@ const Menu = () => {
               </p>
             </motion.div>
 
-            {/* --- MODIFIED CONTAINER --- */}
             <motion.div
               className="flex flex-wrap justify-center items-center gap-8 max-w-5xl mx-auto"
               variants={containerVariants}
@@ -324,7 +307,6 @@ const Menu = () => {
                   key={location._id}
                   variants={itemVariants}
                   transition={{ delay: index * 0.1 }}
-                  // Added a fixed width to cards for better consistency in a flex layout
                   className="bg-white rounded-lg shadow-md p-6 cursor-pointer hover:shadow-lg transition-all duration-300 w-full sm:w-80"
                   onClick={() => handleLocationSelect(location._id)}
                   whileHover={{ y: -5, scale: 1.02 }}
@@ -605,6 +587,47 @@ const Menu = () => {
                         </motion.div>
                       ))}
                     </motion.div>
+
+                    {/* MOVED: Custom Order CTA Section - Now after menu cards */}
+                    <motion.div
+                      className="text-center mt-16 pt-12 border-t border-gray-200"
+                      initial={{ opacity: 0, y: 30 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.6, delay: 0.5 }}
+                    >
+                      <motion.h3
+                        className="text-2xl md:text-3xl font-bold mb-4"
+                        style={{ color: "var(--primary-brown)" }}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.6 }}
+                      >
+                        Can't find what you're looking for?
+                      </motion.h3>
+                      <motion.p
+                        className="text-gray-600 text-lg mb-8 max-w-2xl mx-auto"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.7 }}
+                      >
+                        Create a personalized menu package tailored to your specific needs and preferences
+                      </motion.p>
+                      <motion.button
+                        onClick={() => setShowCustomOrderModal(true)}
+                        className="inline-flex items-center gap-2 px-8 py-4 text-white font-semibold text-lg rounded-lg shadow-lg transition-all duration-300"
+                        style={{ backgroundColor: "#FF6B35" }}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.8 }}
+                        whileHover={{
+                          scale: 1.05,
+                          boxShadow: "0 10px 25px rgba(255, 107, 53, 0.3)",
+                        }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        CREATE CUSTOM ORDER
+                      </motion.button>
+                    </motion.div>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -696,7 +719,7 @@ const Menu = () => {
         </div>
       </motion.section>
 
-      {/* Custom Order CTA Section */}
+      {/* Final CTA Section */}
       <motion.section
         className="py-16"
         style={{ backgroundColor: "var(--primary-green)" }}

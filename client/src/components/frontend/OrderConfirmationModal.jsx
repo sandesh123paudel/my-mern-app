@@ -1099,6 +1099,8 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
     "addons",
     "other",
   ];
+  const total = orderData?.pricing?.total || 0;
+  const realTotal = total + (venueCharge || 0);
 
   return (
     <motion.div
@@ -1214,8 +1216,8 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
                       </span>
                     </div>
                   )}
-
-                  {/* Venue Charge */}
+                  {/* Venue Charge - Already included in total */}
+                  {/* Venue Charge - Remove "(included)" text */}
                   {isFunction && venueCharge > 0 && (
                     <div className="flex justify-between mb-1">
                       <span className="text-gray-600">Venue Charge:</span>
@@ -1226,15 +1228,13 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
                   )}
 
                   {/* Total */}
-                  {/* Total */}
                   <div className="border-t pt-1 mt-2">
                     <div className="flex justify-between font-semibold">
                       <span>Total:</span>
-                      <span>{formatPrice(totalPrice)}</span>{" "}
-                      {/* Use totalPrice as-is */}
+                      <span>{formatPrice(realTotal)}</span>
                     </div>
                     <div className="text-xs text-gray-500 text-right mt-1">
-                      {formatPrice(totalPrice / (orderData?.peopleCount || 1))}{" "}
+                      {formatPrice(realTotal / (orderData?.peopleCount || 1))}{" "}
                       per person
                     </div>
                   </div>

@@ -82,16 +82,15 @@ export const createBooking = async (bookingData) => {
       menuSelections: bookingData.menuSelections || {},
 
       // Pricing information (UPDATE TO INCLUDE VENUE CHARGE)
+      // Pricing information - DON'T add venue charge to total here
       pricing: {
         basePrice: bookingData.pricing?.basePrice || 0,
         modifierPrice: bookingData.pricing?.modifierPrice || 0,
         itemsPrice: bookingData.pricing?.itemsPrice || 0,
         addonsPrice: bookingData.pricing?.addonsPrice || 0,
-        venueCharge: bookingData.venueCharge || 0, // Add venue charge here too
-        total:
-          (bookingData.pricing?.total || 0) + (bookingData.venueCharge || 0), // Include venue charge in total
+        venueCharge: bookingData.venueCharge || 0,
+        total: bookingData.pricing?.total || 0, // Use total as-is from frontend
       },
-
       // Custom order flag
       isCustomOrder: bookingData.isCustomOrder || false,
     };

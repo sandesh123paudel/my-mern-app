@@ -590,15 +590,20 @@ const createBooking = asyncHandler(async (req, res) => {
       },
       peopleCount,
       selectedItems: processedItems,
-      pricing: pricing || {
-        basePrice: isCustomOrder
-          ? 0
-          : (source?.basePrice || source?.price || 0) * peopleCount,
-        modifierPrice: 0,
-        itemsPrice: 0,
-        addonsPrice: 0,
-        total: pricing?.total || 0,
-      },
+      pricing: pricing
+        ? {
+            ...pricing,
+            total: (pricing.total || 0) + (venueCharge || 0),
+          }
+        : {
+            basePrice: isCustomOrder
+              ? 0
+              : (source?.basePrice || source?.price || 0) * peopleCount,
+            modifierPrice: 0,
+            itemsPrice: 0,
+            addonsPrice: 0,
+            total: (pricing?.total || 0) + (venueCharge || 0),
+          },
       deliveryType: isFunction ? "Event" : deliveryType || "Pickup", // ✅ Force Event for functions
       deliveryDate: new Date(deliveryDate),
       address: !isFunction && deliveryType === "Delivery" ? address : undefined,

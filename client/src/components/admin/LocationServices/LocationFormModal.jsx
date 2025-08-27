@@ -1,14 +1,14 @@
 import React, { useState } from "react";
 import { Save, X, CreditCard, Eye, EyeOff } from "lucide-react";
 
-const LocationFormModal = ({ 
-  isOpen, 
-  onClose, 
-  locationForm, 
-  setLocationForm, 
-  onSave, 
+const LocationFormModal = ({
+  isOpen,
+  onClose,
+  locationForm,
+  setLocationForm,
+  onSave,
   editingLocation,
-  loading 
+  loading,
 }) => {
   const [showBankDetails, setShowBankDetails] = useState(false);
   const [activeSection, setActiveSection] = useState("basic"); // "basic" or "bank"
@@ -30,7 +30,7 @@ const LocationFormModal = ({
 
   const formatBSB = (value) => {
     // Remove non-digits and limit to 6 characters
-    const digits = value.replace(/\D/g, '').slice(0, 6);
+    const digits = value.replace(/\D/g, "").slice(0, 6);
     // Format as XXX-XXX
     if (digits.length > 3) {
       return `${digits.slice(0, 3)}-${digits.slice(3)}`;
@@ -40,18 +40,18 @@ const LocationFormModal = ({
 
   const handleBSBChange = (e) => {
     const formatted = formatBSB(e.target.value);
-    setLocationForm(prev => ({
+    setLocationForm((prev) => ({
       ...prev,
       bankDetails: {
         ...prev.bankDetails,
-        bsb: formatted.replace('-', '') // Store without dash
-      }
+        bsb: formatted.replace("-", ""), // Store without dash
+      },
     }));
   };
 
   const toggleBankDetailsSection = () => {
     if (!locationForm.bankDetails) {
-      setLocationForm(prev => ({
+      setLocationForm((prev) => ({
         ...prev,
         bankDetails: {
           bankName: "",
@@ -59,8 +59,8 @@ const LocationFormModal = ({
           bsb: "",
           accountNumber: "",
           reference: "",
-          isActive: true
-        }
+          isActive: true,
+        },
       }));
     }
     setShowBankDetails(!showBankDetails);
@@ -68,18 +68,24 @@ const LocationFormModal = ({
 
   const isBankDetailsValid = () => {
     if (!locationForm.bankDetails) return true; // Optional section
-    const { bankName, accountName, bsb, accountNumber } = locationForm.bankDetails;
-    
+    const { bankName, accountName, bsb, accountNumber } =
+      locationForm.bankDetails;
+
     if (!bankName && !accountName && !bsb && !accountNumber) {
       return true; // All empty is fine
     }
-    
+
     // If any field is filled, all required fields must be filled
-    return bankName && accountName && validateBSB(bsb) && validateAccountNumber(accountNumber);
+    return (
+      bankName &&
+      accountName &&
+      validateBSB(bsb) &&
+      validateAccountNumber(accountNumber)
+    );
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 top-[-50px] bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-semibold">
@@ -256,17 +262,25 @@ const LocationFormModal = ({
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
                 <div className="flex items-center gap-2 mb-2">
                   <CreditCard className="text-blue-600" size={20} />
-                  <h3 className="font-medium text-blue-800">Payment Information</h3>
+                  <h3 className="font-medium text-blue-800">
+                    Payment Information
+                  </h3>
                 </div>
                 <p className="text-sm text-blue-700">
-                  Configure bank details for this location. These details will be included in booking confirmation emails sent to customers.
+                  Configure bank details for this location. These details will
+                  be included in booking confirmation emails sent to customers.
                 </p>
               </div>
 
               {!locationForm.bankDetails && (
                 <div className="text-center py-8">
-                  <CreditCard className="mx-auto text-gray-400 mb-4" size={48} />
-                  <p className="text-gray-500 mb-4">No bank details configured</p>
+                  <CreditCard
+                    className="mx-auto text-gray-400 mb-4"
+                    size={48}
+                  />
+                  <p className="text-gray-500 mb-4">
+                    No bank details configured
+                  </p>
                   <button
                     type="button"
                     onClick={toggleBankDetailsSection}
@@ -280,7 +294,9 @@ const LocationFormModal = ({
               {locationForm.bankDetails && (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
-                    <h4 className="text-lg font-medium text-gray-800">Bank Account Information</h4>
+                    <h4 className="text-lg font-medium text-gray-800">
+                      Bank Account Information
+                    </h4>
                     <div className="flex items-center gap-2">
                       <label className="flex items-center gap-2">
                         <input
@@ -321,7 +337,11 @@ const LocationFormModal = ({
                         }
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="e.g., Commonwealth Bank"
-                        required={locationForm.bankDetails.accountName || locationForm.bankDetails.bsb || locationForm.bankDetails.accountNumber}
+                        required={
+                          locationForm.bankDetails.accountName ||
+                          locationForm.bankDetails.bsb ||
+                          locationForm.bankDetails.accountNumber
+                        }
                       />
                     </div>
 
@@ -343,7 +363,11 @@ const LocationFormModal = ({
                         }
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="e.g., MC Catering Services Pty Ltd"
-                        required={locationForm.bankDetails.bankName || locationForm.bankDetails.bsb || locationForm.bankDetails.accountNumber}
+                        required={
+                          locationForm.bankDetails.bankName ||
+                          locationForm.bankDetails.bsb ||
+                          locationForm.bankDetails.accountNumber
+                        }
                       />
                     </div>
                   </div>
@@ -355,20 +379,32 @@ const LocationFormModal = ({
                       </label>
                       <input
                         type="text"
-                        value={locationForm.bankDetails.bsb ? formatBSB(locationForm.bankDetails.bsb) : ''}
+                        value={
+                          locationForm.bankDetails.bsb
+                            ? formatBSB(locationForm.bankDetails.bsb)
+                            : ""
+                        }
                         onChange={handleBSBChange}
                         className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                          locationForm.bankDetails.bsb && !validateBSB(locationForm.bankDetails.bsb)
-                            ? 'border-red-300 focus:ring-red-500'
-                            : 'border-gray-300 focus:ring-blue-500'
+                          locationForm.bankDetails.bsb &&
+                          !validateBSB(locationForm.bankDetails.bsb)
+                            ? "border-red-300 focus:ring-red-500"
+                            : "border-gray-300 focus:ring-blue-500"
                         }`}
                         placeholder="123-456"
                         maxLength="7"
-                        required={locationForm.bankDetails.bankName || locationForm.bankDetails.accountName || locationForm.bankDetails.accountNumber}
+                        required={
+                          locationForm.bankDetails.bankName ||
+                          locationForm.bankDetails.accountName ||
+                          locationForm.bankDetails.accountNumber
+                        }
                       />
-                      {locationForm.bankDetails.bsb && !validateBSB(locationForm.bankDetails.bsb) && (
-                        <p className="text-red-500 text-xs mt-1">BSB must be exactly 6 digits</p>
-                      )}
+                      {locationForm.bankDetails.bsb &&
+                        !validateBSB(locationForm.bankDetails.bsb) && (
+                          <p className="text-red-500 text-xs mt-1">
+                            BSB must be exactly 6 digits
+                          </p>
+                        )}
                     </div>
 
                     <div>
@@ -379,7 +415,9 @@ const LocationFormModal = ({
                         type="text"
                         value={locationForm.bankDetails.accountNumber}
                         onChange={(e) => {
-                          const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                          const value = e.target.value
+                            .replace(/\D/g, "")
+                            .slice(0, 10);
                           setLocationForm((prev) => ({
                             ...prev,
                             bankDetails: {
@@ -389,17 +427,29 @@ const LocationFormModal = ({
                           }));
                         }}
                         className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                          locationForm.bankDetails.accountNumber && !validateAccountNumber(locationForm.bankDetails.accountNumber)
-                            ? 'border-red-300 focus:ring-red-500'
-                            : 'border-gray-300 focus:ring-blue-500'
+                          locationForm.bankDetails.accountNumber &&
+                          !validateAccountNumber(
+                            locationForm.bankDetails.accountNumber
+                          )
+                            ? "border-red-300 focus:ring-red-500"
+                            : "border-gray-300 focus:ring-blue-500"
                         }`}
                         placeholder="123456789"
                         maxLength="10"
-                        required={locationForm.bankDetails.bankName || locationForm.bankDetails.accountName || locationForm.bankDetails.bsb}
+                        required={
+                          locationForm.bankDetails.bankName ||
+                          locationForm.bankDetails.accountName ||
+                          locationForm.bankDetails.bsb
+                        }
                       />
-                      {locationForm.bankDetails.accountNumber && !validateAccountNumber(locationForm.bankDetails.accountNumber) && (
-                        <p className="text-red-500 text-xs mt-1">Account number must be 6-10 digits</p>
-                      )}
+                      {locationForm.bankDetails.accountNumber &&
+                        !validateAccountNumber(
+                          locationForm.bankDetails.accountNumber
+                        ) && (
+                          <p className="text-red-500 text-xs mt-1">
+                            Account number must be 6-10 digits
+                          </p>
+                        )}
                     </div>
                   </div>
 
@@ -420,25 +470,28 @@ const LocationFormModal = ({
                         }))
                       }
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder={`e.g., ${locationForm.city || 'LOCATION'}`}
+                      placeholder={`e.g., ${locationForm.city || "LOCATION"}`}
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Optional reference for payments. If left blank, the location name will be used.
+                      Optional reference for payments. If left blank, the
+                      location name will be used.
                     </p>
                   </div>
 
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                     <p className="text-sm text-yellow-800">
-                      <strong>Note:</strong> These bank details will be included in booking confirmation emails sent to customers for payments.
+                      <strong>Note:</strong> These bank details will be included
+                      in booking confirmation emails sent to customers for
+                      payments.
                     </p>
                   </div>
 
                   <button
                     type="button"
                     onClick={() => {
-                      setLocationForm(prev => ({
+                      setLocationForm((prev) => ({
                         ...prev,
-                        bankDetails: null
+                        bankDetails: null,
                       }));
                     }}
                     className="text-red-600 hover:text-red-800 text-sm underline"
@@ -460,11 +513,20 @@ const LocationFormModal = ({
             </button>
             <button
               type="submit"
-              disabled={!locationForm.name || !locationForm.city || !isBankDetailsValid() || loading}
+              disabled={
+                !locationForm.name ||
+                !locationForm.city ||
+                !isBankDetailsValid() ||
+                loading
+              }
               className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-md flex items-center gap-2"
             >
               <Save size={20} />
-              {loading ? "Saving..." : editingLocation ? "Update Location" : "Create Location"}
+              {loading
+                ? "Saving..."
+                : editingLocation
+                ? "Update Location"
+                : "Create Location"}
             </button>
           </div>
         </form>

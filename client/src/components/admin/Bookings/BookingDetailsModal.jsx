@@ -1,5 +1,14 @@
 import React, { useState } from "react";
-import { Printer, X, User, Calendar, MapPin, Package, CreditCard, FileText } from "lucide-react";
+import {
+  Printer,
+  X,
+  User,
+  Calendar,
+  MapPin,
+  Package,
+  CreditCard,
+  FileText,
+} from "lucide-react";
 import bookingService from "../../../services/bookingService";
 import toast from "react-hot-toast";
 
@@ -152,25 +161,25 @@ const BookingDetailsModal = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 top-[-50px] bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="bg-blue-600 text-white px-6 py-4 rounded-t-lg flex items-center justify-between">
+        <div className="bg-primary-green text-white px-6 py-4 rounded-t-lg flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold">Booking Details</h2>
-            <p className="text-blue-100">#{booking.bookingReference}</p>
+            <p className="text-white">#{booking.bookingReference}</p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => onPrintBooking && onPrintBooking(booking)}
-              className="bg-blue-700 hover:bg-blue-800 px-3 py-1 rounded text-sm flex items-center gap-1"
+              className="bg-primary-green hover:bg-primary-brown hover:text-white px-3 py-1 rounded text-sm flex items-center gap-1"
             >
               <Printer className="w-4 h-4" />
               Print
             </button>
             <button
               onClick={onClose}
-              className="hover:bg-blue-700 p-1 rounded"
+              className="hover:bg-primary-green p-1 rounded"
             >
               <X className="w-6 h-6" />
             </button>
@@ -190,7 +199,9 @@ const BookingDetailsModal = ({
               </span>
               <div className="text-sm text-gray-600">
                 <span className="font-medium">Order Type:</span>{" "}
-                {booking.orderSource?.sourceType === "customOrder" ? "Custom Order" : "Menu Order"}
+                {booking.orderSource?.sourceType === "customOrder"
+                  ? "Custom Order"
+                  : "Menu Order"}
               </div>
             </div>
             <div className="text-right text-sm text-gray-600">
@@ -207,31 +218,49 @@ const BookingDetailsModal = ({
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium text-gray-600">Name</label>
-                <p className="text-gray-900">{booking.customerDetails?.name || "Not provided"}</p>
+                <label className="text-sm font-medium text-gray-600">
+                  Name
+                </label>
+                <p className="text-gray-900">
+                  {booking.customerDetails?.name || "Not provided"}
+                </p>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-600">Email</label>
-                <p className="text-gray-900">{booking.customerDetails?.email || "Not provided"}</p>
+                <label className="text-sm font-medium text-gray-600">
+                  Email
+                </label>
+                <p className="text-gray-900">
+                  {booking.customerDetails?.email || "Not provided"}
+                </p>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-600">Phone</label>
-                <p className="text-gray-900">{booking.customerDetails?.phone || "Not provided"}</p>
+                <label className="text-sm font-medium text-gray-600">
+                  Phone
+                </label>
+                <p className="text-gray-900">
+                  {booking.customerDetails?.phone || "Not provided"}
+                </p>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-600">Guests</label>
-                <p className="text-gray-900">{booking.peopleCount || 0} people</p>
+                <label className="text-sm font-medium text-gray-600">
+                  Guests
+                </label>
+                <p className="text-gray-900">
+                  {booking.peopleCount || 0} people
+                </p>
               </div>
             </div>
 
             {/* Dietary Information */}
-            {(booking.customerDetails?.dietaryRequirements?.length > 0 || 
+            {(booking.customerDetails?.dietaryRequirements?.length > 0 ||
               booking.customerDetails?.spiceLevel !== "medium") && (
               <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="font-medium">Dietary:</span>{" "}
-                    {formatDietaryRequirements(booking.customerDetails?.dietaryRequirements)}
+                    {formatDietaryRequirements(
+                      booking.customerDetails?.dietaryRequirements
+                    )}
                   </div>
                   <div>
                     <span className="font-medium">Spice Level:</span>{" "}
@@ -244,7 +273,9 @@ const BookingDetailsModal = ({
             {/* Special Instructions */}
             {booking.customerDetails?.specialInstructions && (
               <div className="mt-4">
-                <label className="text-sm font-medium text-gray-600">Special Instructions</label>
+                <label className="text-sm font-medium text-gray-600">
+                  Special Instructions
+                </label>
                 <p className="text-gray-900 bg-yellow-50 p-3 rounded border border-yellow-200 mt-1">
                   {booking.customerDetails.specialInstructions}
                 </p>
@@ -260,20 +291,36 @@ const BookingDetailsModal = ({
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium text-gray-600">Service</label>
-                <p className="text-gray-900">{booking.orderSource?.sourceName || "Not specified"}</p>
+                <label className="text-sm font-medium text-gray-600">
+                  Service
+                </label>
+                <p className="text-gray-900">
+                  {booking.orderSource?.sourceName || "Not specified"}
+                </p>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-600">Location</label>
-                <p className="text-gray-900">{booking.orderSource?.locationName || "Not specified"}</p>
+                <label className="text-sm font-medium text-gray-600">
+                  Location
+                </label>
+                <p className="text-gray-900">
+                  {booking.orderSource?.locationName || "Not specified"}
+                </p>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-600">Service Type</label>
-                <p className="text-gray-900">{booking.orderSource?.serviceName || "Not specified"}</p>
+                <label className="text-sm font-medium text-gray-600">
+                  Service Type
+                </label>
+                <p className="text-gray-900">
+                  {booking.orderSource?.serviceName || "Not specified"}
+                </p>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-600">Delivery Type</label>
-                <p className="text-gray-900">{booking.deliveryType || "Pickup"}</p>
+                <label className="text-sm font-medium text-gray-600">
+                  Delivery Type
+                </label>
+                <p className="text-gray-900">
+                  {booking.deliveryType || "Pickup"}
+                </p>
               </div>
             </div>
 
@@ -283,9 +330,13 @@ const BookingDetailsModal = ({
                 <div className="flex items-start gap-2">
                   <MapPin className="w-4 h-4 text-green-600 mt-0.5" />
                   <div>
-                    <p className="font-medium text-green-800">Delivery Address</p>
+                    <p className="font-medium text-green-800">
+                      Delivery Address
+                    </p>
                     <div className="text-sm text-gray-700">
-                      {booking.address.street && <p>{booking.address.street}</p>}
+                      {booking.address.street && (
+                        <p>{booking.address.street}</p>
+                      )}
                       <p>
                         {[
                           booking.address.suburb,
@@ -295,7 +346,9 @@ const BookingDetailsModal = ({
                           .filter(Boolean)
                           .join(", ")}
                       </p>
-                      {booking.address.country && <p>{booking.address.country}</p>}
+                      {booking.address.country && (
+                        <p>{booking.address.country}</p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -319,7 +372,9 @@ const BookingDetailsModal = ({
                     <div className="flex-1">
                       <h4 className="font-medium text-gray-900">{item.name}</h4>
                       {item.description && (
-                        <p className="text-sm text-gray-600 mt-1">{item.description}</p>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {item.description}
+                        </p>
                       )}
                       <div className="flex gap-2 mt-2">
                         <span className="text-xs bg-gray-100 px-2 py-1 rounded">
@@ -341,14 +396,19 @@ const BookingDetailsModal = ({
                       </div>
                       {item.allergens && item.allergens.length > 0 && (
                         <div className="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded">
-                          <span className="font-medium">Allergens:</span> {item.allergens.join(", ")}
+                          <span className="font-medium">Allergens:</span>{" "}
+                          {item.allergens.join(", ")}
                         </div>
                       )}
                     </div>
                     <div className="ml-4 text-right">
-                      <p className="font-medium text-gray-900">{formatPrice(item.totalPrice)}</p>
+                      <p className="font-medium text-gray-900">
+                        {formatPrice(item.totalPrice)}
+                      </p>
                       {item.groupName && (
-                        <p className="text-xs text-gray-500">{item.groupName}</p>
+                        <p className="text-xs text-gray-500">
+                          {item.groupName}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -364,37 +424,53 @@ const BookingDetailsModal = ({
                 <CreditCard className="w-5 h-5" />
                 Payment Information
               </h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div className="bg-white p-3 rounded border">
-                  <label className="text-sm font-medium text-gray-600">Total Amount</label>
-                  <p className="text-xl font-bold text-gray-900">{formatPrice(financials.total)}</p>
+                  <label className="text-sm font-medium text-gray-600">
+                    Total Amount
+                  </label>
+                  <p className="text-xl font-bold text-gray-900">
+                    {formatPrice(financials.total)}
+                  </p>
                 </div>
                 <div className="bg-white p-3 rounded border">
-                  <label className="text-sm font-medium text-gray-600">Amount Paid</label>
-                  <p className="text-xl font-bold text-green-600">{formatPrice(financials.paid)}</p>
+                  <label className="text-sm font-medium text-gray-600">
+                    Amount Paid
+                  </label>
+                  <p className="text-xl font-bold text-green-600">
+                    {formatPrice(financials.paid)}
+                  </p>
                 </div>
                 <div className="bg-white p-3 rounded border">
-                  <label className="text-sm font-medium text-gray-600">Balance Due</label>
-                  <p className="text-xl font-bold text-orange-600">{formatPrice(financials.balance)}</p>
+                  <label className="text-sm font-medium text-gray-600">
+                    Balance Due
+                  </label>
+                  <p className="text-xl font-bold text-orange-600">
+                    {formatPrice(financials.balance)}
+                  </p>
                 </div>
               </div>
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-gray-600">Payment Status:</span>
+                  <span className="text-sm font-medium text-gray-600">
+                    Payment Status:
+                  </span>
                   <span
                     className={`px-3 py-1 rounded-full text-sm font-medium border ${getPaymentStatusColor(
                       booking.paymentStatus || "pending"
                     )}`}
                   >
-                    {(booking.paymentStatus || "pending").replace("_", " ").toUpperCase()}
+                    {(booking.paymentStatus || "pending")
+                      .replace("_", " ")
+                      .toUpperCase()}
                   </span>
                 </div>
                 {financials.showPaymentOption && (
                   <button
                     onClick={() => setShowPaymentForm(true)}
-                    className="text-blue-600 hover:text-blue-800 text-sm underline"
+                    className="text-primary-green hover:text-blue-800 text-sm underline"
                   >
                     Update Payment
                   </button>
@@ -406,7 +482,9 @@ const BookingDetailsModal = ({
           {/* Admin Notes */}
           {booking.adminNotes && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h3 className="text-lg font-semibold text-blue-800 mb-2">Admin Notes</h3>
+              <h3 className="text-lg font-semibold text-blue-800 mb-2">
+                Admin Notes
+              </h3>
               <p className="text-blue-900">{booking.adminNotes}</p>
             </div>
           )}
@@ -414,7 +492,9 @@ const BookingDetailsModal = ({
           {/* Cancellation Information */}
           {booking.status === "cancelled" && booking.cancellationReason && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-              <h3 className="text-lg font-semibold text-red-800 mb-2">Cancellation Details</h3>
+              <h3 className="text-lg font-semibold text-red-800 mb-2">
+                Cancellation Details
+              </h3>
               <p className="text-red-900">{booking.cancellationReason}</p>
             </div>
           )}
@@ -423,7 +503,8 @@ const BookingDetailsModal = ({
           {showStatusForm && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <h4 className="font-medium text-blue-800 mb-3">
-                Update Status to "{pendingStatus.replace("_", " ").toUpperCase()}"
+                Update Status to "
+                {pendingStatus.replace("_", " ").toUpperCase()}"
               </h4>
               <textarea
                 value={statusNotes}
@@ -434,7 +515,7 @@ const BookingDetailsModal = ({
               <div className="flex gap-2 mt-3">
                 <button
                   onClick={handleConfirmStatusUpdate}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                  className="bg-primary-green text-white px-4 py-2 rounded-lg hover:bg-primary-green"
                 >
                   Confirm Update
                 </button>
@@ -486,7 +567,9 @@ const BookingDetailsModal = ({
 
           {showPaymentForm && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <h4 className="font-medium text-green-800 mb-3">Update Payment Status</h4>
+              <h4 className="font-medium text-green-800 mb-3">
+                Update Payment Status
+              </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
                   <label className="block text-sm font-medium text-green-700 mb-2">
@@ -526,7 +609,7 @@ const BookingDetailsModal = ({
               </div>
 
               <div className="bg-blue-50 p-3 rounded border border-blue-200 mb-4">
-                <p className="text-sm text-blue-700">
+                <p className="text-sm text-primary-green">
                   <span className="font-medium">New Balance Due:</span>{" "}
                   {formatPrice(calculateCurrentBalance())}
                 </p>
@@ -554,7 +637,9 @@ const BookingDetailsModal = ({
           {/* Admin Actions */}
           {!showStatusForm && !showCancellationForm && !showPaymentForm && (
             <div className="border-t pt-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Admin Actions</h3>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                Admin Actions
+              </h3>
               <div className="flex flex-wrap gap-3">
                 {/* Status progression buttons */}
                 {booking.status === "pending" && (
@@ -569,7 +654,7 @@ const BookingDetailsModal = ({
                 {booking.status === "confirmed" && (
                   <button
                     onClick={() => handleStatusUpdate("preparing")}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                    className="bg-primary-green text-white px-4 py-2 rounded-lg hover:bg-primary-green"
                   >
                     Start Preparing
                   </button>
@@ -584,7 +669,8 @@ const BookingDetailsModal = ({
                   </button>
                 )}
 
-                {(booking.status === "ready" || booking.status === "confirmed") && (
+                {(booking.status === "ready" ||
+                  booking.status === "confirmed") && (
                   <button
                     onClick={() => handleStatusUpdate("completed")}
                     className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700"

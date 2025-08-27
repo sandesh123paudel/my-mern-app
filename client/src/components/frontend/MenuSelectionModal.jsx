@@ -264,7 +264,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
   // Calculate prices
   const calculateBasePrice = () => {
     const numPeople = parseInt(peopleCount) || 0;
-    return (menu.basePrice || menu.price || 0) * numPeople;
+    return (menu.basePrice || menu.price || 0) * numPeople; // NO venue charge here
   };
 
   const calculateItemModifiers = () => {
@@ -473,8 +473,11 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
         basePrice: calculateBasePrice(),
         modifierPrice: calculateItemModifiers(),
         addonsPrice: calculateAddonsPrice().total,
-        venueCharge: venueCharge || 0, // Add venue charge
-        total: calculateTotalPrice(),
+        venueCharge: venueCharge || 0,
+        total:
+          calculateBasePrice() +
+          calculateItemModifiers() +
+          calculateAddonsPrice().total, // WITHOUT venue charge
       },
       addonBreakdown: calculateAddonsPrice().breakdown,
       // Add venue selection data
@@ -951,7 +954,6 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
             </div>
           )}
 
-          {/* Add venue charge display */}
           {isFunction && venueCharge > 0 && (
             <div className="flex justify-between">
               <span className="text-gray-600">Venue charge:</span>
@@ -962,6 +964,34 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
           )}
 
           {/* ... rest of existing addon breakdown code ... */}
+          {addonData.breakdown.length > 0 && (
+            <>
+              {addonData.breakdown.map((addon, index) => (
+                <div key={index} className="flex justify-between text-xs">
+                  <span className="text-gray-600">
+                    {addon.name}
+                    {addon.type === "fixed"
+                      ? ` (${peopleCount} × ${formatPrice(
+                          addon.pricePerPerson
+                        )})`
+                      : ` (${addon.quantity} × ${formatPrice(
+                          addon.pricePerUnit
+                        )})`}
+                    :
+                  </span>
+                  <span className="text-orange-600 font-medium">
+                    {formatPrice(addon.totalPrice)}
+                  </span>
+                </div>
+              ))}
+              <div className="flex justify-between pt-2 border-t">
+                <span className="text-gray-600">Add-ons Total:</span>
+                <span className="text-orange-600 font-medium">
+                  {formatPrice(addonData.total)}
+                </span>
+              </div>
+            </>
+          )}
 
           <div className="flex justify-between pt-2 border-t font-medium">
             <span className="text-gray-900">Grand Total:</span>

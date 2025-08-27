@@ -97,7 +97,7 @@ const DayDetailModal = ({
     addText("MC Catering Services", 20, true);
     addText(`Location: ${locationName}`, 12);
     addText(`Service: ${serviceName}`, 12);
-
+    yPosition += 3;
     addText("DAY SUMMARY REPORT", 18, true);
     yPosition += 5;
     addText(
@@ -192,6 +192,15 @@ const DayDetailModal = ({
         `Location: ${booking.orderSource?.locationName || "No Location"}`
       );
       addText(`Delivery Type: ${booking.deliveryType || "Not specified"}`);
+
+      if (booking.venueSelection) {
+        const venueText = `Venue: ${booking.venueSelection.toUpperCase()}`;
+        const chargeText =
+          booking.venueCharge > 0
+            ? ` (Charge: ${formatPrice(booking.venueCharge)})`
+            : "";
+        addText(venueText + chargeText);
+      }
 
       if (booking.deliveryType === "Delivery" && booking.address) {
         addText(
@@ -486,10 +495,10 @@ const DayDetailModal = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 top-[-50px] bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="bg-blue-600 text-white px-6 py-4 rounded-t-lg flex items-center justify-between">
+        <div className="bg-primary-green text-white px-6 py-4 rounded-t-lg flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold">
               {date
@@ -570,6 +579,22 @@ const DayDetailModal = ({
                   Show Kitchen View
                 </label>
               </div>
+            </div>
+
+            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+              <h3 className="font-semibold text-indigo-800 mb-2">Venues</h3>
+              <p className="text-2xl font-bold text-indigo-900">
+                {
+                  new Set(
+                    bookings
+                      .filter(
+                        (b) => b.venueSelection && b.status !== "cancelled"
+                      )
+                      .map((b) => b.venueSelection)
+                  ).size
+                }
+              </p>
+              <p className="text-xs text-indigo-600">Active venues</p>
             </div>
           </div>
 
@@ -807,6 +832,17 @@ const DayDetailModal = ({
                           <p className="text-gray-600">
                             {booking.deliveryType || "Not specified"}
                           </p>
+                          {booking.venueSelection && (
+                            <p className="text-gray-600">
+                              <span className="font-medium">Venue:</span>{" "}
+                              {booking.venueSelection.toUpperCase()}
+                              {booking.venueCharge > 0 && (
+                                <span className="text-green-600 ml-2">
+                                  (+{formatPrice(booking.venueCharge)})
+                                </span>
+                              )}
+                            </p>
+                          )}
                         </div>
 
                         <div>

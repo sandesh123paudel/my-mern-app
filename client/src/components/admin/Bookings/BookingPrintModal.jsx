@@ -194,7 +194,7 @@ const BookingPrintModal = ({
   const isCustomOrder = booking.orderSource?.sourceType === "customOrder";
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 top-[-50px] bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
         {/* Modal Header */}
         <div className="flex items-center justify-between p-4 border-b">
@@ -251,6 +251,19 @@ const BookingPrintModal = ({
                     <span>Type:</span>
                     <span>{booking.deliveryType}</span>
                   </div>
+                  {booking.venueSelection && (
+                    <div className="line-item">
+                      <span>Venue:</span>
+                      <span>{booking.venueSelection.toUpperCase()}</span>
+                    </div>
+                  )}
+                  {booking.venueCharge > 0 && (
+                    <div className="line-item">
+                      <span>Venue Charge:</span>
+                      <span>{formatPrice(booking.venueCharge)}</span>
+                    </div>
+                  )}
+
                   <div className="line-item">
                     <span>Order:</span>
                     <span
@@ -473,6 +486,12 @@ const BookingPrintModal = ({
                       </div>
                     )}
 
+                  {booking.venueCharge > 0 && (
+                    <div className="line-item">
+                      <span>Venue Charge:</span>
+                      <span>{formatPrice(booking.venueCharge)}</span>
+                    </div>
+                  )}
                   <div className="line-item total-line">
                     <span>TOTAL:</span>
                     <span>{formatPrice(total)}</span>
