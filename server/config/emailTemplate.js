@@ -563,7 +563,7 @@ const ADMIN_BOOKING_NOTIFICATION_TEMPLATE = `
       {{dietaryRequirementsSection}}
 
       <div class="action-buttons">
-        <a href="{{adminDashboardUrl}}/bookings" class="btn btn-primary">View in Dashboard</a>
+        <a href="{{adminDashboardUrl}}/admin/bookings" class="btn btn-primary">View in Dashboard</a>
         <a href="mailto:{{customerEmail}}?subject=Re: Booking {{bookingReference}}" class="btn btn-secondary">Email Customer</a>
         <a href="tel:{{customerPhone}}" class="btn btn-secondary">Call Customer</a>
       </div>

@@ -1018,6 +1018,18 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
     }
   }, [peopleCount, selectedVenue, serviceVenueOptions]);
 
+  const validationErrors = validateOrder();
+  let isOrderValid = validationErrors.length === 0;
+
+  // Extra guard for async venue load
+  if (isFunction) {
+    if (!serviceVenueOptions) {
+      isOrderValid = false; // still loading venues
+    } else if (!selectedVenue) {
+      isOrderValid = false; // venue not chosen yet
+    }
+  }
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-start justify-center p-4 overflow-y-auto">
       <div className="bg-gray-100 rounded-lg w-full max-w-6xl shadow-lg flex flex-col min-h-[90vh] lg:max-h-[95vh] lg:overflow-hidden">
@@ -1238,7 +1250,13 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
               {/* Place Order Button */}
               <button
                 onClick={handlePlaceOrder}
-                className="w-full bg-red-600 text-white py-3 px-4 rounded font-semibold hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+                disabled={!isOrderValid}
+                className={`w-full py-3 px-4 rounded font-semibold flex items-center justify-center gap-2 transition-colors
+    ${
+      isOrderValid
+        ? "bg-red-600 text-white hover:bg-red-700"
+        : "bg-gray-300 text-gray-500 cursor-not-allowed"
+    }`}
               >
                 <ShoppingCart size={18} />
                 Continue to Order Details
