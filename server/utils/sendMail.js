@@ -71,7 +71,7 @@ const isEventUrgent = (eventDate) => {
   return diffDays <= 3 && diffDays >= 0;
 };
 
-// Helper function to format selected items as paragraphs grouped by category
+// Helper function to format selected items as a simple list with grouped choices
 const formatSelectedItemsAsParagraphs = (
   selectedItems,
   isCustomOrder = false
@@ -80,47 +80,70 @@ const formatSelectedItemsAsParagraphs = (
     return "";
   }
 
-  if (isCustomOrder && item.totalPrice && item.totalPrice > 0) {
-    description += ` - $${formatCurrency(item.totalPrice)}`;
-  }
+  // Group items and their choices
+  const processedItems = [];
+  const usedItems = new Set();
 
-  // Group items by category
-  const itemsByCategory = {};
-  selectedItems.forEach((item) => {
-    const category = item.category || "other";
-    if (!itemsByCategory[category]) {
-      itemsByCategory[category] = [];
+  selectedItems.forEach((item, index) => {
+    if (usedItems.has(index)) return;
+
+    // Check if this is a base item (like "Rice", "Curry", "Crakers")
+    const relatedChoices = selectedItems.filter(
+      (otherItem, otherIndex) =>
+        otherIndex !== index &&
+        otherItem.name.startsWith(item.name + " - ") &&
+        !usedItems.has(otherIndex)
+    );
+
+    if (relatedChoices.length > 0) {
+      // This item has choices - group them
+      const choiceNames = relatedChoices.map((choice) =>
+        choice.name.replace(item.name + " - ", "")
+      );
+
+      let description = `${item.name} (${choiceNames.join(", ")})`;
+
+      if (item.quantity && item.quantity > 1) {
+        description += ` (${item.quantity}x)`;
+      }
+
+      if (isCustomOrder && item.totalPrice && item.totalPrice > 0) {
+        description += ` - $${formatCurrency(item.totalPrice)}`;
+      }
+
+      processedItems.push(description);
+
+      // Mark related items as used
+      relatedChoices.forEach((_, choiceIndex) => {
+        const originalIndex = selectedItems.findIndex(
+          (original) => original === relatedChoices[choiceIndex]
+        );
+        usedItems.add(originalIndex);
+      });
+      usedItems.add(index);
+    } else if (!item.name.includes(" - ")) {
+      // This is a standalone item (no choices)
+      let description = item.name;
+
+      if (item.quantity && item.quantity > 1) {
+        description += ` (${item.quantity}x)`;
+      }
+
+      if (isCustomOrder && item.totalPrice && item.totalPrice > 0) {
+        description += ` - $${formatCurrency(item.totalPrice)}`;
+      }
+
+      processedItems.push(description);
+      usedItems.add(index);
     }
-    itemsByCategory[category].push(item);
+    // Skip items that are choices (contain " - ") and don't have a parent
   });
 
-  // Format each category as a paragraph
-  const categoryParagraphs = Object.keys(itemsByCategory)
-    .map((categoryKey) => {
-      const items = itemsByCategory[categoryKey];
-      const categoryName =
-        categoryKey.charAt(0).toUpperCase() + categoryKey.slice(1);
-
-      const itemDescriptions = items
-        .map((item) => {
-          let description = item.name;
-
-          // Add quantity if greater than 1
-          if (item.quantity && item.quantity > 1) {
-            description += ` (${item.quantity}x)`;
-          }
-
-          // Add price for custom orders
-          if (isCustomOrder && item.totalPrice && item.totalPrice > 0) {
-            description += ` - $${formatCurrency(item.totalPrice)}`;
-          }
-
-          return description;
-        })
-        .join(", ");
-
-      return `<div class="category-title">${categoryName}:</div><p>${itemDescriptions}</p>`;
-    })
+  const itemsList = processedItems
+    .map(
+      (description) =>
+        `<li style="margin: 0; padding: 2px 0; line-height: 1.3;">${description}</li>`
+    )
     .join("");
 
   return `
@@ -129,9 +152,9 @@ const formatSelectedItemsAsParagraphs = (
         isCustomOrder ? "Selected Items" : "Package Items"
       }</div>
       <div class="box-content">
-        <div class="items-paragraph">
-          ${categoryParagraphs}
-        </div>
+        <ul style="margin: 0; padding: 0; padding-left: 20px; list-style-type: disc;">
+          ${itemsList}
+        </ul>
       </div>
     </div>
   `;
@@ -220,10 +243,6 @@ const sendAdminInquiryNotification = async (inquiryData) => {
     };
 
     const result = await transporter.sendMail(mailOptions);
-    console.log(
-      "Admin inquiry notification sent successfully:",
-      result.messageId
-    );
 
     return {
       success: true,
@@ -293,10 +312,6 @@ const sendCustomerInquiryConfirmation = async (inquiryData) => {
     };
 
     const result = await transporter.sendMail(mailOptions);
-    console.log(
-      "Customer inquiry confirmation sent successfully:",
-      result.messageId
-    );
 
     return {
       success: true,
@@ -314,8 +329,6 @@ const sendCustomerInquiryConfirmation = async (inquiryData) => {
 // Updated sendAdminBookingNotification function
 const sendAdminBookingNotification = async (bookingData) => {
   try {
-    console.log("Starting admin booking email notification...");
-
     const formattedEventDate = formatDate(bookingData.deliveryDate);
     const formattedEventTime = formatTime(bookingData.deliveryDate);
     const submittedAt = formatDateTime(bookingData.createdAt || new Date());
@@ -492,9 +505,7 @@ const sendAdminBookingNotification = async (bookingData) => {
       priority: priority,
     };
 
-    console.log("Sending admin booking email to:", mailOptions.to);
     const result = await transporter.sendMail(mailOptions);
-    console.log("Admin booking notification email sent:", result.messageId);
 
     return {
       success: true,
@@ -518,8 +529,6 @@ const sendCustomerBookingConfirmation = async (
   locationBankDetails = null
 ) => {
   try {
-    console.log("Starting customer booking email confirmation...");
-
     const formattedEventDate = formatDate(bookingData.deliveryDate);
     const formattedEventTime = formatTime(bookingData.deliveryDate);
     const submittedAt = formatDateTime(bookingData.createdAt || new Date());
@@ -722,9 +731,7 @@ const sendCustomerBookingConfirmation = async (
       html: emailContent,
     };
 
-    console.log("Sending customer booking email to:", mailOptions.to);
     const result = await transporter.sendMail(mailOptions);
-    console.log("Customer booking confirmation email sent:", result.messageId);
 
     return {
       success: true,

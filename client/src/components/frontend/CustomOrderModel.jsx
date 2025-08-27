@@ -435,7 +435,7 @@ const CustomOrderModal = ({
       isCustomOrder: true,
     };
 
-    console.log("Custom Order Details:", orderDetails);
+
     onProceedToConfirmation(orderDetails);
   };
 

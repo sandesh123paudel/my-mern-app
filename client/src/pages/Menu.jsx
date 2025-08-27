@@ -28,7 +28,7 @@ const Menu = () => {
 
   const [selectedLocation, setSelectedLocation] = useState("");
   const [selectedService, setSelectedService] = useState("");
-  const [sortBy, setSortBy] = useState("default");
+  const [sortBy, setSortBy] = useState("price-low");
   const [loading, setLoading] = useState(true);
   const [loadingMenus, setLoadingMenus] = useState(false);
   const navigate = useNavigate();
@@ -130,6 +130,7 @@ const Menu = () => {
     : [];
 
   // Filter menus based on selected service
+  // Replace your getFilteredAndSortedMenus function with this:
   const getFilteredAndSortedMenus = () => {
     let filtered = [...menus];
 
@@ -141,14 +142,21 @@ const Menu = () => {
 
     switch (sortBy) {
       case "price-low":
-        return filtered.sort((a, b) => a.price - b.price);
+        return filtered.sort((a, b) => {
+          const priceA = parseFloat(a.basePrice) || 0;
+          const priceB = parseFloat(b.basePrice) || 0;
+          return priceA - priceB;
+        });
       case "price-high":
-        return filtered.sort((a, b) => b.price - a.price);
+        return filtered.sort((a, b) => {
+          const priceA = parseFloat(a.basePrice) || 0;
+          const priceB = parseFloat(b.basePrice) || 0;
+          return priceB - priceA;
+        });
       default:
         return filtered;
     }
   };
-
   const filteredMenus = getFilteredAndSortedMenus();
 
   // Animation variants
@@ -610,7 +618,8 @@ const Menu = () => {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.7 }}
                       >
-                        Create a personalized menu package tailored to your specific needs and preferences
+                        Create a personalized menu package tailored to your
+                        specific needs and preferences
                       </motion.p>
                       <motion.button
                         onClick={() => setShowCustomOrderModal(true)}

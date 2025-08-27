@@ -11,6 +11,7 @@ import BookingFilters from "../../components/admin/Bookings/BookingFilters";
 import BookingDetailsModal from "../../components/admin/Bookings/BookingDetailsModal";
 import BookingPrintModal from "../../components/admin/Bookings/BookingPrintModal";
 import BookingExportComponent from "../../components/admin/Bookings/BookingExport";
+import KitchenDocketPrintModal from "../../components/admin/Bookings/KitchenDocket";
 import {
   Printer,
   Download,
@@ -43,9 +44,7 @@ const AdminBookings = () => {
   const [calendarBookings, setCalendarBookings] = useState({});
   const [loading, setLoading] = useState(false);
 
-  // Stats state
-  const [bookingStats, setBookingStats] = useState(null);
-  const [uniqueDishesData, setUniqueDishesData] = useState(null);
+  const [showKitchenDocket, setShowKitchenDocket] = useState(null);
 
   // Modal state
   const [selectedBooking, setSelectedBooking] = useState(null);
@@ -187,19 +186,27 @@ const AdminBookings = () => {
         const timeUntilDeliveryB = deliveryDateB - now;
 
         // Check if events are today
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const isATodayEvent = deliveryDateA.toDateString() === today.toDateString();
-        const isBTodayEvent = deliveryDateB.toDateString() === today.toDateString();
+        const today = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate()
+        );
+        const isATodayEvent =
+          deliveryDateA.toDateString() === today.toDateString();
+        const isBTodayEvent =
+          deliveryDateB.toDateString() === today.toDateString();
 
         // Check if events are upcoming (within next 48 hours)
-        const isAUpcoming = timeUntilDeliveryA > 0 && timeUntilDeliveryA <= 48 * 60 * 60 * 1000;
-        const isBUpcoming = timeUntilDeliveryB > 0 && timeUntilDeliveryB <= 48 * 60 * 60 * 1000;
+        const isAUpcoming =
+          timeUntilDeliveryA > 0 && timeUntilDeliveryA <= 48 * 60 * 60 * 1000;
+        const isBUpcoming =
+          timeUntilDeliveryB > 0 && timeUntilDeliveryB <= 48 * 60 * 60 * 1000;
 
         // Priority order:
         // 1. Today's events (non-completed) - sorted by latest booking first, then by delivery time
         if (isATodayEvent && !isBTodayEvent) return -1;
         if (!isATodayEvent && isBTodayEvent) return 1;
-        
+
         if (isATodayEvent && isBTodayEvent) {
           // For today's events, prioritize by latest booking date first
           const bookingTimeDiff = orderDateB - orderDateA;
@@ -211,7 +218,7 @@ const AdminBookings = () => {
         // 2. Upcoming events (within 48 hours) - latest bookings first, then by delivery date
         if (isAUpcoming && !isBUpcoming) return -1;
         if (!isAUpcoming && isBUpcoming) return 1;
-        
+
         if (isAUpcoming && isBUpcoming) {
           // For upcoming events, prioritize latest booking first
           const bookingTimeDiff = orderDateB - orderDateA;
@@ -221,7 +228,9 @@ const AdminBookings = () => {
         }
 
         // 3. Future events (more than 48 hours away) - latest bookings first
-        const bothFuture = timeUntilDeliveryA > 48 * 60 * 60 * 1000 && timeUntilDeliveryB > 48 * 60 * 60 * 1000;
+        const bothFuture =
+          timeUntilDeliveryA > 48 * 60 * 60 * 1000 &&
+          timeUntilDeliveryB > 48 * 60 * 60 * 1000;
         if (bothFuture) {
           // For future events, prioritize latest booking first
           const bookingTimeDiff = orderDateB - orderDateA;
@@ -259,8 +268,6 @@ const AdminBookings = () => {
       try {
         setLoadingLocations(true);
 
-        console.log("🏢 Loading locations and services...");
-
         const [locationsResult, servicesResult] = await Promise.all([
           getLocations(),
           getServices(),
@@ -271,7 +278,6 @@ const AdminBookings = () => {
             (loc) => loc.isActive
           );
           setLocations(activeLocations);
-          console.log(`✅ Loaded ${activeLocations.length} active locations`);
         } else {
           console.error("❌ Failed to load locations:", locationsResult.error);
           toast.error("Failed to load locations");
@@ -282,7 +288,6 @@ const AdminBookings = () => {
             (service) => service.isActive
           );
           setServices(activeServices);
-          console.log(`✅ Loaded ${activeServices.length} active services`);
         } else {
           console.error("❌ Failed to load services:", servicesResult.error);
           toast.error("Failed to load services");
@@ -309,7 +314,6 @@ const AdminBookings = () => {
 
   // Handle location change
   const handleLocationChange = (locationId) => {
-    console.log("🗺️ Location changed to:", locationId);
     setSelectedLocation(locationId);
     setSelectedService(""); // Reset service selection
     setDataReady(false);
@@ -323,7 +327,6 @@ const AdminBookings = () => {
 
   // Handle service change
   const handleServiceChange = (serviceId) => {
-    console.log("🏷️ Service changed to:", serviceId);
     setSelectedService(serviceId);
     setDataReady(true); // Ready to load data
   };
@@ -337,11 +340,6 @@ const AdminBookings = () => {
 
     try {
       setLoading(true);
-      console.log("📅 Fetching bookings for:", {
-        location: selectedLocation,
-        service: selectedService || "all",
-        month: date.toDateString(),
-      });
 
       const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
       const endOfMonth = new Date(
@@ -371,7 +369,6 @@ const AdminBookings = () => {
 
       if (result.success) {
         const bookings = result.data || [];
-        console.log(`✅ Loaded ${bookings.length} bookings`);
         setAllBookings(bookings);
 
         // Group bookings by date for calendar
@@ -439,8 +436,6 @@ const AdminBookings = () => {
         uniqueDishesParams.serviceId = selectedService;
       }
 
-      console.log("📊 Fetching stats with params:", statsParams);
-
       const [statsResult, uniqueDishesResult] = await Promise.all([
         bookingService.getBookingStats(statsParams),
         bookingService.getUniqueDishesCount(uniqueDishesParams),
@@ -448,16 +443,18 @@ const AdminBookings = () => {
 
       if (statsResult.success) {
         setBookingStats(statsResult.data);
-        console.log("✅ Stats loaded:", statsResult.data.overview);
       }
 
       if (uniqueDishesResult.success) {
         setUniqueDishesData(uniqueDishesResult.data);
-        console.log("🍽️ Unique dishes loaded:", uniqueDishesResult.data);
       }
     } catch (error) {
       console.error("Error fetching stats:", error);
     }
+  };
+
+  const handleKitchenDocket = (booking) => {
+    setShowKitchenDocket(booking);
   };
 
   // Load data when location/service selection is ready
@@ -854,7 +851,7 @@ const AdminBookings = () => {
           </div>
         )}
       </div>
-      
+
       {/* Export Panel */}
       {showExportPanel && (
         <BookingExportComponent
@@ -961,6 +958,7 @@ const AdminBookings = () => {
             onPaymentUpdate={updatePayment}
             onBookingClick={openBookingDetails}
             onPrintBooking={handlePrintBooking}
+            onKitchenDocket={handleKitchenDocket}
             formatPrice={formatPrice}
             formatDate={formatDate}
             formatDateTime={formatDateTime}
@@ -985,6 +983,7 @@ const AdminBookings = () => {
               onStatusUpdate={updateBookingStatus}
               onPaymentUpdate={updatePayment}
               onPrintBooking={handlePrintBooking}
+              onKitchenDocket={handleKitchenDocket}
               formatPrice={formatPrice}
               formatDate={formatDate}
               formatDateTime={formatDateTime}
@@ -1013,6 +1012,15 @@ const AdminBookings = () => {
               onClose={closePrintModal}
               formatPrice={formatPrice}
               formatDate={formatDate}
+              formatDateTime={formatDateTime}
+            />
+          )}
+
+          {/* Kitchen Docket Modal */}
+          {showKitchenDocket && (
+            <KitchenDocketPrintModal
+              booking={showKitchenDocket}
+              onClose={() => setShowKitchenDocket(null)}
               formatDateTime={formatDateTime}
             />
           )}

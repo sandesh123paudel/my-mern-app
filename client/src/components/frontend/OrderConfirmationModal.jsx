@@ -245,15 +245,6 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
     }
 
     try {
-      console.log("Checking venue availability with params:", {
-        locationId:
-          orderData?.menu?.locationId?._id || orderData?.menu?.locationId,
-        serviceId:
-          orderData?.menu?.serviceId?._id || orderData?.menu?.serviceId,
-        date: formData.deliveryDate,
-        venueType: selectedVenue,
-      });
-
       const result = await checkVenueAvailability({
         locationId:
           orderData?.menu?.locationId?._id || orderData?.menu?.locationId,
@@ -263,10 +254,7 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
         venueType: selectedVenue,
       });
 
-      console.log("Venue availability result:", result);
-
       if (!result) {
-        console.error("checkVenueAvailability returned undefined");
         return true; // Allow booking if check fails
       }
 
@@ -305,28 +293,13 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
     const { selections, fullMenu, peopleCount } = orderData;
 
     if (!fullMenu || !selections) {
-      console.log("Missing fullMenu or selections for custom order:", {
-        hasFullMenu: !!fullMenu,
-        hasSelections: !!selections,
-      });
       return items;
     }
-
-    console.log("Converting custom order selections:", {
-      selections,
-      categories: fullMenu.categories,
-      addons: fullMenu.addons,
-    });
 
     // Process category selections
     if (selections.categories) {
       Object.entries(selections.categories).forEach(
         ([categoryName, categorySelections]) => {
-          console.log(
-            `Processing category: ${categoryName}`,
-            categorySelections
-          );
-
           const category = fullMenu.categories?.find(
             (cat) => cat.name === categoryName
           );
@@ -369,8 +342,6 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
 
     // Process addons
     if (selections.addons && fullMenu.addons?.enabled) {
-      console.log("Processing addons:", selections.addons);
-
       selections.addons.forEach((addonSelection) => {
         // Check fixed addons
         if (fullMenu.addons.fixedAddons) {
@@ -435,7 +406,6 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
     const { selections, fullMenu } = orderData;
 
     if (!fullMenu || !selections) {
-      console.log("Missing fullMenu or selections for menu order");
       return items;
     }
 
@@ -597,27 +567,14 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
     const items = [];
 
     if (!orderData) {
-      console.log("No orderData provided");
       return items;
     }
 
     const isCustomOrder = orderData.isCustomOrder || false;
 
-    console.log("Converting selections to items:", {
-      isCustomOrder,
-      orderData: orderData,
-      selections: orderData.selections,
-      fullMenu: orderData.fullMenu,
-    });
-
     if (isCustomOrder) {
       // Handle Custom Order Items - Use selectedItems array directly from CustomOrderModal
       if (orderData.selectedItems && orderData.selectedItems.length > 0) {
-        console.log(
-          "Using selectedItems from custom order:",
-          orderData.selectedItems
-        );
-
         // Custom order modal already provides selectedItems in the right format
         return orderData.selectedItems.map((item) => ({
           name: item.name,
@@ -1041,15 +998,6 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
         // Custom order flag
         isCustomOrder: orderData?.isCustomOrder || false,
       };
-
-      console.log("📤 Sending booking data:", {
-        menu: bookingData.menu,
-        customerDetails: bookingData.customerDetails,
-        peopleCount: bookingData.peopleCount,
-        selectedItemsCount: bookingData.selectedItems?.length,
-        pricing: bookingData.pricing,
-        isCustomOrder: bookingData.isCustomOrder,
-      });
 
       const result = await createBooking(bookingData);
       if (!result) {

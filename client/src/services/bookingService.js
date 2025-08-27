@@ -13,8 +13,6 @@ axios.defaults.withCredentials = true;
  */
 export const createBooking = async (bookingData) => {
   try {
-    console.log("🚀 Creating booking with original data:", bookingData);
-
     // Transform the data to match backend expectations
     let transformedData = {
       // Menu information - matches backend expectation
@@ -95,8 +93,6 @@ export const createBooking = async (bookingData) => {
       isCustomOrder: bookingData.isCustomOrder || false,
     };
 
-    console.log("📦 Transformed data for backend:", transformedData);
-
     const response = await axios.post(
       `${backendUrl}/api/bookings`,
       transformedData,
@@ -107,8 +103,6 @@ export const createBooking = async (bookingData) => {
         timeout: 15000,
       }
     );
-
-    console.log("✅ Booking creation successful:", response.data);
 
     return {
       success: true,

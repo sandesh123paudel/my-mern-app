@@ -60,7 +60,6 @@ if (process.env.NODE_ENV === "production") {
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {
-    console.log("DB Connected");
     const server = app.listen(port, () => {
       console.log(`Server running on port ${port}`);
       console.log(`Environment: ${process.env.NODE_ENV}`);

@@ -390,17 +390,6 @@ const createBooking = asyncHandler(async (req, res) => {
       venueCharge = 0,
     } = req.body;
 
-    console.log("📝 Creating booking with data:", {
-      hasMenu: !!menu,
-      hasCustomerDetails: !!customerDetails,
-      peopleCount,
-      selectedItemsCount: selectedItems?.length || 0,
-      hasMenuSelections: !!menuSelections,
-      hasPricing: !!pricing,
-      deliveryType,
-      isCustomOrder,
-    });
-
     // Validate required fields
     if (
       !customerDetails ||
@@ -450,7 +439,6 @@ const createBooking = asyncHandler(async (req, res) => {
 
     if (isCustomOrder) {
       // Handle Custom Order
-      console.log("🎨 Processing Custom Order");
 
       if (!menu.locationId || !menu.serviceId) {
         return sendResponse(
@@ -471,7 +459,6 @@ const createBooking = asyncHandler(async (req, res) => {
       // Process selected items directly from frontend
       if (selectedItems && selectedItems.length > 0) {
         processedItems = processSelectedItems(selectedItems, peopleCount);
-        console.log(`✅ Processed ${processedItems.length} custom order items`);
       } else {
         return sendResponse(
           res,
@@ -482,7 +469,6 @@ const createBooking = asyncHandler(async (req, res) => {
       }
     } else {
       // Handle Menu Order
-      console.log("📋 Processing Menu Order");
 
       source = await Menu.findById(menu.menuId)
         .populate("locationId")
@@ -507,18 +493,14 @@ const createBooking = asyncHandler(async (req, res) => {
       // Process selected items
       if (selectedItems && selectedItems.length > 0) {
         processedItems = processSelectedItems(selectedItems, peopleCount);
-        console.log(
-          `✅ Processed ${processedItems.length} menu items from selectedItems`
-        );
+      
       } else if (menuSelections) {
         processedItems = convertMenuSelectionsToBookingItems(
           source,
           menuSelections,
           peopleCount
         );
-        console.log(
-          `✅ Converted ${processedItems.length} items from menuSelections`
-        );
+       
       } else {
         return sendResponse(
           res,
@@ -662,21 +644,9 @@ const createBooking = asyncHandler(async (req, res) => {
       }
     }
 
-    console.log("💾 Saving booking with:", {
-      bookingReference: bookingData.bookingReference,
-      sourceType: bookingData.orderSource.sourceType,
-      itemsCount: bookingData.selectedItems.length,
-      totalPrice: bookingData.pricing.total,
-    });
-
     // Create booking
     const booking = new Booking(bookingData);
     const savedBooking = await booking.save();
-
-    console.log(
-      "✅ Booking saved successfully:",
-      savedBooking.bookingReference
-    );
 
     // Get location with bank details for customer email
     let locationWithBankDetails = null;

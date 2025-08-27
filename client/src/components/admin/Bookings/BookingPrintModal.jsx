@@ -48,136 +48,139 @@ const BookingPrintModal = ({
   const locationDetails = getLocationDetails();
 
   const handlePrint = () => {
-    const printWindow = window.open("", "_blank");
-    const printContent = printRef.current.innerHTML;
+  const printWindow = window.open("", "_blank");
+  const printContent = printRef.current.innerHTML;
 
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Booking Receipt - ${booking.bookingReference}</title>
-          <style>
-            body {
-              font-family: 'Courier New', monospace;
-              margin: 0;
-              padding: 20px;
-              background: white;
-              color: black;
-              line-height: 1.4;
-            }
-            .receipt {
-              width: 80mm;
-              max-width: 220px;
-              margin: 0 auto;
-              padding: 10px;
-              border: 1px solid #ddd;
-              background: white;
-            }
-            .header {
-              text-align: center;
-              border-bottom: 2px solid #000;
-              padding-bottom: 10px;
-              margin-bottom: 15px;
-            }
-            .company-name {
-              font-size: 16px;
-              font-weight: bold;
-              margin-bottom: 3px;
-            }
-            .company-info {
-              font-size: 9px;
-              margin-bottom: 1px;
-            }
-            .website {
-              font-size: 8px;
-              margin-top: 3px;
-              font-style: italic;
-            }
-            .section {
-              margin-bottom: 15px;
-              border-bottom: 1px dashed #ccc;
-              padding-bottom: 10px;
-            }
-            .section:last-child {
-              border-bottom: none;
-            }
-            .section-title {
-              font-weight: bold;
-              font-size: 12px;
-              margin-bottom: 5px;
-              text-transform: uppercase;
-            }
-            .line-item {
-              display: flex;
-              justify-content: space-between;
-              font-size: 10px;
-              margin-bottom: 3px;
-            }
-            .item-line {
-              display: flex;
-              justify-content: space-between;
-              font-size: 9px;
-              margin-bottom: 2px;
-              margin-left: 5px;
-            }
-            .total-line {
-              font-weight: bold;
-              font-size: 12px;
-              border-top: 1px solid #000;
-              padding-top: 5px;
-              margin-top: 5px;
-            }
-            .status-badge {
-              display: inline-block;
-              padding: 2px 6px;
-              border-radius: 3px;
-              font-size: 9px;
-              font-weight: bold;
-              text-transform: uppercase;
-            }
-            .status-pending { background: #FEF3C7; color: #92400E; }
-            .status-confirmed { background: #D1FAE5; color: #065F46; }
-            .status-preparing { background: #DBEAFE; color: #1E40AF; }
-            .status-ready { background: #E9D5FF; color: #6B21A8; }
-            .status-completed { background: #A7F3D0; color: #047857; }
-            .status-cancelled { background: #FEE2E2; color: #991B1B; }
-            .footer {
-              text-align: center;
-              font-size: 9px;
-              margin-top: 15px;
-              border-top: 1px solid #000;
-              padding-top: 10px;
-            }
-            .order-type-badge {
-              background: #E5E7EB;
-              color: #374151;
-              padding: 1px 4px;
-              border-radius: 2px;
-              font-size: 8px;
-              font-weight: bold;
-            }
-            .custom-order-badge {
-              background: #DDD6FE;
-              color: #6B21A8;
-            }
-            @media print {
-              body { margin: 0; padding: 0; }
-              .receipt { border: none; box-shadow: none; }
-            }
-          </style>
-        </head>
-        <body>
-          ${printContent}
-        </body>
-      </html>
-    `);
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Booking Receipt - ${booking.bookingReference}</title>
+        <style>
+          body {
+            font-family: 'Courier New', monospace;
+            margin: 0;
+            padding: 15px;
+            background: white;
+            color: black;
+            line-height: 1.2;
+          }
+          .receipt {
+            width: 80mm;
+            max-width: 220px;
+            margin: 0 auto;
+            padding: 8px;
+            border: 1px solid #ddd;
+            background: white;
+          }
+          .header {
+            text-align: center;
+            border-bottom: 2px solid #000;
+            padding-bottom: 8px;
+            margin-bottom: 10px;
+          }
+          .company-name {
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 2px;
+          }
+          .company-info {
+            font-size: 8px;
+            margin-bottom: 1px;
+          }
+          .website {
+            font-size: 7px;
+            margin-top: 2px;
+            font-style: italic;
+          }
+          .section {
+            margin-bottom: 10px;
+            border-bottom: 1px dashed #ccc;
+            padding-bottom: 6px;
+          }
+          .section:last-child {
+            border-bottom: none;
+          }
+          .section-title {
+            font-weight: bold;
+            font-size: 10px;
+            margin-bottom: 3px;
+            text-transform: uppercase;
+          }
+          .line-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 8px;
+            margin-bottom: 1px;
+            font-weight: 600;
+          }
+          .item-line {
+            display: flex;
+            justify-content: space-between;
+            font-size: 8px;
+            margin-bottom: 1px;
+            margin-left: 3px;
+            font-weight: 500;
+          }
+          .total-line {
+            font-weight: bold;
+            font-size: 10px;
+            border-top: 1px solid #000;
+            padding-top: 3px;
+            margin-top: 3px;
+          }
+          .status-badge {
+            display: inline-block;
+            padding: 1px 4px;
+            border-radius: 2px;
+            font-size: 7px;
+            font-weight: bold;
+            text-transform: uppercase;
+          }
+          .status-pending { background: #FEF3C7; color: #92400E; }
+          .status-confirmed { background: #D1FAE5; color: #065F46; }
+          .status-preparing { background: #DBEAFE; color: #1E40AF; }
+          .status-ready { background: #E9D5FF; color: #6B21A8; }
+          .status-completed { background: #A7F3D0; color: #047857; }
+          .status-cancelled { background: #FEE2E2; color: #991B1B; }
+          .footer {
+            text-align: center;
+            font-size: 7px;
+            margin-top: 10px;
+            border-top: 1px solid #000;
+            padding-top: 6px;
+            line-height: 1.3;
+          }
+          .order-type-badge {
+            background: #E5E7EB;
+            color: #374151;
+            padding: 1px 3px;
+            border-radius: 2px;
+            font-size: 7px;
+            font-weight: bold;
+          }
+          .custom-order-badge {
+            background: #DDD6FE;
+            color: #6B21A8;
+          }
+          @media print {
+            body { margin: 0; padding: 0; }
+            .receipt { border: none; box-shadow: none; }
+          }
+        </style>
+      </head>
+      <body>
+        ${printContent}
+      </body>
+    </html>
+  `);
 
-    printWindow.document.close();
-    printWindow.onload = () => {
-      printWindow.print();
-      printWindow.close();
-    };
+  printWindow.document.close();
+  printWindow.onload = () => {
+    printWindow.print();
+    printWindow.close();
   };
+};
 
   const getStatusClass = (status) => {
     return `status-badge status-${status}`;
@@ -244,7 +247,7 @@ const BookingPrintModal = ({
                     <span>{formatDate(booking.orderDate)}</span>
                   </div>
                   <div className="line-item">
-                    <span>Delivery:</span>
+                    <span>Dispatch Time:</span>
                     <span>{formatDateTime(booking.deliveryDate)}</span>
                   </div>
                   <div className="line-item">
@@ -355,92 +358,66 @@ const BookingPrintModal = ({
                 </div>
 
                 {/* Selected Items */}
+
+                {/* Selected Items */}
                 {booking.selectedItems?.length > 0 && (
                   <div className="section">
                     <div className="section-title">Selected Items</div>
-                    {booking.selectedItems.map((item, index) => {
-                      const isAddon =
-                        item.category === "addons" || item.type === "addon";
-                      const showQuantity =
-                        isAddon && item.quantity && item.quantity > 1;
+                    {(() => {
+                      const processedItems = [];
+                      const usedItems = new Set();
 
-                      return (
-                        <div key={index}>
-                          <div className="item-line">
-                            <span>• {item.name}</span>
-                            <span>
-                              {showQuantity
-                                ? `${item.quantity}x`
-                                : "per person"}
-                            </span>
-                          </div>
-                          {isCustomOrder && item.totalPrice && (
-                            <div
-                              className="item-line"
-                              style={{
-                                marginLeft: "10px",
-                                fontSize: "8px",
-                                color: "#666",
-                              }}
-                            >
-                              <span>Price:</span>
-                              <span>{formatPrice(item.totalPrice)}</span>
-                            </div>
-                          )}
-                          {item.category && (
-                            <div
-                              className="item-line"
-                              style={{
-                                marginLeft: "10px",
-                                fontSize: "8px",
-                                color: "#666",
-                              }}
-                            >
-                              <span>Category:</span>
-                              <span>{item.category}</span>
-                            </div>
-                          )}
-                          {item.allergens && item.allergens.length > 0 && (
-                            <div
-                              className="item-line"
-                              style={{
-                                marginLeft: "10px",
-                                fontSize: "8px",
-                                color: "#d97706",
-                              }}
-                            >
-                              <span>Allergens:</span>
-                              <span>{item.allergens.join(", ")}</span>
-                            </div>
+                      booking.selectedItems.forEach((item, index) => {
+                        if (usedItems.has(index)) return;
+
+                        // Check if this is a base item with choices
+                        const relatedChoices = booking.selectedItems.filter(
+                          (otherItem, otherIndex) =>
+                            otherIndex !== index &&
+                            otherItem.name.startsWith(item.name + " - ") &&
+                            !usedItems.has(otherIndex)
+                        );
+
+                        if (relatedChoices.length > 0) {
+                          // Group choices with base item
+                          const choiceNames = relatedChoices.map((choice) =>
+                            choice.name.replace(item.name + " - ", "")
+                          );
+
+                          processedItems.push({
+                            name: `${item.name} (${choiceNames.join(", ")})`,
+                            quantity: item.quantity,
+                          });
+
+                          // Mark related items as used
+                          relatedChoices.forEach((_, choiceIndex) => {
+                            const originalIndex =
+                              booking.selectedItems.findIndex(
+                                (original) =>
+                                  original === relatedChoices[choiceIndex]
+                              );
+                            usedItems.add(originalIndex);
+                          });
+                          usedItems.add(index);
+                        } else if (!item.name.includes(" - ")) {
+                          // Standalone item
+                          processedItems.push({
+                            name: item.name,
+                            quantity: item.quantity,
+                          });
+                          usedItems.add(index);
+                        }
+                      });
+
+                      return processedItems.map((item, index) => (
+                        <div key={index} className="item-line">
+                          <span>• {item.name}</span>
+                          {item.quantity && item.quantity > 1 && (
+                            <span>({item.quantity}x)</span>
                           )}
                         </div>
-                      );
-                    })}
-
-                    {/* Items Summary */}
-                    <div
-                      style={{
-                        marginTop: "8px",
-                        fontSize: "9px",
-                        color: "#666",
-                        borderTop: "1px solid #ddd",
-                        paddingTop: "5px",
-                      }}
-                    >
-                      <div className="line-item">
-                        <span>Total Items:</span>
-                        <span>{booking.selectedItems.length}</span>
-                      </div>
-                      <div className="line-item">
-                        <span>Total Quantity:</span>
-                        <span>
-                          {booking.selectedItems.reduce(
-                            (sum, item) => sum + (item.quantity || 1),
-                            0
-                          )}
-                        </span>
-                      </div>
-                    </div>
+                      ));
+                    })()}
                   </div>
                 )}
 
@@ -504,7 +481,7 @@ const BookingPrintModal = ({
                   )}
                   {balance > 0 && (
                     <div className="line-item">
-                      <span>Balance:</span>
+                      <span>Due-Balance:</span>
                       <span>{formatPrice(balance)}</span>
                     </div>
                   )}

@@ -22,12 +22,14 @@ const BookingsList = ({
   onPrintBooking,
   formatPrice,
   formatDate,
+  onKitchenDocket,
   formatDateTime,
   selectedLocation,
   selectedService,
   filters = {}, // Default filters to an empty object to prevent errors
 }) => {
   const [quickViewBooking, setQuickViewBooking] = useState(null);
+
   const [editingPayment, setEditingPayment] = useState(null);
   const [paymentData, setPaymentData] = useState({
     paymentStatus: "pending",
@@ -663,6 +665,15 @@ const BookingsList = ({
                     >
                       <Eye className="w-4 h-4" />
                       Quick View
+                    </button>
+                    <button
+                      onClick={() =>
+                        onKitchenDocket && onKitchenDocket(booking)
+                      }
+                      className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors text-sm font-medium flex items-center gap-2"
+                    >
+                      <ChefHat className="w-4 h-4" />
+                      Kitchen
                     </button>
 
                     <button
