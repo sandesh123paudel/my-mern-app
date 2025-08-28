@@ -9,6 +9,7 @@ import {
   AlertCircle,
   X,
   Eye,
+  CalendarDays,
 } from "lucide-react";
 
 const BookingsList = ({
@@ -38,11 +39,46 @@ const BookingsList = ({
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
 
-  // Enhanced sorting logic based on the requirements
+  // Enhanced sorting logic based on requirements
   const sortedBookings = useMemo(() => {
-    const bookingsArray = [...bookings];
+    let bookingsArray = [...bookings];
     const sortOrder = filters?.sortOrder || "priority";
 
+    // Apply date range filtering first
+    if (filters?.dateRange && filters.dateRange !== "all") {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const sevenDaysFromNow = new Date(today);
+      sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+      const oneMonthFromNow = new Date(today);
+      oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1);
+
+      bookingsArray = bookingsArray.filter((booking) => {
+        const deliveryDate = new Date(booking.deliveryDate);
+        const deliveryDay = new Date(deliveryDate.getFullYear(), deliveryDate.getMonth(), deliveryDate.getDate());
+
+        switch (filters.dateRange) {
+          case "today":
+            return deliveryDay.getTime() === today.getTime();
+          case "tomorrow":
+            return deliveryDay.getTime() === tomorrow.getTime();
+          case "next_7_days":
+            return deliveryDate >= today && deliveryDate <= sevenDaysFromNow;
+          case "next_30_days":
+            return deliveryDate >= today && deliveryDate <= oneMonthFromNow;
+          case "past":
+            return deliveryDate < today;
+          case "future":
+            return deliveryDate > oneMonthFromNow;
+          default:
+            return true;
+        }
+      });
+    }
+
+    // Apply sorting
     if (sortOrder === "latest") {
       // Latest booking filter: Sort by booking creation date (orderDate), newest first
       return bookingsArray.sort((a, b) => {
@@ -84,21 +120,39 @@ const BookingsList = ({
           return status === "completed" && paymentStatus === "fully_paid";
         };
 
+        // Helper function to check if booking is cancelled
+        const isCancelled = (booking) => {
+          return (booking.status || "pending") === "cancelled";
+        };
+
         const isAFullyCompleted = isFullyCompleted(a);
         const isBFullyCompleted = isFullyCompleted(b);
+        const isACancelled = isCancelled(a);
+        const isBCancelled = isCancelled(b);
 
-        // 1. Fully completed bookings (status = completed AND payment = fully_paid) go to the bottom
+        // 1. Cancelled bookings go to the very bottom
+        if (isACancelled && !isBCancelled) return 1;
+        if (!isACancelled && isBCancelled) return -1;
+
+        // 2. Both cancelled - sort by most recent delivery date
+        if (isACancelled && isBCancelled) {
+          const deliveryDateA = new Date(a.deliveryDate);
+          const deliveryDateB = new Date(b.deliveryDate);
+          return deliveryDateB - deliveryDateA;
+        }
+
+        // 3. Fully completed bookings go to bottom (but above cancelled)
         if (isAFullyCompleted && !isBFullyCompleted) return 1;
         if (!isAFullyCompleted && isBFullyCompleted) return -1;
 
-        // 2. If both are fully completed, sort by delivery date (latest event first)
+        // 4. Both fully completed - sort by most recent delivery date
         if (isAFullyCompleted && isBFullyCompleted) {
           const deliveryDateA = new Date(a.deliveryDate);
           const deliveryDateB = new Date(b.deliveryDate);
           return deliveryDateB - deliveryDateA;
         }
 
-        // 3. For non-fully-completed bookings, prioritize by urgency and recency
+        // 5. For active bookings, prioritize by urgency and timing
         const now = new Date();
         const deliveryDateA = new Date(a.deliveryDate);
         const deliveryDateB = new Date(b.deliveryDate);
@@ -109,82 +163,72 @@ const BookingsList = ({
         const timeUntilDeliveryA = deliveryDateA - now;
         const timeUntilDeliveryB = deliveryDateB - now;
 
+        // Check if events are overdue (past due)
+        const isAOverdue = timeUntilDeliveryA < 0;
+        const isBOverdue = timeUntilDeliveryB < 0;
+
         // Check if events are today
-        const today = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate()
-        );
-        const isATodayEvent =
-          deliveryDateA.toDateString() === today.toDateString();
-        const isBTodayEvent =
-          deliveryDateB.toDateString() === today.toDateString();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const isATodayEvent = deliveryDateA.toDateString() === today.toDateString();
+        const isBTodayEvent = deliveryDateB.toDateString() === today.toDateString();
 
         // Check if events are upcoming (within next 48 hours)
-        const isAUpcoming =
-          timeUntilDeliveryA > 0 && timeUntilDeliveryA <= 48 * 60 * 60 * 1000;
-        const isBUpcoming =
-          timeUntilDeliveryB > 0 && timeUntilDeliveryB <= 48 * 60 * 60 * 1000;
+        const isAUpcoming = timeUntilDeliveryA > 0 && timeUntilDeliveryA <= 48 * 60 * 60 * 1000;
+        const isBUpcoming = timeUntilDeliveryB > 0 && timeUntilDeliveryB <= 48 * 60 * 60 * 1000;
 
-        // Priority order:
-        // 1. Today's events (non-completed) - sorted by latest booking first, then by delivery time
+        // Priority order for active bookings:
+
+        // 1. Today's events - earliest delivery time first
         if (isATodayEvent && !isBTodayEvent) return -1;
         if (!isATodayEvent && isBTodayEvent) return 1;
 
         if (isATodayEvent && isBTodayEvent) {
-          // For today's events, prioritize by latest booking date first
-          const bookingTimeDiff = orderDateA - orderDateB;
-          if (bookingTimeDiff !== 0) return bookingTimeDiff;
-          // If booking dates are same, sort by delivery time (earlier delivery first)
+          // For today's events, sort by delivery time (earliest first)
           return deliveryDateA - deliveryDateB;
         }
 
-        // 2. Upcoming events (within 48 hours) - latest bookings first, then by delivery date
+        // 2. Upcoming events (within 48 hours) - earliest delivery first
         if (isAUpcoming && !isBUpcoming) return -1;
         if (!isAUpcoming && isBUpcoming) return 1;
 
         if (isAUpcoming && isBUpcoming) {
-          // For upcoming events, prioritize latest booking first
-          const bookingTimeDiff = orderDateB - orderDateA;
-          if (bookingTimeDiff !== 0) return bookingTimeDiff;
-          // Then by earliest delivery date
+          // For upcoming events, sort by earliest delivery time
           return deliveryDateA - deliveryDateB;
         }
 
-        // 3. Future events (more than 48 hours away) - latest bookings first
-        const bothFuture =
-          timeUntilDeliveryA > 48 * 60 * 60 * 1000 &&
-          timeUntilDeliveryB > 48 * 60 * 60 * 1000;
+        // 3. Future events (more than 48 hours away) - earliest delivery first
+        const bothFuture = timeUntilDeliveryA > 48 * 60 * 60 * 1000 && 
+                          timeUntilDeliveryB > 48 * 60 * 60 * 1000;
         if (bothFuture) {
-          // For future events, prioritize latest booking first
-          const bookingTimeDiff = orderDateB - orderDateA;
-          if (bookingTimeDiff !== 0) return bookingTimeDiff;
-          // Then by earliest delivery date
+          // For future events, sort by earliest delivery date
           return deliveryDateA - deliveryDateB;
         }
 
-        // 4. Past events - latest booking first, then by most recent delivery date
-        const bothPast = timeUntilDeliveryA < 0 && timeUntilDeliveryB < 0;
-        if (bothPast) {
-          // For past events, prioritize latest booking first
-          const bookingTimeDiff = orderDateB - orderDateA;
-          if (bookingTimeDiff !== 0) return bookingTimeDiff;
-          // Then by most recent delivery date
+        // 4. Past/overdue events - send to back but keep most recent first
+        if (isAOverdue && !isBOverdue) return 1;
+        if (!isAOverdue && isBOverdue) return -1;
+
+        if (isAOverdue && isBOverdue) {
+          // For past events, show most recent delivery first
           return deliveryDateB - deliveryDateA;
         }
 
-        // 5. Mixed case (one past, one future) - future events first
+        // 5. Mixed cases - prioritize future events
         if (timeUntilDeliveryA > 0 && timeUntilDeliveryB < 0) return -1;
         if (timeUntilDeliveryA < 0 && timeUntilDeliveryB > 0) return 1;
 
-        // Fallback: sort by latest booking date
-        return orderDateB - orderDateA;
+        // Fallback: sort by delivery date (earliest first for future, latest first for past)
+        if (timeUntilDeliveryA >= 0 && timeUntilDeliveryB >= 0) {
+          return deliveryDateA - deliveryDateB; // Future: earliest first
+        } else {
+          return deliveryDateB - deliveryDateA; // Past: latest first
+        }
       });
     }
 
     // Return unsorted array if no matching sort order
     return bookingsArray;
-  }, [bookings, filters?.sortOrder]);
+  }, [bookings, filters?.sortOrder, filters?.dateRange]);
 
   const formatDietaryRequirements = (requirements) => {
     if (!requirements || requirements.length === 0) return "None";
@@ -198,7 +242,7 @@ const BookingsList = ({
 
   // Paginate the sorted bookings
   const currentBookings = sortedBookings.slice(startIndex, endIndex);
-  const totalPages = Math.ceil(bookings.length / itemsPerPage);
+  const totalPages = Math.ceil(sortedBookings.length / itemsPerPage);
 
   const calculateFinancials = (booking) => {
     const total = booking.pricing?.total || 0;
@@ -237,10 +281,25 @@ const BookingsList = ({
 
   const getBookingInfo = (booking) => {
     return {
-      locationName: booking.orderSource?.locationName || "Unknown Location",
-      serviceName: booking.orderSource?.serviceName || "Unknown Service",
-      sourceName: booking.orderSource?.sourceName || "Unknown Menu",
+      locationName: booking.orderSource?.locationName || "",
+      serviceName: booking.orderSource?.serviceName || "",
+      sourceName: booking.orderSource?.sourceName || "",
       venue: booking?.venueSelection || "",
+      address: booking?.address
+        ? {
+            street: booking.address.street || "",
+            suburb: booking.address.suburb || "",
+            postcode: booking.address.postcode || "",
+            state: booking.address.state || "",
+            country: booking.address.country || "",
+          }
+        : {
+            street: "",
+            suburb: "",
+            postcode: "",
+            state: "",
+            country: "",
+          },
     };
   };
 
@@ -316,23 +375,54 @@ const BookingsList = ({
     const now = new Date();
     const delivery = new Date(deliveryDate);
     const diffHours = Math.round((delivery - now) / (1000 * 60 * 60));
+    const diffMinutes = Math.round((delivery - now) / (1000 * 60));
 
     if (diffHours < 0) {
-      return { text: "Past event", className: "text-gray-500", icon: null };
+      const hoursOverdue = Math.abs(diffHours);
+      if (hoursOverdue < 24) {
+        return { 
+          text: `${hoursOverdue}h overdue!`, 
+          className: "text-red-700 bg-red-50 border border-red-200", 
+          icon: AlertCircle 
+        };
+      } else {
+        const daysOverdue = Math.floor(hoursOverdue / 24);
+        return { 
+          text: `${daysOverdue}d overdue`, 
+          className: "text-red-600 bg-red-50 border border-red-200", 
+          icon: AlertCircle 
+        };
+      }
+    } else if (diffMinutes <= 60) {
+      return {
+        text: `${Math.max(1, diffMinutes)}min left!`,
+        className: "text-red-700 bg-red-100 border border-red-300 animate-pulse",
+        icon: AlertCircle,
+      };
     } else if (diffHours <= 2) {
       return {
-        text: "Due soon!",
-        className: "text-red-600",
+        text: `${diffHours}h left!`,
+        className: "text-red-600 bg-red-50 border border-red-200",
         icon: AlertCircle,
+      };
+    } else if (diffHours <= 6) {
+      return {
+        text: `${diffHours}h remaining`,
+        className: "text-orange-600 bg-orange-50 border border-orange-200",
+        icon: Clock,
       };
     } else if (diffHours <= 24) {
       return {
         text: `${diffHours}h remaining`,
-        className: "text-orange-600",
+        className: "text-blue-600 bg-blue-50 border border-blue-200",
         icon: Clock,
       };
     } else if (diffHours <= 48) {
-      return { text: "Tomorrow", className: "text-blue-600", icon: Clock };
+      return { 
+        text: "Tomorrow", 
+        className: "text-blue-600 bg-blue-50 border border-blue-200", 
+        icon: CalendarDays 
+      };
     }
     return null;
   };
@@ -369,8 +459,8 @@ const BookingsList = ({
               Bookings List
             </h3>
             <div className="text-sm text-green-600">
-              Showing {startIndex + 1}-{Math.min(endIndex, bookings.length)} of{" "}
-              {bookings.length} bookings
+              Showing {startIndex + 1}-{Math.min(endIndex, sortedBookings.length)} of{" "}
+              {sortedBookings.length} bookings
             </div>
           </div>
 
@@ -383,6 +473,14 @@ const BookingsList = ({
               <div className="bg-white px-3 py-1 rounded border border-green-200 flex items-center gap-2">
                 <Briefcase className="w-3 h-3 text-green-600" />
                 <span className="text-green-800">Service filtered</span>
+              </div>
+            )}
+            {filters?.dateRange && filters.dateRange !== "all" && (
+              <div className="bg-white px-3 py-1 rounded border border-green-200 flex items-center gap-2">
+                <CalendarDays className="w-3 h-3 text-green-600" />
+                <span className="text-green-800">
+                  {filters.dateRange.replace("_", " ")}
+                </span>
               </div>
             )}
           </div>
@@ -434,54 +532,59 @@ const BookingsList = ({
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-3">
-                      <h4 className="font-semibold text-gray-900 text-lg">
-                        {booking.customerDetails?.name || "No Name"}
-                      </h4>
+                    <div className="mb-3">
+                      {/* Customer Name and Reference */}
+                      <div className="flex items-center gap-3 mb-2">
+                        <h4 className="font-semibold text-gray-900 text-lg">
+                          {booking.customerDetails?.name || "No Name"}
+                        </h4>
+                        <span className="text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                          #{booking.bookingReference || "No Reference"}
+                        </span>
+                      </div>
 
-                      <span className="text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded">
-                        #{booking.bookingReference || "No Reference"}
-                      </span>
-
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(
-                          booking.status || "pending"
-                        )}`}
-                      >
-                        {(booking.status || "pending")
-                          .replace("_", " ")
-                          .toUpperCase()}
-                      </span>
-
-                      {!financials.isCancelled && (
+                      {/* Status, Payment, Order Type, and Time Indicator Row */}
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span
-                          className={`px-3 py-1 rounded-full text-xs font-medium border ${getPaymentStatusColor(
-                            booking.paymentStatus || "pending"
+                          className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(
+                            booking.status || "pending"
                           )}`}
                         >
-                          {(booking.paymentStatus || "pending")
+                          {(booking.status || "pending")
                             .replace("_", " ")
                             .toUpperCase()}
                         </span>
-                      )}
 
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium border flex items-center gap-1 ${bookingType.className}`}
-                      >
-                        <bookingType.icon className="w-3 h-3" />
-                        {bookingType.label}
-                      </span>
+                        {!financials.isCancelled && (
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-medium border ${getPaymentStatusColor(
+                              booking.paymentStatus || "pending"
+                            )}`}
+                          >
+                            {(booking.paymentStatus || "pending")
+                              .replace("_", " ")
+                              .toUpperCase()}
+                          </span>
+                        )}
 
-                      {deliveryIndicator && (
                         <span
-                          className={`px-2 py-1 rounded text-xs font-medium flex items-center gap-1 ${deliveryIndicator.className}`}
+                          className={`px-2 py-1 rounded-full text-xs font-medium border flex items-center gap-1 ${bookingType.className}`}
                         >
-                          {deliveryIndicator.icon && (
-                            <deliveryIndicator.icon className="w-3 h-3" />
-                          )}
-                          {deliveryIndicator.text}
+                          <bookingType.icon className="w-3 h-3" />
+                          {bookingType.label}
                         </span>
-                      )}
+
+                        {deliveryIndicator && (
+                          <span
+                            className={`px-2 py-1 rounded text-xs font-medium flex items-center gap-1 ${deliveryIndicator.className}`}
+                          >
+                            {deliveryIndicator.icon && (
+                              <deliveryIndicator.icon className="w-3 h-3" />
+                            )}
+                            {deliveryIndicator.text}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
@@ -509,55 +612,28 @@ const BookingsList = ({
                         <h5 className="font-medium text-gray-700 mb-1">
                           Event Details
                         </h5>
-                        <p className="text-gray-600">
-                          {bookingInfo.sourceName}
-                        </p>
+                       
+                        
                         <p className="text-gray-600 flex items-center gap-1">
                           <MapPin className="w-3 h-3" />
-                          {bookingInfo.locationName}
-                        </p>
-                        <p className="text-gray-600 flex items-center gap-1">
-                          <Briefcase className="w-3 h-3" />
-                          {bookingInfo.serviceName}{" "}
-                          <span className="bg-red-300 rounded-3xl px-2">
-                            {bookingInfo.venue && `- ${bookingInfo.venue}`}
-                          </span>
-                        </p>
-                        <p className="text-gray-600">
                           {booking.deliveryType || "Not specified"}
                         </p>
-                      </div>
-
-                      {/* Kitchen Requirements Summary */}
-                      <div>
-                        <h5 className="font-medium text-gray-700 mb-1">
-                          Kitchen Requirements
-                        </h5>
-                        <div className="flex items-center gap-1">
-                          <ChefHat className="w-3 h-3 text-orange-600" />
-                          <span className="text-orange-600 font-medium">
-                            {kitchenRequirements.length} items to prepare
+                        <p className="text-gray-600 flex items-center gap-1">
+                          <CalendarDays className="w-3 h-3" />
+                          <span className="bg-blue-100 text-blue-800 rounded-full px-2 py-1 text-xs font-medium">
+                            {formatDateTime(booking.deliveryDate)}
                           </span>
-                        </div>
-                        <p className="text-gray-600 text-xs">
-                          Event: {formatDateTime(booking.deliveryDate)}
                         </p>
-                        <p className="text-gray-600 text-xs">
-                          Booked: {formatDate(booking.orderDate)}
-                        </p>
-                        {kitchenRequirements.length > 0 && (
-                          <p className="text-orange-600 text-xs">
-                            {
-                              kitchenRequirements.filter(
-                                (item) => !item.isAddon
-                              ).length
-                            }{" "}
-                            portions +{" "}
-                            {
-                              kitchenRequirements.filter((item) => item.isAddon)
-                                .length
-                            }{" "}
-                            addons
+
+                        {bookingInfo.venue && (
+                          <p className="text-gray-600 text-xs mt-1">
+                            Venue: {bookingInfo.venue}
+                          </p>
+                        )}
+
+                        {bookingInfo.address.street && (
+                          <p className="text-gray-600 text-xs mt-1">
+                            {bookingInfo.address.street}, {bookingInfo.address.suburb}, {bookingInfo.address.postcode}
                           </p>
                         )}
                       </div>
@@ -664,7 +740,7 @@ const BookingsList = ({
                       className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors text-sm font-medium flex items-center gap-2"
                     >
                       <ChefHat className="w-4 h-4" />
-                      Kitchen
+                      Kitchen Print
                     </button>
 
                     <button
@@ -672,7 +748,7 @@ const BookingsList = ({
                       className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm font-medium flex items-center gap-2"
                     >
                       <Printer className="w-4 h-4" />
-                      Print
+                      Receipt Print
                     </button>
 
                     {booking.status !== "cancelled" &&
@@ -796,7 +872,7 @@ const BookingsList = ({
         <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-600">
-              Page {currentPage} of {totalPages} ({bookings.length} total
+              Page {currentPage} of {totalPages} ({sortedBookings.length} total
               results)
             </div>
 

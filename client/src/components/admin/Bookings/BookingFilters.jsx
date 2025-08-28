@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { MapPin, Briefcase, Filter, X } from "lucide-react";
+import { MapPin, Briefcase, Filter, X, Calendar } from "lucide-react";
 
 const BookingFilters = ({
   filters,
@@ -48,12 +48,56 @@ const BookingFilters = ({
       all: allBookings.length,
       Pickup: 0,
       Delivery: 0,
+      Event: 0,
     };
 
     allBookings.forEach((booking) => {
       const deliveryType = booking.deliveryType;
       if (breakdown.hasOwnProperty(deliveryType)) {
         breakdown[deliveryType]++;
+      }
+    });
+
+    return breakdown;
+  }, [allBookings]);
+
+  // Calculate date range breakdown
+  const dateRangeBreakdown = useMemo(() => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const sevenDaysFromNow = new Date(today);
+    sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+    const oneMonthFromNow = new Date(today);
+    oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1);
+
+    const breakdown = {
+      all: allBookings.length,
+      today: 0,
+      tomorrow: 0,
+      next_7_days: 0,
+      next_30_days: 0,
+      past: 0,
+      future: 0,
+    };
+
+    allBookings.forEach((booking) => {
+      const deliveryDate = new Date(booking.deliveryDate);
+      const deliveryDay = new Date(deliveryDate.getFullYear(), deliveryDate.getMonth(), deliveryDate.getDate());
+      
+      if (deliveryDay.getTime() === today.getTime()) {
+        breakdown.today++;
+      } else if (deliveryDay.getTime() === tomorrow.getTime()) {
+        breakdown.tomorrow++;
+      } else if (deliveryDay >= today && deliveryDay <= sevenDaysFromNow) {
+        breakdown.next_7_days++;
+      } else if (deliveryDate >= today && deliveryDate <= oneMonthFromNow) {
+        breakdown.next_30_days++;
+      } else if (deliveryDate < today) {
+        breakdown.past++;
+      } else {
+        breakdown.future++;
       }
     });
 
@@ -84,6 +128,7 @@ const BookingFilters = ({
       deliveryType: "all",
       sourceType: "all",
       search: "",
+      dateRange: "today", // Keep today as default
       sortBy: "deliveryDate",
       sortOrder: "priority",
     });
@@ -93,7 +138,8 @@ const BookingFilters = ({
     filters.status !== "all" ||
     filters.deliveryType !== "all" ||
     filters.sourceType !== "all" ||
-    filters.search.trim() !== "";
+    filters.search.trim() !== "" ||
+    (filters.dateRange && filters.dateRange !== "today");
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -159,7 +205,7 @@ const BookingFilters = ({
 
       {/* Main Filters */}
       <div className="px-6 py-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Search
@@ -171,6 +217,26 @@ const BookingFilters = ({
               onChange={(e) => handleFilterChange("search", e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              <Calendar className="w-4 h-4 inline mr-1" />
+              Date Range
+            </label>
+            <select
+              value={filters.dateRange || "today"}
+              onChange={(e) => handleFilterChange("dateRange", e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+            >
+              <option value="all">All Dates ({dateRangeBreakdown.all})</option>
+              <option value="today">Today ({dateRangeBreakdown.today})</option>
+              <option value="tomorrow">Tomorrow ({dateRangeBreakdown.tomorrow})</option>
+              <option value="next_7_days">Next 7 Days ({dateRangeBreakdown.next_7_days})</option>
+              <option value="next_30_days">Next 30 Days ({dateRangeBreakdown.next_30_days})</option>
+              <option value="past">Past Events ({dateRangeBreakdown.past})</option>
+              <option value="future">Future Events ({dateRangeBreakdown.future})</option>
+            </select>
           </div>
 
           <div>
@@ -241,6 +307,9 @@ const BookingFilters = ({
               <option value="Delivery">
                 Delivery ({deliveryTypeBreakdown.Delivery})
               </option>
+              <option value="Event">
+                Event ({deliveryTypeBreakdown.Event})
+              </option>
             </select>
           </div>
 
@@ -253,10 +322,10 @@ const BookingFilters = ({
               onChange={(e) => handleFilterChange("sortOrder", e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
             >
-              <option value="priority">Smart Priority (Active Events First)</option>
-              <option value="latest">Latest Bookings First (By Booking Date)</option>
-              <option value="event_date_newest">Newest Events First (By Event Date)</option>
-              <option value="event_date_oldest">Oldest Events First (By Event Date)</option>
+              <option value="priority">Smart Priority (Upcoming First)</option>
+              <option value="latest">Latest Bookings First</option>
+              <option value="event_date_newest">Newest Events First</option>
+              <option value="event_date_oldest">Oldest Events First</option>
             </select>
           </div>
         </div>
@@ -269,6 +338,18 @@ const BookingFilters = ({
             <span className="text-sm font-medium text-blue-800">
               Active Filters:
             </span>
+
+            {filters.dateRange && filters.dateRange !== "today" && (
+              <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs border border-blue-200 flex items-center gap-1">
+                Date: {filters.dateRange.replace("_", " ")}
+                <button
+                  onClick={() => handleFilterChange("dateRange", "today")}
+                  className="text-blue-600 hover:text-blue-800"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
 
             {filters.sourceType !== "all" && (
               <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs border border-blue-200 flex items-center gap-1">
