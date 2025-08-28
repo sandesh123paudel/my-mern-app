@@ -63,6 +63,7 @@ const formatAddress = (address) => {
 };
 
 // Helper function to check if event date is urgent (within 3 days)
+
 const isEventUrgent = (eventDate) => {
   const today = new Date();
   const event = new Date(eventDate);

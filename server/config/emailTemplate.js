@@ -242,6 +242,9 @@ const CUSTOMER_BOOKING_CONFIRMATION_TEMPLATE = `
       </div>
 
       {{bankDetailsSection}}
+      <div className="text-xs text-red-600 bg-red-50 p-3 rounded border border-red-200">
+                  * Deposits made are non-refundable when orders are cancelled
+      </div>
 
       <p>If you have any questions or need to make changes, please contact us as soon as possible. We look forward to serving you!</p>
       <p><strong>Best regards,<br>The {{companyName}} Team</strong></p>

@@ -39,196 +39,10 @@ const BookingsList = ({
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
 
-  // Enhanced sorting logic based on requirements
-  const sortedBookings = useMemo(() => {
-    let bookingsArray = [...bookings];
-    const sortOrder = filters?.sortOrder || "priority";
-
-    // Apply date range filtering first
-    if (filters?.dateRange && filters.dateRange !== "all") {
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const sevenDaysFromNow = new Date(today);
-      sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
-      const oneMonthFromNow = new Date(today);
-      oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1);
-
-      bookingsArray = bookingsArray.filter((booking) => {
-        const deliveryDate = new Date(booking.deliveryDate);
-        const deliveryDay = new Date(deliveryDate.getFullYear(), deliveryDate.getMonth(), deliveryDate.getDate());
-
-        switch (filters.dateRange) {
-          case "today":
-            return deliveryDay.getTime() === today.getTime();
-          case "tomorrow":
-            return deliveryDay.getTime() === tomorrow.getTime();
-          case "next_7_days":
-            return deliveryDate >= today && deliveryDate <= sevenDaysFromNow;
-          case "next_30_days":
-            return deliveryDate >= today && deliveryDate <= oneMonthFromNow;
-          case "past":
-            return deliveryDate < today;
-          case "future":
-            return deliveryDate > oneMonthFromNow;
-          default:
-            return true;
-        }
-      });
-    }
-
-    // Apply sorting
-    if (sortOrder === "latest") {
-      // Latest booking filter: Sort by booking creation date (orderDate), newest first
-      return bookingsArray.sort((a, b) => {
-        const orderDateA = new Date(a.orderDate);
-        const orderDateB = new Date(b.orderDate);
-        return orderDateB - orderDateA; // Newest booking first
-      });
-    }
-
-    if (sortOrder === "event_date_newest") {
-      // Sort by event date (deliveryDate), newest events first
-      return bookingsArray.sort((a, b) => {
-        const deliveryDateA = new Date(a.deliveryDate);
-        const deliveryDateB = new Date(b.deliveryDate);
-        return deliveryDateB - deliveryDateA; // Newest event first
-      });
-    }
-
-    if (sortOrder === "event_date_oldest") {
-      // Sort by event date (deliveryDate), oldest events first
-      return bookingsArray.sort((a, b) => {
-        const deliveryDateA = new Date(a.deliveryDate);
-        const deliveryDateB = new Date(b.deliveryDate);
-        return deliveryDateA - deliveryDateB; // Oldest event first
-      });
-    }
-
-    if (sortOrder === "priority") {
-      return bookingsArray.sort((a, b) => {
-        const statusA = a.status || "pending";
-        const statusB = b.status || "pending";
-        const paymentStatusA = a.paymentStatus || "pending";
-        const paymentStatusB = b.paymentStatus || "pending";
-
-        // Helper function to check if booking is fully completed
-        const isFullyCompleted = (booking) => {
-          const status = booking.status || "pending";
-          const paymentStatus = booking.paymentStatus || "pending";
-          return status === "completed" && paymentStatus === "fully_paid";
-        };
-
-        // Helper function to check if booking is cancelled
-        const isCancelled = (booking) => {
-          return (booking.status || "pending") === "cancelled";
-        };
-
-        const isAFullyCompleted = isFullyCompleted(a);
-        const isBFullyCompleted = isFullyCompleted(b);
-        const isACancelled = isCancelled(a);
-        const isBCancelled = isCancelled(b);
-
-        // 1. Cancelled bookings go to the very bottom
-        if (isACancelled && !isBCancelled) return 1;
-        if (!isACancelled && isBCancelled) return -1;
-
-        // 2. Both cancelled - sort by most recent delivery date
-        if (isACancelled && isBCancelled) {
-          const deliveryDateA = new Date(a.deliveryDate);
-          const deliveryDateB = new Date(b.deliveryDate);
-          return deliveryDateB - deliveryDateA;
-        }
-
-        // 3. Fully completed bookings go to bottom (but above cancelled)
-        if (isAFullyCompleted && !isBFullyCompleted) return 1;
-        if (!isAFullyCompleted && isBFullyCompleted) return -1;
-
-        // 4. Both fully completed - sort by most recent delivery date
-        if (isAFullyCompleted && isBFullyCompleted) {
-          const deliveryDateA = new Date(a.deliveryDate);
-          const deliveryDateB = new Date(b.deliveryDate);
-          return deliveryDateB - deliveryDateA;
-        }
-
-        // 5. For active bookings, prioritize by urgency and timing
-        const now = new Date();
-        const deliveryDateA = new Date(a.deliveryDate);
-        const deliveryDateB = new Date(b.deliveryDate);
-        const orderDateA = new Date(a.orderDate);
-        const orderDateB = new Date(b.orderDate);
-
-        // Calculate time until delivery
-        const timeUntilDeliveryA = deliveryDateA - now;
-        const timeUntilDeliveryB = deliveryDateB - now;
-
-        // Check if events are overdue (past due)
-        const isAOverdue = timeUntilDeliveryA < 0;
-        const isBOverdue = timeUntilDeliveryB < 0;
-
-        // Check if events are today
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const isATodayEvent = deliveryDateA.toDateString() === today.toDateString();
-        const isBTodayEvent = deliveryDateB.toDateString() === today.toDateString();
-
-        // Check if events are upcoming (within next 48 hours)
-        const isAUpcoming = timeUntilDeliveryA > 0 && timeUntilDeliveryA <= 48 * 60 * 60 * 1000;
-        const isBUpcoming = timeUntilDeliveryB > 0 && timeUntilDeliveryB <= 48 * 60 * 60 * 1000;
-
-        // Priority order for active bookings:
-
-        // 1. Today's events - earliest delivery time first
-        if (isATodayEvent && !isBTodayEvent) return -1;
-        if (!isATodayEvent && isBTodayEvent) return 1;
-
-        if (isATodayEvent && isBTodayEvent) {
-          // For today's events, sort by delivery time (earliest first)
-          return deliveryDateA - deliveryDateB;
-        }
-
-        // 2. Upcoming events (within 48 hours) - earliest delivery first
-        if (isAUpcoming && !isBUpcoming) return -1;
-        if (!isAUpcoming && isBUpcoming) return 1;
-
-        if (isAUpcoming && isBUpcoming) {
-          // For upcoming events, sort by earliest delivery time
-          return deliveryDateA - deliveryDateB;
-        }
-
-        // 3. Future events (more than 48 hours away) - earliest delivery first
-        const bothFuture = timeUntilDeliveryA > 48 * 60 * 60 * 1000 && 
-                          timeUntilDeliveryB > 48 * 60 * 60 * 1000;
-        if (bothFuture) {
-          // For future events, sort by earliest delivery date
-          return deliveryDateA - deliveryDateB;
-        }
-
-        // 4. Past/overdue events - send to back but keep most recent first
-        if (isAOverdue && !isBOverdue) return 1;
-        if (!isAOverdue && isBOverdue) return -1;
-
-        if (isAOverdue && isBOverdue) {
-          // For past events, show most recent delivery first
-          return deliveryDateB - deliveryDateA;
-        }
-
-        // 5. Mixed cases - prioritize future events
-        if (timeUntilDeliveryA > 0 && timeUntilDeliveryB < 0) return -1;
-        if (timeUntilDeliveryA < 0 && timeUntilDeliveryB > 0) return 1;
-
-        // Fallback: sort by delivery date (earliest first for future, latest first for past)
-        if (timeUntilDeliveryA >= 0 && timeUntilDeliveryB >= 0) {
-          return deliveryDateA - deliveryDateB; // Future: earliest first
-        } else {
-          return deliveryDateB - deliveryDateA; // Past: latest first
-        }
-      });
-    }
-
-    // Return unsorted array if no matching sort order
-    return bookingsArray;
-  }, [bookings, filters?.sortOrder, filters?.dateRange]);
+  // The 'bookings' prop is already filtered and sorted by the parent component.
+  // We just need to paginate it.
+  const currentBookings = bookings.slice(startIndex, endIndex);
+  const totalPages = Math.ceil(bookings.length / itemsPerPage);
 
   const formatDietaryRequirements = (requirements) => {
     if (!requirements || requirements.length === 0) return "None";
@@ -239,10 +53,6 @@ const BookingsList = ({
     if (!level || level === "medium") return "Medium";
     return level.charAt(0).toUpperCase() + level.slice(1);
   };
-
-  // Paginate the sorted bookings
-  const currentBookings = sortedBookings.slice(startIndex, endIndex);
-  const totalPages = Math.ceil(sortedBookings.length / itemsPerPage);
 
   const calculateFinancials = (booking) => {
     const total = booking.pricing?.total || 0;
@@ -459,8 +269,8 @@ const BookingsList = ({
               Bookings List
             </h3>
             <div className="text-sm text-green-600">
-              Showing {startIndex + 1}-{Math.min(endIndex, sortedBookings.length)} of{" "}
-              {sortedBookings.length} bookings
+              Showing {startIndex + 1}-{Math.min(endIndex, bookings.length)} of{" "}
+              {bookings.length} bookings
             </div>
           </div>
 
@@ -872,7 +682,7 @@ const BookingsList = ({
         <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-600">
-              Page {currentPage} of {totalPages} ({sortedBookings.length} total
+              Page {currentPage} of {totalPages} ({bookings.length} total
               results)
             </div>
 

@@ -58,6 +58,7 @@ const AdminBookings = () => {
     deliveryType: "all",
     sourceType: "all",
     search: "",
+    dateRange: "today", // Default to today's bookings
     sortBy: "deliveryDate",
     sortOrder: "priority", // Default to priority sorting
   });
@@ -114,8 +115,6 @@ const AdminBookings = () => {
         return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
-
-  
 
   // Load locations and services on component mount
   useEffect(() => {
@@ -176,85 +175,12 @@ const AdminBookings = () => {
     // Clear existing data
     setAllBookings([]);
     setCalendarBookings({});
-    setBookingStats(null);
-    setUniqueDishesData(null);
   };
 
   // Handle service change
   const handleServiceChange = (serviceId) => {
     setSelectedService(serviceId);
     setDataReady(true); // Ready to load data
-  };
-
-  // Fetch bookings for selected location and service
-  const fetchBookingsData = async (date = currentDate) => {
-    if (!selectedLocation) {
-      console.warn("⚠️ No location selected, skipping data fetch");
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-      const endOfMonth = new Date(
-        date.getFullYear(),
-        date.getMonth() + 1,
-        0,
-        23,
-        59,
-        59
-      );
-
-      const params = {
-        locationId: selectedLocation,
-        startDate: startOfMonth.toISOString(),
-        endDate: endOfMonth.toISOString(),
-        limit: 1000,
-        sortBy: "deliveryDate",
-        sortOrder: "asc",
-      };
-
-      // Add service filter if selected
-      if (selectedService) {
-        params.serviceId = selectedService;
-      }
-
-      const result = await bookingService.getAllBookings(params);
-
-      if (result.success) {
-        const bookings = result.data || [];
-        setAllBookings(bookings);
-
-        // Group bookings by date for calendar
-        const groupedByDate = {};
-        bookings.forEach((booking) => {
-          const dateKey = new Date(booking.deliveryDate).toDateString();
-          if (!groupedByDate[dateKey]) {
-            groupedByDate[dateKey] = [];
-          }
-          groupedByDate[dateKey].push(booking);
-        });
-
-        setCalendarBookings(groupedByDate);
-        applyFilters(bookings);
-
-        // Fetch stats
-        await fetchBookingStats(date);
-      } else {
-        console.error("❌ Failed to load bookings:", result.error);
-        toast.error(result.error || "Failed to load bookings");
-        setAllBookings([]);
-        setCalendarBookings({});
-      }
-    } catch (error) {
-      console.error("Error fetching bookings:", error);
-      toast.error("Failed to load bookings");
-      setAllBookings([]);
-      setCalendarBookings({});
-    } finally {
-      setLoading(false);
-    }
   };
 
   // Fetch booking stats
@@ -295,14 +221,6 @@ const AdminBookings = () => {
         bookingService.getBookingStats(statsParams),
         bookingService.getUniqueDishesCount(uniqueDishesParams),
       ]);
-
-      if (statsResult.success) {
-        setBookingStats(statsResult.data);
-      }
-
-      if (uniqueDishesResult.success) {
-        setUniqueDishesData(uniqueDishesResult.data);
-      }
     } catch (error) {
       console.error("Error fetching stats:", error);
     }
@@ -312,19 +230,18 @@ const AdminBookings = () => {
     setShowKitchenDocket(booking);
   };
 
-  // Load data when location/service selection is ready
+  // Load data when location/service selection is ready or month changes
   useEffect(() => {
     if (dataReady && selectedLocation) {
-      fetchBookingsData();
+      fetchBookingsData(currentDate);
     }
-  }, [dataReady, selectedLocation, selectedService]);
+  }, [dataReady, selectedLocation, selectedService, currentDate]);
 
   // Enhanced apply filters function with sorting integration
-  // Enhanced apply filters function with date range filtering
   const applyFilters = (bookings = allBookings) => {
     let filtered = [...bookings];
 
-    // Apply date range filter first
+    // Apply date range filter first - this is the key fix
     if (filters.dateRange && filters.dateRange !== "all") {
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -423,6 +340,83 @@ const AdminBookings = () => {
       limit: itemsPerPage,
     });
   };
+
+  // Fetch bookings for the current calendar month
+  const fetchBookingsData = async (date = currentDate) => {
+    if (!selectedLocation) {
+      console.warn("No location selected, skipping data fetch");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // Always fetch for the entire month displayed in the calendar
+      const startDate = new Date(date.getFullYear(), date.getMonth(), 1);
+      const endDate = new Date(
+        date.getFullYear(),
+        date.getMonth() + 1,
+        0,
+        23,
+        59,
+        59
+      );
+
+      const params = {
+        locationId: selectedLocation,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        limit: 1000,
+        sortBy: "deliveryDate",
+        sortOrder: "asc",
+      };
+
+      // Add service filter if selected
+      if (selectedService) {
+        params.serviceId = selectedService;
+      }
+
+      const result = await bookingService.getAllBookings(params);
+
+      if (result.success) {
+        const bookings = result.data || [];
+        setAllBookings(bookings);
+
+        // Group bookings by date for calendar
+        const groupedByDate = {};
+        bookings.forEach((booking) => {
+          const dateKey = new Date(booking.deliveryDate).toDateString();
+          if (!groupedByDate[dateKey]) {
+            groupedByDate[dateKey] = [];
+          }
+          groupedByDate[dateKey].push(booking);
+        });
+
+        setCalendarBookings(groupedByDate);
+        applyFilters(bookings); // Apply filters to the newly fetched data
+
+        // Fetch stats
+        await fetchBookingStats(date);
+      } else {
+        console.error("Failed to load bookings:", result.error);
+        toast.error(result.error || "Failed to load bookings");
+        setAllBookings([]);
+        setCalendarBookings({});
+      }
+    } catch (error) {
+      console.error("Error fetching bookings:", error);
+      toast.error("Failed to load bookings");
+      setAllBookings([]);
+      setCalendarBookings({});
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Apply filters whenever they or the source data changes
+  useEffect(() => {
+    applyFilters();
+  }, [filters, allBookings]);
 
   // Enhanced sorting function with improved priority logic
   const applySorting = (bookings, sortOrder = "priority") => {
@@ -592,10 +586,7 @@ const AdminBookings = () => {
   const navigateMonth = (direction) => {
     const newDate = new Date(currentDate);
     newDate.setMonth(currentDate.getMonth() + direction);
-    setCurrentDate(newDate);
-    if (dataReady && selectedLocation) {
-      fetchBookingsData(newDate);
-    }
+    setCurrentDate(newDate); // This will trigger the useEffect to fetch new data
   };
 
   // Handle day click
@@ -666,7 +657,7 @@ const AdminBookings = () => {
 
       if (result.success) {
         toast.success(result.message || "Booking status updated successfully");
-        fetchBookingsData();
+        fetchBookingsData(currentDate);
       } else {
         toast.error(result.error || "Failed to update booking status");
       }
@@ -685,7 +676,7 @@ const AdminBookings = () => {
 
       if (result.success) {
         toast.success(result.message || "Payment updated successfully");
-        fetchBookingsData();
+        fetchBookingsData(currentDate);
         return result;
       } else {
         toast.error(result.error || "Failed to update payment");
@@ -704,7 +695,7 @@ const AdminBookings = () => {
 
       if (result.success) {
         toast.success(result.message || "Booking cancelled successfully");
-        fetchBookingsData();
+        fetchBookingsData(currentDate);
         closeBookingDetails();
       } else {
         toast.error(result.error || "Failed to cancel booking");
@@ -742,11 +733,6 @@ const AdminBookings = () => {
   };
 
   const summaryStats = getSummaryStats();
-
-  // Apply filters when they change
-  useEffect(() => {
-    applyFilters();
-  }, [filters, allBookings]);
 
   // Show loading screen while locations are loading
   if (loadingLocations) {
@@ -790,7 +776,7 @@ const AdminBookings = () => {
           <button
             onClick={() => {
               if (dataReady && selectedLocation) {
-                fetchBookingsData();
+                fetchBookingsData(currentDate);
               }
             }}
             disabled={!dataReady}

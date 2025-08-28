@@ -11,6 +11,7 @@ import {
   MapPin,
   Phone,
   Mail,
+  CalendarDays,
 } from "lucide-react";
 import jsPDF from "jspdf";
 
@@ -34,7 +35,7 @@ const DayDetailModal = ({
     depositAmount: "",
   });
   const [showKitchen, setShowKitchen] = useState(false);
-  
+
   const firstBooking = bookings[0];
 
   // Sort bookings by delivery time (earliest first)
@@ -45,7 +46,7 @@ const DayDetailModal = ({
   });
 
   // Filter bookings based on search
-  const filteredBookings = sortedBookings.filter(booking => {
+  const filteredBookings = sortedBookings.filter((booking) => {
     if (!searchTerm.trim()) return true;
     const searchLower = searchTerm.toLowerCase();
     return (
@@ -63,6 +64,99 @@ const DayDetailModal = ({
     pending: 4,
     completed: 5,
     cancelled: 6,
+  };
+
+  // Format selected items with sophisticated grouping logic
+  const formatSelectedItemsAsParagraphs = (
+    selectedItems,
+    isCustomOrder = false
+  ) => {
+    if (!selectedItems || selectedItems.length === 0) {
+      return "No items";
+    }
+
+    const formatCurrency = (amount) => {
+      return new Intl.NumberFormat("en-AU", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(amount);
+    };
+
+    // Group items and their choices
+    const processedItems = [];
+    const usedItems = new Set();
+
+    selectedItems.forEach((item, index) => {
+      if (usedItems.has(index)) return;
+
+      // Check if this is a base item (like "Rice", "Curry", "Crackers")
+      const relatedChoices = selectedItems.filter(
+        (otherItem, otherIndex) =>
+          otherIndex !== index &&
+          otherItem.name.startsWith(item.name + " - ") &&
+          !usedItems.has(otherIndex)
+      );
+
+      if (relatedChoices.length > 0) {
+        // This item has choices - group them
+        const choiceNames = relatedChoices.map((choice) =>
+          choice.name.replace(item.name + " - ", "")
+        );
+
+        let description = `${item.name} (${choiceNames.join(", ")})`;
+
+        if (item.quantity && item.quantity > 1) {
+          description += ` (${item.quantity}x)`;
+        }
+
+        if (isCustomOrder && item.totalPrice && item.totalPrice > 0) {
+          description += ` - $${formatCurrency(item.totalPrice)}`;
+        }
+
+        processedItems.push(description);
+
+        // Mark related items as used
+        relatedChoices.forEach((_, choiceIndex) => {
+          const originalIndex = selectedItems.findIndex(
+            (original) => original === relatedChoices[choiceIndex]
+          );
+          usedItems.add(originalIndex);
+        });
+        usedItems.add(index);
+      } else if (!item.name.includes(" - ")) {
+        // This is a standalone item (no choices)
+        let description = item.name;
+
+        if (item.quantity && item.quantity > 1) {
+          description += ` (${item.quantity}x)`;
+        }
+
+        if (isCustomOrder && item.totalPrice && item.totalPrice > 0) {
+          description += ` - $${formatCurrency(item.totalPrice)}`;
+        }
+
+        processedItems.push(description);
+        usedItems.add(index);
+      }
+      // Skip items that are choices (contain " - ") and don't have a parent
+    });
+
+    return processedItems.join(", ");
+  };
+
+  // Handle payment update
+  const handlePaymentUpdate = async (bookingId) => {
+    try {
+      const depositAmount = parseFloat(paymentData.depositAmount) || 0;
+      await onPaymentUpdate(bookingId, {
+        ...paymentData,
+        depositAmount,
+      });
+      setShowPaymentForm(false);
+      setSelectedBooking(null);
+    } catch (error) {
+      console.error("Error updating payment:", error);
+    }
   };
 
   // Generate PDF export function
@@ -313,51 +407,13 @@ const DayDetailModal = ({
     }
   };
 
-  const handlePaymentUpdate = async (bookingId) => {
-    try {
-      const depositAmount = parseFloat(paymentData.depositAmount) || 0;
-      await onPaymentUpdate(bookingId, {
-        ...paymentData,
-        depositAmount,
-      });
-      setShowPaymentForm(false);
-      setSelectedBooking(null);
-    } catch (error) {
-      console.error("Error updating payment:", error);
-    }
-  };
-
   const getDeliveryTime = (deliveryDate) => {
     const date = new Date(deliveryDate);
-    return date.toLocaleTimeString('en-AU', { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: true 
+    return date.toLocaleTimeString("en-AU", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
     });
-  };
-
-  // Format selected items for inline display
-  const formatSelectedItems = (selectedItems) => {
-    if (!selectedItems || selectedItems.length === 0) return "no items";
-    
-    const itemsByCategory = {};
-    selectedItems.forEach((item) => {
-      const category = item.category || "other";
-      if (!itemsByCategory[category]) itemsByCategory[category] = [];
-      
-      const isAddon = item.category === "addons" || item.type === "addon";
-      const quantity = item.quantity || 1;
-      
-      if (isAddon && quantity > 1) {
-        itemsByCategory[category].push(`${item.name} (${quantity}x)`);
-      } else {
-        itemsByCategory[category].push(item.name);
-      }
-    });
-
-    return Object.entries(itemsByCategory)
-      .map(([category, items]) => `${category}: ${items.join(", ")}`)
-      .join(" • ");
   };
 
   return (
@@ -374,7 +430,8 @@ const DayDetailModal = ({
                 : "Unknown Date"}
             </h2>
             <p className="text-green-100">
-              {summary.totalBookings} events ({summary.activeBookings} active) • {summary.totalPeople} guests
+              {summary.totalBookings} events ({summary.activeBookings} active) •{" "}
+              {summary.totalPeople} guests
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -386,7 +443,10 @@ const DayDetailModal = ({
               <FileDown className="w-4 h-4" />
               Export PDF
             </button>
-            <button onClick={onClose} className="hover:bg-green-700 p-1 rounded">
+            <button
+              onClick={onClose}
+              className="hover:bg-green-700 p-1 rounded"
+            >
               <X className="w-6 h-6" />
             </button>
           </div>
@@ -398,7 +458,7 @@ const DayDetailModal = ({
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <h3 className="font-semibold text-blue-800 mb-2 flex items-center gap-2">
                 <Users className="w-4 h-4" />
-                total guests
+                Total guests
               </h3>
               <p className="text-2xl font-bold text-blue-900">
                 {summary.totalPeople}
@@ -408,7 +468,7 @@ const DayDetailModal = ({
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <h3 className="font-semibold text-green-800 mb-2 flex items-center gap-2">
                 <DollarSign className="w-4 h-4" />
-                total revenue
+                Total revenue
               </h3>
               <p className="text-2xl font-bold text-green-900">
                 {formatPrice(summary.totalRevenue)}
@@ -417,7 +477,7 @@ const DayDetailModal = ({
 
             <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
               <h3 className="font-semibold text-orange-800 mb-2">
-                amount paid
+                Amount paid
               </h3>
               <p className="text-2xl font-bold text-orange-900">
                 {formatPrice(summary.totalPaid)}
@@ -426,7 +486,7 @@ const DayDetailModal = ({
 
             <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 flex flex-col justify-between">
               <div>
-                <h3 className="font-semibold text-purple-800 mb-2">events</h3>
+                <h3 className="font-semibold text-purple-800 mb-2">Events</h3>
                 <p className="text-2xl font-bold text-purple-900">
                   {summary.totalBookings}
                 </p>
@@ -440,7 +500,7 @@ const DayDetailModal = ({
                   className="form-checkbox h-4 w-4 text-purple-600 rounded"
                 />
                 <label htmlFor="show-kitchen" className="cursor-pointer">
-                  show kitchen view
+                  Show kitchen view
                 </label>
               </div>
             </div>
@@ -448,7 +508,9 @@ const DayDetailModal = ({
 
           {/* Status Overview */}
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-            <h3 className="font-semibold text-gray-800 mb-3">status overview</h3>
+            <h3 className="font-semibold text-gray-800 mb-3">
+              Status overview
+            </h3>
             <div className="flex flex-wrap gap-2">
               {Object.entries(summary.statusCounts).map(([status, count]) => (
                 <span
@@ -457,19 +519,22 @@ const DayDetailModal = ({
                     status
                   )}`}
                 >
-                  {status.replace("_", " ")}: {count}
+                  {status
+                    .replace("_", " ")
+                    .replace(/\b\w/g, (l) => l.toUpperCase())}
+                  : {count}
                 </span>
               ))}
             </div>
           </div>
 
-          {/* Kitchen Requirements - Simplified */}
+          {/* Kitchen Requirements */}
           {showKitchen && (
             <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-orange-800 flex items-center gap-2">
                   <ChefHat className="w-5 h-5" />
-                  kitchen preparation requirements
+                  Kitchen preparation requirements
                 </h3>
                 <div className="flex items-center gap-3">
                   <button
@@ -479,8 +544,16 @@ const DayDetailModal = ({
                       kitchenDoc.setFontSize(20);
                       kitchenDoc.text("KITCHEN REQUIREMENTS", 20, 30);
                       kitchenDoc.setFontSize(14);
-                      kitchenDoc.text(`Date: ${date instanceof Date ? formatDate(date.toISOString()) : formatDate(date)}`, 20, 45);
-                      
+                      kitchenDoc.text(
+                        `Date: ${
+                          date instanceof Date
+                            ? formatDate(date.toISOString())
+                            : formatDate(date)
+                        }`,
+                        20,
+                        45
+                      );
+
                       let yPos = 60;
                       filteredItems.forEach((item, index) => {
                         if (yPos > 250) {
@@ -490,28 +563,49 @@ const DayDetailModal = ({
                         kitchenDoc.setFontSize(12);
                         kitchenDoc.text(`${index + 1}. ${item.name}`, 20, yPos);
                         kitchenDoc.setFontSize(10);
-                        kitchenDoc.text(`   ${item.isAddon ? `${item.totalQuantity} units` : `${item.totalQuantity} portions for ${item.totalPeople} people`}`, 20, yPos + 10);
-                        kitchenDoc.text(`   Category: ${item.category || 'other'}`, 20, yPos + 20);
+                        kitchenDoc.text(
+                          `   ${
+                            item.isAddon
+                              ? `${item.totalQuantity} units`
+                              : `${item.totalQuantity} portions for ${item.totalPeople} people`
+                          }`,
+                          20,
+                          yPos + 10
+                        );
+                        kitchenDoc.text(
+                          `   Category: ${item.category || "Other"}`,
+                          20,
+                          yPos + 20
+                        );
                         if (item.allergens && item.allergens.length > 0) {
-                          kitchenDoc.text(`   ALLERGENS: ${item.allergens.join(', ')}`, 20, yPos + 30);
+                          kitchenDoc.text(
+                            `   ALLERGENS: ${item.allergens.join(", ")}`,
+                            20,
+                            yPos + 30
+                          );
                           yPos += 10;
                         }
                         yPos += 40;
                       });
-                      
-                      const safeDate = date ? (date instanceof Date ? formatDate(date.toISOString()) : formatDate(date)).replace(/\//g, "-") : "Unknown_Date";
+
+                      const safeDate = date
+                        ? (date instanceof Date
+                            ? formatDate(date.toISOString())
+                            : formatDate(date)
+                          ).replace(/\//g, "-")
+                        : "Unknown_Date";
                       kitchenDoc.save(`Kitchen_Requirements_${safeDate}.pdf`);
                     }}
                     className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded flex items-center gap-1 text-sm"
                   >
                     <Printer className="w-4 h-4" />
-                    kitchen print
+                    Kitchen print
                   </button>
                   <div className="flex items-center gap-2">
                     <Search className="w-4 h-4 text-gray-500" />
                     <input
                       type="text"
-                      placeholder="search items..."
+                      placeholder="Search items..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="px-3 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -522,38 +616,58 @@ const DayDetailModal = ({
 
               {filteredItems.length === 0 ? (
                 <p className="text-center text-gray-600 py-8">
-                  {searchTerm ? "no items found matching your search." : "no items to prepare."}
+                  {searchTerm
+                    ? "No items found matching your search."
+                    : "No items to prepare."}
                 </p>
               ) : (
                 <div className="space-y-2">
                   {filteredItems.map((item, index) => (
-                    <div key={index} className="bg-white border border-orange-200 rounded p-3">
+                    <div
+                      key={index}
+                      className="bg-white border border-orange-200 rounded p-3"
+                    >
                       <div className="flex justify-between items-center">
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
-                            <h4 className="font-medium text-gray-900">{item.name}</h4>
-                            <span className={`px-2 py-1 rounded text-xs ${getCategoryColor(item.category)}`}>
-                              {item.category || "other"}
+                            <h4 className="font-medium text-gray-900">
+                              {item.name}
+                            </h4>
+                            <span
+                              className={`px-2 py-1 rounded text-xs ${getCategoryColor(
+                                item.category
+                              )}`}
+                            >
+                              {item.category || "Other"}
                             </span>
                             {item.isVegetarian && (
-                              <span className="px-2 py-1 rounded text-xs bg-green-100 text-green-700">veg</span>
+                              <span className="px-2 py-1 rounded text-xs bg-green-100 text-green-700">
+                                Vegetarian
+                              </span>
                             )}
                             {item.isVegan && (
-                              <span className="px-2 py-1 rounded text-xs bg-green-100 text-green-700">vegan</span>
+                              <span className="px-2 py-1 rounded text-xs bg-green-100 text-green-700">
+                                Vegan
+                              </span>
                             )}
                           </div>
                           {item.allergens && item.allergens.length > 0 && (
                             <div className="mt-1 text-xs text-red-600">
-                              <span className="font-medium">allergens:</span> {item.allergens.join(", ")}
+                              <span className="font-medium">Allergens:</span>{" "}
+                              {item.allergens.join(", ")}
                             </div>
                           )}
                         </div>
                         <div className="text-right">
                           <div className="text-lg font-bold text-orange-900">
-                            {item.isAddon ? `${item.totalQuantity} units` : `${item.totalQuantity} portions`}
+                            {item.isAddon
+                              ? `${item.totalQuantity} units`
+                              : `${item.totalQuantity} portions`}
                           </div>
                           <div className="text-sm text-orange-600">
-                            {item.isAddon ? "addon items" : `${item.totalPeople} people`}
+                            {item.isAddon
+                              ? "Addon items"
+                              : `${item.totalPeople} people`}
                           </div>
                         </div>
                       </div>
@@ -568,13 +682,13 @@ const DayDetailModal = ({
           <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
             <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-800">
-                event schedule
+                Event schedule
               </h3>
               <div className="flex items-center gap-2">
                 <Search className="w-4 h-4 text-gray-500" />
                 <input
                   type="text"
-                  placeholder="search bookings..."
+                  placeholder="Search bookings..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="px-3 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -584,7 +698,9 @@ const DayDetailModal = ({
 
             {filteredBookings.length === 0 ? (
               <div className="text-center py-8 text-gray-600">
-                {searchTerm ? "no bookings found matching your search." : "no bookings for this date."}
+                {searchTerm
+                  ? "No bookings found matching your search."
+                  : "No bookings for this date."}
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -593,30 +709,42 @@ const DayDetailModal = ({
                     <tr>
                       <th className="px-3 py-3 text-left font-medium text-gray-700">
                         <Clock className="w-4 h-4 inline mr-1" />
-                        time
+                        Time
                       </th>
-                      <th className="px-3 py-3 text-left font-medium text-gray-700">customer</th>
-                      <th className="px-3 py-3 text-left font-medium text-gray-700">contact</th>
+                      <th className="px-3 py-3 text-left font-medium text-gray-700">
+                        Customer
+                      </th>
+                      <th className="px-3 py-3 text-left font-medium text-gray-700">
+                        Contact
+                      </th>
                       <th className="px-3 py-3 text-left font-medium text-gray-700">
                         <Users className="w-4 h-4 inline mr-1" />
-                        guests
+                        Guests
                       </th>
-                      <th className="px-3 py-3 text-left font-medium text-gray-700">selected items</th>
-                      <th className="px-3 py-3 text-left font-medium text-gray-700">service</th>
+                      <th className="px-3 py-3 text-left font-medium text-gray-700">
+                        Selected items
+                      </th>
+                      <th className="px-3 py-3 text-left font-medium text-gray-700">
+                        Service
+                      </th>
                       <th className="px-3 py-3 text-left font-medium text-gray-700">
                         <DollarSign className="w-4 h-4 inline mr-1" />
-                        amount
+                        Amount
                       </th>
-                      <th className="px-3 py-3 text-left font-medium text-gray-700">status</th>
-                      <th className="px-3 py-3 text-left font-medium text-gray-700">actions</th>
+                      <th className="px-3 py-3 text-left font-medium text-gray-700">
+                        Status
+                      </th>
+                      <th className="px-3 py-3 text-left font-medium text-gray-700">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {filteredBookings.map((booking, index) => (
-                      <tr 
-                        key={booking._id} 
+                      <tr
+                        key={booking._id}
                         className={`hover:bg-gray-50 ${
-                          booking.status === 'cancelled' ? 'opacity-60' : ''
+                          booking.status === "cancelled" ? "opacity-60" : ""
                         }`}
                       >
                         <td className="px-3 py-3 font-mono text-blue-700 font-medium">
@@ -625,7 +753,7 @@ const DayDetailModal = ({
                         <td className="px-3 py-3">
                           <div>
                             <div className="font-medium text-gray-900">
-                              {booking.customerDetails?.name || "no name"}
+                              {booking.customerDetails?.name || "No name"}
                             </div>
                             <div className="text-xs text-gray-500">
                               #{booking.bookingReference}
@@ -636,12 +764,17 @@ const DayDetailModal = ({
                           <div className="space-y-1">
                             <div className="flex items-center gap-1">
                               <Phone className="w-3 h-3 text-gray-400" />
-                              {booking.customerDetails?.phone || "no phone"}
+                              {booking.customerDetails?.phone || "No phone"}
                             </div>
                             <div className="flex items-center gap-1">
                               <Mail className="w-3 h-3 text-gray-400" />
-                              {booking.customerDetails?.email?.substring(0, 15) + 
-                               (booking.customerDetails?.email?.length > 15 ? "..." : "") || "no email"}
+                              {booking.customerDetails?.email?.substring(
+                                0,
+                                15
+                              ) +
+                                (booking.customerDetails?.email?.length > 15
+                                  ? "..."
+                                  : "") || "No email"}
                             </div>
                           </div>
                         </td>
@@ -649,22 +782,43 @@ const DayDetailModal = ({
                           {booking.peopleCount || 0}
                         </td>
                         <td className="px-3 py-3 max-w-xs">
-                          <div className="text-xs text-gray-600 truncate" title={formatSelectedItems(booking.selectedItems)}>
-                            {formatSelectedItems(booking.selectedItems)}
+                          <div
+                            className="text-xs text-gray-600"
+                            style={{
+                              display: "-webkit-box",
+                              WebkitLineClamp: 3,
+                              WebkitBoxOrient: "vertical",
+                              overflow: "hidden",
+                              lineHeight: "1.2em",
+                              maxHeight: "3.6em",
+                            }}
+                            title={formatSelectedItemsAsParagraphs(
+                              booking.selectedItems,
+                              booking.orderSource?.sourceType === "customOrder"
+                            )}
+                          >
+                            {formatSelectedItemsAsParagraphs(
+                              booking.selectedItems,
+                              booking.orderSource?.sourceType === "customOrder"
+                            )}
                           </div>
                         </td>
                         <td className="px-3 py-3">
                           <div className="text-xs">
                             <div className="font-medium">
-                              {booking.deliveryType || "not specified"}
+                              {booking.deliveryType || "Not specified"}
                             </div>
                             {booking.venueSelection && (
                               <div className="text-gray-600">
-                                {booking.venueSelection}
+                                {booking.venueSelection.replace(/\b\w/g, (l) =>
+                                  l.toUpperCase()
+                                )}
                               </div>
                             )}
                             <div className="text-gray-600">
-                              {booking.orderSource?.sourceType === "customOrder" ? "custom" : "menu"}
+                              {booking.orderSource?.sourceType === "customOrder"
+                                ? "Custom"
+                                : "Menu"}
                             </div>
                           </div>
                         </td>
@@ -675,11 +829,35 @@ const DayDetailModal = ({
                                 {formatPrice(booking.pricing?.total || 0)}
                               </div>
                               <div className="text-gray-600">
-                                paid: {formatPrice(booking.depositAmount || 0)}
+                                Paid: {formatPrice(booking.depositAmount || 0)}
                               </div>
+                              {/* Payment Update Option */}
+                              {(booking.pricing?.total || 0) >
+                                (booking.depositAmount || 0) &&
+                                booking.status !== "cancelled" &&
+                                booking.status !== "completed" && (
+                                  <button
+                                    onClick={() => {
+                                      setSelectedBooking(booking);
+                                      setPaymentData({
+                                        paymentStatus:
+                                          booking.paymentStatus || "pending",
+                                        depositAmount: (
+                                          booking.depositAmount || 0
+                                        ).toString(),
+                                      });
+                                      setShowPaymentForm(true);
+                                    }}
+                                    className="text-blue-600 hover:text-blue-800 text-xs underline mt-1"
+                                  >
+                                    Update payment
+                                  </button>
+                                )}
                             </div>
                           ) : (
-                            <span className="text-red-600 text-xs font-medium">cancelled</span>
+                            <span className="text-red-600 text-xs font-medium">
+                              Cancelled
+                            </span>
                           )}
                         </td>
                         <td className="px-3 py-3">
@@ -688,38 +866,47 @@ const DayDetailModal = ({
                               booking.status || "pending"
                             )}`}
                           >
-                            {(booking.status || "pending").replace("_", " ")}
+                            {(booking.status || "pending")
+                              .replace("_", " ")
+                              .replace(/\b\w/g, (l) => l.toUpperCase())}
                           </span>
                         </td>
                         <td className="px-3 py-3">
                           <div className="flex items-center gap-1">
                             <button
-                              onClick={() => onKitchenDocket && onKitchenDocket(booking)}
+                              onClick={() =>
+                                onKitchenDocket && onKitchenDocket(booking)
+                              }
                               className="bg-yellow-600 text-white px-2 py-1 rounded text-xs hover:bg-yellow-700 flex items-center gap-1"
-                              title="kitchen print"
+                              title="Kitchen print"
                             >
                               <ChefHat className="w-3 h-3" />
                             </button>
                             <button
-                              onClick={() => onPrintBooking && onPrintBooking(booking)}
+                              onClick={() =>
+                                onPrintBooking && onPrintBooking(booking)
+                              }
                               className="bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700 flex items-center gap-1"
-                              title="receipt print"
+                              title="Receipt print"
                             >
                               <Printer className="w-3 h-3" />
                             </button>
-                            {booking.status !== "cancelled" && booking.status !== "completed" && (
-                              <select
-                                value={booking.status || "pending"}
-                                onChange={(e) => onStatusUpdate(booking._id, e.target.value)}
-                                className="px-2 py-1 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-green-500"
-                              >
-                                <option value="pending">pending</option>
-                                <option value="confirmed">confirmed</option>
-                                <option value="preparing">preparing</option>
-                                <option value="ready">ready</option>
-                                <option value="completed">completed</option>
-                              </select>
-                            )}
+                            {booking.status !== "cancelled" &&
+                              booking.status !== "completed" && (
+                                <select
+                                  value={booking.status || "pending"}
+                                  onChange={(e) =>
+                                    onStatusUpdate(booking._id, e.target.value)
+                                  }
+                                  className="px-2 py-1 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-green-500"
+                                >
+                                  <option value="pending">Pending</option>
+                                  <option value="confirmed">Confirmed</option>
+                                  <option value="preparing">Preparing</option>
+                                  <option value="ready">Ready</option>
+                                  <option value="completed">Completed</option>
+                                </select>
+                              )}
                           </div>
                         </td>
                       </tr>
@@ -735,13 +922,13 @@ const DayDetailModal = ({
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
               <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
                 <h3 className="text-lg font-semibold mb-4">
-                  update payment - {selectedBooking.customerDetails?.name}
+                  Update payment - {selectedBooking.customerDetails?.name}
                 </h3>
 
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      payment status
+                      Payment status
                     </label>
                     <select
                       value={paymentData.paymentStatus}
@@ -753,15 +940,15 @@ const DayDetailModal = ({
                       }
                       className="w-full p-2 border border-gray-300 rounded-lg"
                     >
-                      <option value="pending">pending</option>
-                      <option value="deposit_paid">deposit paid</option>
-                      <option value="fully_paid">fully paid</option>
+                      <option value="pending">Pending</option>
+                      <option value="deposit_paid">Deposit paid</option>
+                      <option value="fully_paid">Fully paid</option>
                     </select>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      amount paid
+                      Amount paid
                     </label>
                     <input
                       type="number"
@@ -777,20 +964,20 @@ const DayDetailModal = ({
                       }
                       onFocus={(e) => e.target.select()}
                       className="w-full p-2 border border-gray-300 rounded-lg"
-                      placeholder="enter amount"
+                      placeholder="Enter amount"
                     />
                     <p className="text-xs text-gray-600 mt-1">
-                      max: {formatPrice(selectedBooking.pricing?.total)}
+                      Max: {formatPrice(selectedBooking.pricing?.total)}
                     </p>
                   </div>
 
                   <div className="bg-gray-50 p-3 rounded">
                     <p className="text-sm text-gray-600">
-                      <span className="font-medium">total amount:</span>{" "}
+                      <span className="font-medium">Total amount:</span>{" "}
                       {formatPrice(selectedBooking.pricing?.total)}
                     </p>
                     <p className="text-sm text-gray-600">
-                      <span className="font-medium">balance due:</span>{" "}
+                      <span className="font-medium">Balance due:</span>{" "}
                       {formatPrice(
                         Math.max(
                           0,
@@ -806,7 +993,7 @@ const DayDetailModal = ({
                       onClick={() => handlePaymentUpdate(selectedBooking._id)}
                       className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700"
                     >
-                      update payment
+                      Update payment
                     </button>
                     <button
                       onClick={() => {
@@ -815,7 +1002,7 @@ const DayDetailModal = ({
                       }}
                       className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400"
                     >
-                      cancel
+                      Cancel
                     </button>
                   </div>
                 </div>
@@ -829,24 +1016,24 @@ const DayDetailModal = ({
           <div className="flex justify-between items-center text-sm text-gray-600">
             <div>
               <p>
-                total for{" "}
+                Total for{" "}
                 {date
                   ? date instanceof Date
                     ? formatDate(date.toISOString())
                     : formatDate(date)
-                  : "unknown date"}
+                  : "Unknown date"}
                 : {summary.totalBookings} events, {summary.totalPeople} guests,{" "}
                 {formatPrice(summary.totalRevenue)} revenue
               </p>
               <p className="text-xs text-gray-500 mt-1">
-                revenue excludes cancelled bookings
+                Revenue excludes cancelled bookings
               </p>
             </div>
             <button
               onClick={onClose}
               className="bg-gray-300 text-gray-800 px-6 py-2 rounded-lg hover:bg-gray-400"
             >
-              close
+              Close
             </button>
           </div>
         </div>
