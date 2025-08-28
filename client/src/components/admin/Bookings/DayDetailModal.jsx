@@ -7,6 +7,10 @@ import {
   ChefHat,
   Search,
   FileDown,
+  Clock,
+  MapPin,
+  Phone,
+  Mail,
 } from "lucide-react";
 import jsPDF from "jspdf";
 
@@ -17,6 +21,7 @@ const DayDetailModal = ({
   onStatusUpdate,
   onPaymentUpdate,
   onPrintBooking,
+  onKitchenDocket,
   formatPrice,
   formatDate,
   formatDateTime,
@@ -28,16 +33,29 @@ const DayDetailModal = ({
     paymentStatus: "pending",
     depositAmount: "",
   });
-  // NEW: State to control visibility of the kitchen view
   const [showKitchen, setShowKitchen] = useState(false);
+  
   const firstBooking = bookings[0];
 
-  const locationName =
-    firstBooking?.orderSource?.locationName || "Unknown Location";
-  const serviceName =
-    firstBooking?.orderSource?.serviceName || "Unknown Service";
+  // Sort bookings by delivery time (earliest first)
+  const sortedBookings = [...bookings].sort((a, b) => {
+    const timeA = new Date(a.deliveryDate);
+    const timeB = new Date(b.deliveryDate);
+    return timeA - timeB;
+  });
 
-  // NEW: Define a priority for booking statuses for sorting
+  // Filter bookings based on search
+  const filteredBookings = sortedBookings.filter(booking => {
+    if (!searchTerm.trim()) return true;
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      booking.customerDetails?.name?.toLowerCase().includes(searchLower) ||
+      booking.customerDetails?.phone?.includes(searchTerm) ||
+      booking.bookingReference?.toLowerCase().includes(searchLower)
+    );
+  });
+
+  // Define a priority for booking statuses for sorting
   const statusPriority = {
     preparing: 1,
     ready: 2,
@@ -47,7 +65,7 @@ const DayDetailModal = ({
     cancelled: 6,
   };
 
-  // NEW: Generate PDF export function
+  // Generate PDF export function
   const exportDayToPDF = () => {
     if (!date) {
       console.error("Date is required for PDF export");
@@ -95,8 +113,6 @@ const DayDetailModal = ({
 
     // Header
     addText("MC Catering Services", 20, true);
-    addText(`Location: ${locationName}`, 12);
-    addText(`Service: ${serviceName}`, 12);
     yPosition += 3;
     addText("DAY SUMMARY REPORT", 18, true);
     yPosition += 5;
@@ -126,186 +142,6 @@ const DayDetailModal = ({
       `Balance Due: ${formatPrice(summary.totalRevenue - summary.totalPaid)}`
     );
     yPosition += sectionSpacing;
-
-    // Status breakdown
-    addText("STATUS BREAKDOWN", 14, true);
-    Object.entries(summary.statusCounts).forEach(([status, count]) => {
-      addText(`${status.toUpperCase().replace("_", " ")}: ${count}`);
-    });
-    yPosition += sectionSpacing;
-
-    // Kitchen preparation summary
-    const aggregatedItems = getAggregatedItems();
-    if (aggregatedItems.length > 0) {
-      addText("KITCHEN PREPARATION REQUIREMENTS", 14, true);
-      yPosition += 5;
-
-      aggregatedItems.forEach((item, index) => {
-        checkPageBreak(50);
-        addText(`${index + 1}. ${item.name}`, 12, true);
-        addText(`   Category: ${item.category?.toUpperCase() || "OTHER"}`);
-        addText(
-          `   Quantity: ${
-            item.isAddon
-              ? `${item.totalQuantity} units`
-              : `${item.totalQuantity} portions for ${item.totalPeople} people`
-          }`
-        );
-
-        if (item.isVegetarian) addText("   VEGETARIAN");
-        if (item.isVegan) addText("   VEGAN");
-        if (item.allergens && item.allergens.length > 0) {
-          addText(`   Allergens: ${item.allergens.join(", ")}`);
-        }
-
-        const orderDetails = item.bookings
-          .map((b) => `${b.customerName} (#${b.bookingRef})`)
-          .join(", ");
-        addText(`   Orders from: ${orderDetails}`);
-        yPosition += 3;
-      });
-
-      yPosition += sectionSpacing;
-    }
-
-    // Individual booking details
-    checkPageBreak(30);
-    addText("INDIVIDUAL BOOKING DETAILS", 14, true);
-    yPosition += 5;
-
-    activeDayBookings.forEach((booking, index) => {
-      checkPageBreak(80);
-
-      addText(`BOOKING ${index + 1}`, 12, true);
-      addText(`Reference: #${booking.bookingReference}`);
-      addText(`Customer: ${booking.customerDetails?.name || "No Name"}`);
-      addText(`Email: ${booking.customerDetails?.email || "No Email"}`);
-      addText(`Phone: ${booking.customerDetails?.phone || "No Phone"}`);
-      addText(`Guests: ${booking.peopleCount || 0}`);
-      addText(
-        `Status: ${(booking.status || "pending")
-          .toUpperCase()
-          .replace("_", " ")}`
-      );
-      addText(`Service: ${booking.orderSource?.sourceName || "No Service"}`);
-      addText(
-        `Location: ${booking.orderSource?.locationName || "No Location"}`
-      );
-      addText(`Delivery Type: ${booking.deliveryType || "Not specified"}`);
-
-      if (booking.venueSelection) {
-        const venueText = `Venue: ${booking.venueSelection.toUpperCase()}`;
-        const chargeText =
-          booking.venueCharge > 0
-            ? ` (Charge: ${formatPrice(booking.venueCharge)})`
-            : "";
-        addText(venueText + chargeText);
-      }
-
-      if (booking.deliveryType === "Delivery" && booking.address) {
-        addText(
-          `Address: ${booking.address.street}, ${booking.address.suburb}, ${booking.address.state} ${booking.address.postcode}`
-        );
-      }
-
-      if (booking.venueSelection) {
-        addText(`Venue: ${booking.venueSelection.toUpperCase()}`);
-      }
-
-      addText(`Total Amount: ${formatPrice(booking.pricing?.total || 0)}`);
-      addText(`Amount Paid: ${formatPrice(booking.depositAmount || 0)}`);
-      addText(
-        `Balance Due: ${formatPrice(
-          (booking.pricing?.total || 0) - (booking.depositAmount || 0)
-        )}`
-      );
-
-      if (booking.customerDetails?.specialInstructions) {
-        addText(
-          `Special Instructions: ${booking.customerDetails.specialInstructions}`
-        );
-      }
-
-      if (
-        booking.customerDetails?.dietaryRequirements &&
-        booking.customerDetails.dietaryRequirements.length > 0
-      ) {
-        addText(
-          `Dietary Requirements: ${booking.customerDetails.dietaryRequirements.join(
-            ", "
-          )}`
-        );
-      }
-
-      if (booking.customerDetails?.spiceLevel) {
-        addText(
-          `Spice Level: ${booking.customerDetails.spiceLevel.toUpperCase()}`
-        );
-      }
-
-      // Selected items with quantities
-      if (booking.selectedItems && booking.selectedItems.length > 0) {
-        addText("Selected Items:", 11, true);
-
-        const itemsByCategory = {};
-        booking.selectedItems.forEach((item) => {
-          const category = item.category || "other";
-          if (!itemsByCategory[category]) itemsByCategory[category] = [];
-          itemsByCategory[category].push(item);
-        });
-
-        Object.entries(itemsByCategory).forEach(([category, items]) => {
-          const itemStrings = items.map((item) => {
-            const isAddon = item.category === "addons" || item.type === "addon";
-            const quantity = item.quantity || 1;
-
-            if (isAddon && quantity > 1) {
-              return `${item.name} (${quantity}x)`;
-            } else {
-              return item.name;
-            }
-          });
-          addText(`  ${category.toUpperCase()}: ${itemStrings.join(", ")}`);
-        });
-      }
-
-      yPosition += 8;
-
-      // Add separator line between bookings
-      if (index < activeDayBookings.length - 1) {
-        doc.setLineWidth(0.2);
-        doc.line(margin, yPosition, pageWidth - margin, yPosition);
-        yPosition += 5;
-      }
-    });
-
-    // Add cancelled bookings if any
-    const cancelledBookings = bookings.filter(
-      (booking) => booking.status === "cancelled"
-    );
-    if (cancelledBookings.length > 0) {
-      checkPageBreak(50);
-      addText("CANCELLED BOOKINGS", 14, true);
-      yPosition += 5;
-
-      cancelledBookings.forEach((booking, index) => {
-        checkPageBreak(25);
-        addText(
-          `${index + 1}. ${booking.customerDetails?.name || "No Name"} (#${
-            booking.bookingReference
-          })`
-        );
-        addText(
-          `   Guests: ${booking.peopleCount || 0}, Amount: ${formatPrice(
-            booking.pricing?.total || 0
-          )}`
-        );
-        if (booking.cancellationReason) {
-          addText(`   Reason: ${booking.cancellationReason}`);
-        }
-        yPosition += 3;
-      });
-    }
 
     // Save the PDF
     const safeDate = date
@@ -348,7 +184,6 @@ const DayDetailModal = ({
                   : "Menu",
               isAddon: isAddon,
             });
-            // NEW: Update the highest priority status for this aggregated item
             if (
               statusPriority[booking.status] <
               statusPriority[existing.highestPriorityStatus]
@@ -365,7 +200,6 @@ const DayDetailModal = ({
               isVegan: item.isVegan || false,
               allergens: item.allergens || [],
               isAddon: isAddon,
-              // NEW: Add highest priority status
               highestPriorityStatus: booking.status,
               bookings: [
                 {
@@ -386,7 +220,6 @@ const DayDetailModal = ({
       }
     });
 
-    // UPDATED: Sort by highest priority status first, then by total quantity
     return Array.from(itemsMap.values()).sort((a, b) => {
       const statusCompare =
         statusPriority[a.highestPriorityStatus] -
@@ -494,11 +327,44 @@ const DayDetailModal = ({
     }
   };
 
+  const getDeliveryTime = (deliveryDate) => {
+    const date = new Date(deliveryDate);
+    return date.toLocaleTimeString('en-AU', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: true 
+    });
+  };
+
+  // Format selected items for inline display
+  const formatSelectedItems = (selectedItems) => {
+    if (!selectedItems || selectedItems.length === 0) return "no items";
+    
+    const itemsByCategory = {};
+    selectedItems.forEach((item) => {
+      const category = item.category || "other";
+      if (!itemsByCategory[category]) itemsByCategory[category] = [];
+      
+      const isAddon = item.category === "addons" || item.type === "addon";
+      const quantity = item.quantity || 1;
+      
+      if (isAddon && quantity > 1) {
+        itemsByCategory[category].push(`${item.name} (${quantity}x)`);
+      } else {
+        itemsByCategory[category].push(item.name);
+      }
+    });
+
+    return Object.entries(itemsByCategory)
+      .map(([category, items]) => `${category}: ${items.join(", ")}`)
+      .join(" • ");
+  };
+
   return (
     <div className="fixed inset-0 top-[-50px] bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg max-w-7xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="bg-primary-green text-white px-6 py-4 rounded-t-lg flex items-center justify-between">
+        <div className="bg-green-600 text-white px-6 py-4 rounded-t-lg flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold">
               {date
@@ -507,21 +373,20 @@ const DayDetailModal = ({
                   : formatDate(date)
                 : "Unknown Date"}
             </h2>
-            <p className="text-blue-100">
-              {summary.totalBookings} events ({summary.activeBookings} active)
+            <p className="text-green-100">
+              {summary.totalBookings} events ({summary.activeBookings} active) • {summary.totalPeople} guests
             </p>
           </div>
           <div className="flex items-center gap-3">
-            {/* NEW: Export to PDF button */}
             <button
               onClick={exportDayToPDF}
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors"
+              className="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors"
               title="Export day details to PDF"
             >
               <FileDown className="w-4 h-4" />
-              Export Day PDF
+              Export PDF
             </button>
-            <button onClick={onClose} className="hover:bg-blue-700 p-1 rounded">
+            <button onClick={onClose} className="hover:bg-green-700 p-1 rounded">
               <X className="w-6 h-6" />
             </button>
           </div>
@@ -533,7 +398,7 @@ const DayDetailModal = ({
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <h3 className="font-semibold text-blue-800 mb-2 flex items-center gap-2">
                 <Users className="w-4 h-4" />
-                Total Guests
+                total guests
               </h3>
               <p className="text-2xl font-bold text-blue-900">
                 {summary.totalPeople}
@@ -543,7 +408,7 @@ const DayDetailModal = ({
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <h3 className="font-semibold text-green-800 mb-2 flex items-center gap-2">
                 <DollarSign className="w-4 h-4" />
-                Total Revenue
+                total revenue
               </h3>
               <p className="text-2xl font-bold text-green-900">
                 {formatPrice(summary.totalRevenue)}
@@ -552,7 +417,7 @@ const DayDetailModal = ({
 
             <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
               <h3 className="font-semibold text-orange-800 mb-2">
-                Amount Paid
+                amount paid
               </h3>
               <p className="text-2xl font-bold text-orange-900">
                 {formatPrice(summary.totalPaid)}
@@ -561,12 +426,11 @@ const DayDetailModal = ({
 
             <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 flex flex-col justify-between">
               <div>
-                <h3 className="font-semibold text-purple-800 mb-2">Events</h3>
+                <h3 className="font-semibold text-purple-800 mb-2">events</h3>
                 <p className="text-2xl font-bold text-purple-900">
                   {summary.totalBookings}
                 </p>
               </div>
-              {/* NEW: Checkbox to toggle the kitchen view */}
               <div className="mt-2 text-sm text-purple-700 flex items-center gap-2">
                 <input
                   id="show-kitchen"
@@ -576,33 +440,15 @@ const DayDetailModal = ({
                   className="form-checkbox h-4 w-4 text-purple-600 rounded"
                 />
                 <label htmlFor="show-kitchen" className="cursor-pointer">
-                  Show Kitchen View
+                  show kitchen view
                 </label>
               </div>
-            </div>
-
-            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
-              <h3 className="font-semibold text-indigo-800 mb-2">Venues</h3>
-              <p className="text-2xl font-bold text-indigo-900">
-                {
-                  new Set(
-                    bookings
-                      .filter(
-                        (b) => b.venueSelection && b.status !== "cancelled"
-                      )
-                      .map((b) => b.venueSelection)
-                  ).size
-                }
-              </p>
-              <p className="text-xs text-indigo-600">Active venues</p>
             </div>
           </div>
 
           {/* Status Overview */}
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-            <h3 className="font-semibold text-gray-800 mb-3">
-              Status Overview
-            </h3>
+            <h3 className="font-semibold text-gray-800 mb-3">status overview</h3>
             <div className="flex flex-wrap gap-2">
               {Object.entries(summary.statusCounts).map(([status, count]) => (
                 <span
@@ -611,320 +457,277 @@ const DayDetailModal = ({
                     status
                   )}`}
                 >
-                  {status.replace("_", " ").toUpperCase()}: {count}
+                  {status.replace("_", " ")}: {count}
                 </span>
               ))}
             </div>
           </div>
 
-          {/* UPDATED: Conditionally render the kitchen requirements section */}
+          {/* Kitchen Requirements - Simplified */}
           {showKitchen && (
             <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-orange-800 flex items-center gap-2">
                   <ChefHat className="w-5 h-5" />
-                  Kitchen Preparation Requirements
+                  kitchen preparation requirements
                 </h3>
-                <div className="flex items-center gap-2">
-                  <Search className="w-4 h-4 text-gray-500" />
-                  <input
-                    type="text"
-                    placeholder="Search items..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="px-3 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => {
+                      // Generate kitchen-specific print
+                      const kitchenDoc = new jsPDF();
+                      kitchenDoc.setFontSize(20);
+                      kitchenDoc.text("KITCHEN REQUIREMENTS", 20, 30);
+                      kitchenDoc.setFontSize(14);
+                      kitchenDoc.text(`Date: ${date instanceof Date ? formatDate(date.toISOString()) : formatDate(date)}`, 20, 45);
+                      
+                      let yPos = 60;
+                      filteredItems.forEach((item, index) => {
+                        if (yPos > 250) {
+                          kitchenDoc.addPage();
+                          yPos = 30;
+                        }
+                        kitchenDoc.setFontSize(12);
+                        kitchenDoc.text(`${index + 1}. ${item.name}`, 20, yPos);
+                        kitchenDoc.setFontSize(10);
+                        kitchenDoc.text(`   ${item.isAddon ? `${item.totalQuantity} units` : `${item.totalQuantity} portions for ${item.totalPeople} people`}`, 20, yPos + 10);
+                        kitchenDoc.text(`   Category: ${item.category || 'other'}`, 20, yPos + 20);
+                        if (item.allergens && item.allergens.length > 0) {
+                          kitchenDoc.text(`   ALLERGENS: ${item.allergens.join(', ')}`, 20, yPos + 30);
+                          yPos += 10;
+                        }
+                        yPos += 40;
+                      });
+                      
+                      const safeDate = date ? (date instanceof Date ? formatDate(date.toISOString()) : formatDate(date)).replace(/\//g, "-") : "Unknown_Date";
+                      kitchenDoc.save(`Kitchen_Requirements_${safeDate}.pdf`);
+                    }}
+                    className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded flex items-center gap-1 text-sm"
+                  >
+                    <Printer className="w-4 h-4" />
+                    kitchen print
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <Search className="w-4 h-4 text-gray-500" />
+                    <input
+                      type="text"
+                      placeholder="search items..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="px-3 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
                 </div>
               </div>
 
               {filteredItems.length === 0 ? (
                 <p className="text-center text-gray-600 py-8">
-                  {searchTerm
-                    ? "No items found matching your search."
-                    : "No items to prepare."}
+                  {searchTerm ? "no items found matching your search." : "no items to prepare."}
                 </p>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {filteredItems.map((item, index) => (
-                    <div
-                      key={index}
-                      className="bg-white border border-orange-200 rounded p-4"
-                    >
-                      <div className="flex justify-between items-start mb-3">
+                    <div key={index} className="bg-white border border-orange-200 rounded p-3">
+                      <div className="flex justify-between items-center">
                         <div className="flex-1">
-                          <h4 className="font-medium text-gray-900 text-lg">
-                            {item.name}
-                          </h4>
-                          <div className="flex items-center gap-2 mt-2">
-                            <span
-                              className={`px-2 py-1 rounded text-xs ${getCategoryColor(
-                                item.category
-                              )}`}
-                            >
-                              {item.category?.toUpperCase() || "OTHER"}
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-medium text-gray-900">{item.name}</h4>
+                            <span className={`px-2 py-1 rounded text-xs ${getCategoryColor(item.category)}`}>
+                              {item.category || "other"}
                             </span>
                             {item.isVegetarian && (
-                              <span className="px-2 py-1 rounded text-xs bg-green-100 text-green-700">
-                                VEGETARIAN
-                              </span>
+                              <span className="px-2 py-1 rounded text-xs bg-green-100 text-green-700">veg</span>
                             )}
                             {item.isVegan && (
-                              <span className="px-2 py-1 rounded text-xs bg-green-100 text-green-700">
-                                VEGAN
-                              </span>
+                              <span className="px-2 py-1 rounded text-xs bg-green-100 text-green-700">vegan</span>
                             )}
                           </div>
                           {item.allergens && item.allergens.length > 0 && (
-                            <div className="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded">
-                              <span className="font-medium">Allergens:</span>{" "}
-                              {item.allergens.join(", ")}
+                            <div className="mt-1 text-xs text-red-600">
+                              <span className="font-medium">allergens:</span> {item.allergens.join(", ")}
                             </div>
                           )}
                         </div>
                         <div className="text-right">
-                          <div className="text-2xl font-bold text-orange-900">
-                            {item.isAddon
-                              ? `${item.totalQuantity} units`
-                              : `${item.totalQuantity} portions`}
-                          </div>
-                          <div className="text-sm text-orange-700">
-                            {item.isAddon
-                              ? "addon items"
-                              : `for ${item.totalPeople} people`}
+                          <div className="text-lg font-bold text-orange-900">
+                            {item.isAddon ? `${item.totalQuantity} units` : `${item.totalQuantity} portions`}
                           </div>
                           <div className="text-sm text-orange-600">
-                            {item.bookings.length} order
-                            {item.bookings.length > 1 ? "s" : ""}
+                            {item.isAddon ? "addon items" : `${item.totalPeople} people`}
                           </div>
-                        </div>
-                      </div>
-
-                      {/* Booking Details for this Item */}
-                      <div className="border-t border-orange-200 pt-3 mt-3">
-                        <h5 className="font-medium text-orange-800 mb-2">
-                          Order Details:
-                        </h5>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                          {item.bookings.map((booking, bookingIndex) => (
-                            <div
-                              key={bookingIndex}
-                              className="bg-orange-50 p-2 rounded text-sm"
-                            >
-                              <div className="font-medium">
-                                {booking.customerName}
-                              </div>
-                              <div className="text-orange-700">
-                                {booking.isAddon
-                                  ? `${booking.quantity} units • ${booking.peopleCount} people • ${booking.orderType}`
-                                  : `${booking.quantity} portions • ${booking.peopleCount} people • ${booking.orderType}`}
-                              </div>
-                              <div className="text-xs text-orange-600">
-                                #{booking.bookingRef}
-                              </div>
-                            </div>
-                          ))}
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
-
-              {/* Kitchen Summary */}
-              {filteredItems.length > 0 && (
-                <div className="mt-4 p-4 bg-orange-100 border border-orange-300 rounded">
-                  <h4 className="font-medium text-orange-900 mb-2">
-                    Kitchen Summary
-                  </h4>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                    <div>
-                      <div className="font-semibold text-orange-900">
-                        {filteredItems.reduce(
-                          (sum, item) => sum + item.totalQuantity,
-                          0
-                        )}
-                      </div>
-                      <div className="text-orange-700">Total Portions</div>
-                    </div>
-                    <div>
-                      <div className="font-semibold text-orange-900">
-                        {filteredItems.length}
-                      </div>
-                      <div className="text-orange-700">Unique Dishes</div>
-                    </div>
-                    <div>
-                      <div className="font-semibold text-orange-900">
-                        {filteredItems.reduce(
-                          (sum, item) => sum + item.bookings.length,
-                          0
-                        )}
-                      </div>
-                      <div className="text-orange-700">Total Orders</div>
-                    </div>
-                    <div>
-                      <div className="font-semibold text-orange-900">
-                        {
-                          new Set(
-                            filteredItems.flatMap((item) =>
-                              item.bookings.map((b) => b.bookingRef)
-                            )
-                          ).size
-                        }
-                      </div>
-                      <div className="text-orange-700">Unique Bookings</div>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
-          {/* Individual Bookings */}
-          <div>
-            <h3 className="text-lg font-semibold text-gray-800 mb-4 border-b border-gray-200 pb-2">
-              Individual Bookings
-            </h3>
-            <div className="space-y-4">
-              {bookings.map((booking) => (
-                <div
-                  key={booking._id}
-                  className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h4 className="font-semibold text-gray-900">
-                          {booking.customerDetails?.name || "No Name"}
-                        </h4>
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(
-                            booking.status || "pending"
-                          )}`}
-                        >
-                          {(booking.status || "pending")
-                            .replace("_", " ")
-                            .toUpperCase()}
-                        </span>
-                        {booking.orderSource?.sourceType === "customOrder" && (
-                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">
-                            CUSTOM ORDER
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                        <div>
-                          <p className="text-gray-600">
-                            {booking.customerDetails?.email || "No email"}
-                          </p>
-                          <p className="text-gray-600">
-                            {booking.customerDetails?.phone || "No phone"}
-                          </p>
-                        </div>
-
-                        <div>
-                          <p className="text-gray-600">
-                            {booking.orderSource?.sourceName || "No service"}
-                          </p>
-                          <p className="text-gray-600">
-                            {booking.orderSource?.locationName || "No location"}
-                          </p>
-                          <p className="text-gray-600">
-                            {booking.deliveryType || "Not specified"}
-                          </p>
-                          {booking.venueSelection && (
-                            <p className="text-gray-600">
-                              <span className="font-medium">Venue:</span>{" "}
-                              {booking.venueSelection.toUpperCase()}
-                              {booking.venueCharge > 0 && (
-                                <span className="text-green-600 ml-2">
-                                  (+{formatPrice(booking.venueCharge)})
-                                </span>
-                              )}
-                            </p>
-                          )}
-                        </div>
-
-                        <div>
-                          <p className="text-gray-600">
-                            {booking.peopleCount || 0} guests
-                          </p>
-                          {booking.status !== "cancelled" ? (
-                            <>
-                              <p className="text-gray-600 font-semibold">
-                                {formatPrice(booking.pricing?.total || 0)}
-                              </p>
-                              <p className="text-green-600">
-                                Paid: {formatPrice(booking.depositAmount || 0)}
-                              </p>
-                            </>
-                          ) : (
-                            <p className="text-red-600 font-medium">
-                              Cancelled
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                      {booking.customerDetails?.specialInstructions && (
-                        <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
-                          <p className="text-sm text-yellow-700">
-                            <span className="font-medium">Instructions:</span>{" "}
-                            {booking.customerDetails.specialInstructions}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="ml-4 flex flex-col gap-2">
-                      <button
-                        onClick={() =>
-                          onPrintBooking && onPrintBooking(booking)
-                        }
-                        className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700 flex items-center gap-1"
-                      >
-                        <Printer className="w-3 h-3" />
-                        Print
-                      </button>
-
-                      {booking.status !== "cancelled" &&
-                        booking.status !== "completed" && (
-                          <select
-                            value={booking.status || "pending"}
-                            onChange={(e) =>
-                              onStatusUpdate(booking._id, e.target.value)
-                            }
-                            className="px-3 py-1 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-green-500"
-                          >
-                            <option value="pending">Pending</option>
-                            <option value="confirmed">Confirmed</option>
-                            <option value="preparing">Preparing</option>
-                            <option value="ready">Ready</option>
-                            <option value="completed">Completed</option>
-                          </select>
-                        )}
-
-                      {booking.status !== "cancelled" &&
-                        booking.status !== "completed" && (
-                          <button
-                            onClick={() =>
-                              onStatusUpdate(
-                                booking._id,
-                                "cancelled",
-                                "Cancelled from day view"
-                              )
-                            }
-                            className="bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700"
-                          >
-                            Cancel
-                          </button>
-                        )}
-                    </div>
-                  </div>
-                </div>
-              ))}
+          {/* Bookings Table */}
+          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+            <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-800">
+                event schedule
+              </h3>
+              <div className="flex items-center gap-2">
+                <Search className="w-4 h-4 text-gray-500" />
+                <input
+                  type="text"
+                  placeholder="search bookings..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="px-3 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
             </div>
+
+            {filteredBookings.length === 0 ? (
+              <div className="text-center py-8 text-gray-600">
+                {searchTerm ? "no bookings found matching your search." : "no bookings for this date."}
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-100 border-b border-gray-200">
+                    <tr>
+                      <th className="px-3 py-3 text-left font-medium text-gray-700">
+                        <Clock className="w-4 h-4 inline mr-1" />
+                        time
+                      </th>
+                      <th className="px-3 py-3 text-left font-medium text-gray-700">customer</th>
+                      <th className="px-3 py-3 text-left font-medium text-gray-700">contact</th>
+                      <th className="px-3 py-3 text-left font-medium text-gray-700">
+                        <Users className="w-4 h-4 inline mr-1" />
+                        guests
+                      </th>
+                      <th className="px-3 py-3 text-left font-medium text-gray-700">selected items</th>
+                      <th className="px-3 py-3 text-left font-medium text-gray-700">service</th>
+                      <th className="px-3 py-3 text-left font-medium text-gray-700">
+                        <DollarSign className="w-4 h-4 inline mr-1" />
+                        amount
+                      </th>
+                      <th className="px-3 py-3 text-left font-medium text-gray-700">status</th>
+                      <th className="px-3 py-3 text-left font-medium text-gray-700">actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {filteredBookings.map((booking, index) => (
+                      <tr 
+                        key={booking._id} 
+                        className={`hover:bg-gray-50 ${
+                          booking.status === 'cancelled' ? 'opacity-60' : ''
+                        }`}
+                      >
+                        <td className="px-3 py-3 font-mono text-blue-700 font-medium">
+                          {getDeliveryTime(booking.deliveryDate)}
+                        </td>
+                        <td className="px-3 py-3">
+                          <div>
+                            <div className="font-medium text-gray-900">
+                              {booking.customerDetails?.name || "no name"}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              #{booking.bookingReference}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 text-xs">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1">
+                              <Phone className="w-3 h-3 text-gray-400" />
+                              {booking.customerDetails?.phone || "no phone"}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Mail className="w-3 h-3 text-gray-400" />
+                              {booking.customerDetails?.email?.substring(0, 15) + 
+                               (booking.customerDetails?.email?.length > 15 ? "..." : "") || "no email"}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 font-medium text-center">
+                          {booking.peopleCount || 0}
+                        </td>
+                        <td className="px-3 py-3 max-w-xs">
+                          <div className="text-xs text-gray-600 truncate" title={formatSelectedItems(booking.selectedItems)}>
+                            {formatSelectedItems(booking.selectedItems)}
+                          </div>
+                        </td>
+                        <td className="px-3 py-3">
+                          <div className="text-xs">
+                            <div className="font-medium">
+                              {booking.deliveryType || "not specified"}
+                            </div>
+                            {booking.venueSelection && (
+                              <div className="text-gray-600">
+                                {booking.venueSelection}
+                              </div>
+                            )}
+                            <div className="text-gray-600">
+                              {booking.orderSource?.sourceType === "customOrder" ? "custom" : "menu"}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-3 py-3">
+                          {booking.status !== "cancelled" ? (
+                            <div className="text-xs">
+                              <div className="font-medium text-green-700">
+                                {formatPrice(booking.pricing?.total || 0)}
+                              </div>
+                              <div className="text-gray-600">
+                                paid: {formatPrice(booking.depositAmount || 0)}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-red-600 text-xs font-medium">cancelled</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-3">
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(
+                              booking.status || "pending"
+                            )}`}
+                          >
+                            {(booking.status || "pending").replace("_", " ")}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3">
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => onKitchenDocket && onKitchenDocket(booking)}
+                              className="bg-yellow-600 text-white px-2 py-1 rounded text-xs hover:bg-yellow-700 flex items-center gap-1"
+                              title="kitchen print"
+                            >
+                              <ChefHat className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => onPrintBooking && onPrintBooking(booking)}
+                              className="bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700 flex items-center gap-1"
+                              title="receipt print"
+                            >
+                              <Printer className="w-3 h-3" />
+                            </button>
+                            {booking.status !== "cancelled" && booking.status !== "completed" && (
+                              <select
+                                value={booking.status || "pending"}
+                                onChange={(e) => onStatusUpdate(booking._id, e.target.value)}
+                                className="px-2 py-1 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-green-500"
+                              >
+                                <option value="pending">pending</option>
+                                <option value="confirmed">confirmed</option>
+                                <option value="preparing">preparing</option>
+                                <option value="ready">ready</option>
+                                <option value="completed">completed</option>
+                              </select>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
           {/* Payment Update Form */}
@@ -932,13 +735,13 @@ const DayDetailModal = ({
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
               <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
                 <h3 className="text-lg font-semibold mb-4">
-                  Update Payment - {selectedBooking.customerDetails?.name}
+                  update payment - {selectedBooking.customerDetails?.name}
                 </h3>
 
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Payment Status
+                      payment status
                     </label>
                     <select
                       value={paymentData.paymentStatus}
@@ -950,15 +753,15 @@ const DayDetailModal = ({
                       }
                       className="w-full p-2 border border-gray-300 rounded-lg"
                     >
-                      <option value="pending">Pending</option>
-                      <option value="deposit_paid">Deposit Paid</option>
-                      <option value="fully_paid">Fully Paid</option>
+                      <option value="pending">pending</option>
+                      <option value="deposit_paid">deposit paid</option>
+                      <option value="fully_paid">fully paid</option>
                     </select>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Amount Paid
+                      amount paid
                     </label>
                     <input
                       type="number"
@@ -974,20 +777,20 @@ const DayDetailModal = ({
                       }
                       onFocus={(e) => e.target.select()}
                       className="w-full p-2 border border-gray-300 rounded-lg"
-                      placeholder="Enter amount"
+                      placeholder="enter amount"
                     />
                     <p className="text-xs text-gray-600 mt-1">
-                      Max: {formatPrice(selectedBooking.pricing?.total)}
+                      max: {formatPrice(selectedBooking.pricing?.total)}
                     </p>
                   </div>
 
                   <div className="bg-gray-50 p-3 rounded">
                     <p className="text-sm text-gray-600">
-                      <span className="font-medium">Total Amount:</span>{" "}
+                      <span className="font-medium">total amount:</span>{" "}
                       {formatPrice(selectedBooking.pricing?.total)}
                     </p>
                     <p className="text-sm text-gray-600">
-                      <span className="font-medium">Balance Due:</span>{" "}
+                      <span className="font-medium">balance due:</span>{" "}
                       {formatPrice(
                         Math.max(
                           0,
@@ -1003,7 +806,7 @@ const DayDetailModal = ({
                       onClick={() => handlePaymentUpdate(selectedBooking._id)}
                       className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700"
                     >
-                      Update Payment
+                      update payment
                     </button>
                     <button
                       onClick={() => {
@@ -1012,7 +815,7 @@ const DayDetailModal = ({
                       }}
                       className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400"
                     >
-                      Cancel
+                      cancel
                     </button>
                   </div>
                 </div>
@@ -1026,24 +829,24 @@ const DayDetailModal = ({
           <div className="flex justify-between items-center text-sm text-gray-600">
             <div>
               <p>
-                Total for{" "}
+                total for{" "}
                 {date
                   ? date instanceof Date
                     ? formatDate(date.toISOString())
                     : formatDate(date)
-                  : "Unknown Date"}
+                  : "unknown date"}
                 : {summary.totalBookings} events, {summary.totalPeople} guests,{" "}
                 {formatPrice(summary.totalRevenue)} revenue
               </p>
               <p className="text-xs text-gray-500 mt-1">
-                Revenue excludes cancelled bookings
+                revenue excludes cancelled bookings
               </p>
             </div>
             <button
               onClick={onClose}
               className="bg-gray-300 text-gray-800 px-6 py-2 rounded-lg hover:bg-gray-400"
             >
-              Close
+              close
             </button>
           </div>
         </div>
