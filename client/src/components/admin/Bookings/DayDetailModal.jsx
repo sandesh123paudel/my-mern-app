@@ -708,7 +708,7 @@ const DayDetailModal = ({
                   <thead className="bg-gray-100 border-b border-gray-200">
                     <tr>
                       <th className="px-3 py-3 text-left font-medium text-gray-700">
-                        <Clock className="w-4 h-4 inline mr-1" />
+                     
                         Time
                       </th>
                       <th className="px-3 py-3 text-left font-medium text-gray-700">
@@ -718,7 +718,7 @@ const DayDetailModal = ({
                         Contact
                       </th>
                       <th className="px-3 py-3 text-left font-medium text-gray-700">
-                        <Users className="w-4 h-4 inline mr-1" />
+                        
                         Guests
                       </th>
                       <th className="px-3 py-3 text-left font-medium text-gray-700">
@@ -728,7 +728,7 @@ const DayDetailModal = ({
                         Service
                       </th>
                       <th className="px-3 py-3 text-left font-medium text-gray-700">
-                        <DollarSign className="w-4 h-4 inline mr-1" />
+                       
                         Amount
                       </th>
                       <th className="px-3 py-3 text-left font-medium text-gray-700">
