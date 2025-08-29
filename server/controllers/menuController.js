@@ -91,6 +91,8 @@ const createMenu = async (req, res) => {
       addons,
     } = req.body;
 
+    console.log("Received menu data:", JSON.stringify(req.body, null, 2));
+
     // Validate required fields
     if (!name || !serviceId || !locationId) {
       return res.status(400).json({
@@ -164,9 +166,22 @@ const createMenu = async (req, res) => {
       });
     }
 
-    // Create new menu
-    const menu = new Menu(req.body);
+    // Create new menu - let Mongoose handle the data structure
+    const menuData = {
+      ...req.body,
+      locationId: new mongoose.Types.ObjectId(locationId),
+      serviceId: new mongoose.Types.ObjectId(serviceId),
+    };
+
+    console.log(
+      "Creating menu with processed data:",
+      JSON.stringify(menuData, null, 2)
+    );
+
+    const menu = new Menu(menuData);
     const savedMenu = await menu.save();
+
+    console.log("Menu saved successfully:", savedMenu._id);
 
     // Populate the saved menu before returning
     const populatedMenu = await Menu.findById(savedMenu._id)
@@ -180,12 +195,23 @@ const createMenu = async (req, res) => {
     });
   } catch (error) {
     console.error("Error creating menu:", error);
+    console.error("Error stack:", error.stack);
 
     // Handle specific errors
     if (error.code === 11000) {
       return res.status(400).json({
         success: false,
         message: "A menu with this name already exists for this service",
+      });
+    }
+
+    if (error.name === "ValidationError") {
+      const validationErrors = Object.values(error.errors).map(
+        (err) => err.message
+      );
+      return res.status(400).json({
+        success: false,
+        message: `Validation failed: ${validationErrors.join(", ")}`,
       });
     }
 
@@ -210,6 +236,8 @@ const updateMenu = async (req, res) => {
   }
 
   try {
+    console.log("Updating menu with data:", JSON.stringify(req.body, null, 2));
+
     // Check if menu exists
     const existingMenu = await Menu.findById(id);
     if (!existingMenu) {
@@ -282,55 +310,72 @@ const updateMenu = async (req, res) => {
       });
     }
 
-    // ** CRITICAL FIX: Update fields individually instead of using findByIdAndUpdate **
+    // Convert locationId and serviceId to ObjectId if they are provided
+    const updateData = { ...req.body };
+    if (updateData.locationId) {
+      updateData.locationId = new mongoose.Types.ObjectId(
+        updateData.locationId
+      );
+    }
+    if (updateData.serviceId) {
+      updateData.serviceId = new mongoose.Types.ObjectId(updateData.serviceId);
+    }
 
-    // Update simple fields
-    Object.keys(req.body).forEach((key) => {
-      if (!["categories", "simpleItems", "addons"].includes(key)) {
-        existingMenu[key] = req.body[key];
+    console.log("Processed update data:", JSON.stringify(updateData, null, 2));
+
+    // Use findOneAndReplace to completely replace the document
+    // This ensures that nested arrays are properly updated
+    const updatedMenu = await Menu.findOneAndReplace(
+      { _id: id },
+      {
+        ...updateData,
+        _id: id, // Preserve the original ID
+        createdAt: existingMenu.createdAt, // Preserve creation time
+        updatedAt: new Date(), // Update timestamp
+      },
+      {
+        new: true, // Return the updated document
+        runValidators: true, // Run schema validators
       }
-    });
+    );
 
-    // For nested arrays, completely replace them (this is the key fix)
-    if (req.body.categories !== undefined) {
-      existingMenu.categories = req.body.categories;
-      existingMenu.markModified("categories");
+    if (!updatedMenu) {
+      return res.status(404).json({
+        success: false,
+        message: "Menu not found after update",
+      });
     }
 
-    if (req.body.simpleItems !== undefined) {
-      existingMenu.simpleItems = req.body.simpleItems;
-      existingMenu.markModified("simpleItems");
-    }
-
-    if (req.body.addons !== undefined) {
-      existingMenu.addons = req.body.addons;
-      existingMenu.markModified("addons");
-    }
-
-    // Save the document
-    const savedMenu = await existingMenu.save();
+    console.log("Menu updated successfully:", updatedMenu._id);
 
     // Populate and return
-    const updatedMenu = await Menu.findById(savedMenu._id)
+    const populatedMenu = await Menu.findById(updatedMenu._id)
       .populate("locationId", "name city")
       .populate("serviceId", "name description");
-
-    console.log(
-      `Menu ${id} updated successfully. New basePrice: ${updatedMenu.basePrice}`
-    );
 
     res.json({
       success: true,
       message: "Menu updated successfully",
-      data: updatedMenu,
+      data: populatedMenu,
     });
   } catch (error) {
     console.error("Error updating menu:", error);
+    console.error("Error stack:", error.stack);
 
     if (error.code === 11000) {
       return res.status(400).json({
         success: false,
         message: "A menu with this name already exists for this service",
+      });
+    }
+
+    if (error.name === "ValidationError") {
+      const validationErrors = Object.values(error.errors).map(
+        (err) => err.message
+      );
+      return res.status(400).json({
+        success: false,
+        message: `Validation failed: ${validationErrors.join(", ")}`,
       });
     }
 

@@ -820,129 +820,106 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
     setLoading(true);
 
     try {
-      // Helper function to recursively remove _id fields
-      const stripIds = (obj) => {
-        if (Array.isArray(obj)) {
-          return obj.map((item) => stripIds(item));
-        }
-        if (obj && typeof obj === "object") {
-          const newObj = {};
-          Object.keys(obj).forEach((key) => {
-            if (key !== "_id") {
-              // Remove _id fields
-              newObj[key] = stripIds(obj[key]);
-            }
-          });
-          return newObj;
-        }
-        return obj;
-      };
-
-      // Process form data and handle empty values
+      // Simple data processing without complex transformations
       const processedData = {
         ...formData,
+        // Handle base price - convert empty string to 0
         basePrice:
-          formData.basePrice === "" ? 0 : parseFloat(formData.basePrice) || 0,
+          formData.basePrice === "" ? 0 : Number(formData.basePrice) || 0,
+
+        // Handle people counts
         minPeople:
-          formData.minPeople === "" ? 1 : parseInt(formData.minPeople) || 1,
+          formData.minPeople === "" ? 1 : Number(formData.minPeople) || 1,
         maxPeople:
           formData.maxPeople === "" || formData.maxPeople === null
-            ? undefined
-            : parseInt(formData.maxPeople) || undefined,
-        simpleItems: stripIds(
-          formData.simpleItems.map((item) => ({
+            ? null
+            : Number(formData.maxPeople) || null,
+
+        // Simple items - just clean empty strings to proper numbers
+        simpleItems: formData.simpleItems.map((item) => ({
+          ...item,
+          priceModifier:
+            item.priceModifier === "" ? 0 : Number(item.priceModifier) || 0,
+          quantity: item.quantity === "" ? 1 : Number(item.quantity) || 1,
+          options: (item.options || []).map((option) => ({
+            ...option,
+            priceModifier:
+              option.priceModifier === ""
+                ? 0
+                : Number(option.priceModifier) || 0,
+          })),
+          choices: (item.choices || []).map((choice) => ({
+            ...choice,
+            priceModifier:
+              choice.priceModifier === ""
+                ? 0
+                : Number(choice.priceModifier) || 0,
+          })),
+        })),
+
+        // Categories - clean up nested structures
+        categories: formData.categories.map((category) => ({
+          ...category,
+          includedItems: (category.includedItems || []).map((item) => ({
             ...item,
             priceModifier:
-              item.priceModifier === ""
-                ? 0
-                : parseFloat(item.priceModifier) || 0,
-            quantity: item.quantity === "" ? 1 : parseInt(item.quantity) || 1,
-            options:
-              item.options?.map((option) => ({
+              item.priceModifier === "" ? 0 : Number(item.priceModifier) || 0,
+            options: (item.options || []).map((option) => ({
+              ...option,
+              priceModifier:
+                option.priceModifier === ""
+                  ? 0
+                  : Number(option.priceModifier) || 0,
+            })),
+          })),
+          selectionGroups: (category.selectionGroups || []).map((group) => ({
+            ...group,
+            minSelections: Number(group.minSelections) || 1,
+            maxSelections: Number(group.maxSelections) || 1,
+            items: (group.items || []).map((item) => ({
+              ...item,
+              priceModifier:
+                item.priceModifier === "" ? 0 : Number(item.priceModifier) || 0,
+              options: (item.options || []).map((option) => ({
                 ...option,
                 priceModifier:
                   option.priceModifier === ""
                     ? 0
-                    : parseFloat(option.priceModifier) || 0,
-              })) || [],
-            choices:
-              item.choices?.map((choice) => ({
-                ...choice,
-                priceModifier:
-                  choice.priceModifier === ""
-                    ? 0
-                    : parseFloat(choice.priceModifier) || 0,
-              })) || [],
-          }))
-        ),
-        categories: stripIds(
-          formData.categories.map((category) => ({
-            ...category,
-            includedItems: category.includedItems.map((item) => ({
-              ...item,
-              priceModifier:
-                item.priceModifier === ""
-                  ? 0
-                  : parseFloat(item.priceModifier) || 0,
-              options:
-                item.options?.map((option) => ({
-                  ...option,
-                  priceModifier:
-                    option.priceModifier === ""
-                      ? 0
-                      : parseFloat(option.priceModifier) || 0,
-                })) || [],
-            })),
-            selectionGroups: category.selectionGroups.map((group) => ({
-              ...group,
-              items: group.items.map((item) => ({
-                ...item,
-                priceModifier:
-                  item.priceModifier === ""
-                    ? 0
-                    : parseFloat(item.priceModifier) || 0,
-                options:
-                  item.options?.map((option) => ({
-                    ...option,
-                    priceModifier:
-                      option.priceModifier === ""
-                        ? 0
-                        : parseFloat(option.priceModifier) || 0,
-                  })) || [],
+                    : Number(option.priceModifier) || 0,
               })),
             })),
-          }))
-        ),
-        addons: stripIds({
+          })),
+        })),
+
+        // Addons - clean up pricing fields
+        addons: {
           ...formData.addons,
-          fixedAddons: formData.addons.fixedAddons.map((addon) => ({
+          fixedAddons: (formData.addons.fixedAddons || []).map((addon) => ({
             ...addon,
             pricePerPerson:
               addon.pricePerPerson === ""
                 ? 0
-                : parseFloat(addon.pricePerPerson) || 0,
+                : Number(addon.pricePerPerson) || 0,
           })),
-          variableAddons: formData.addons.variableAddons.map((addon) => ({
-            ...addon,
-            pricePerUnit:
-              addon.pricePerUnit === ""
-                ? 0
-                : parseFloat(addon.pricePerUnit) || 0,
-            maxQuantity:
-              addon.maxQuantity === "" ? 20 : parseInt(addon.maxQuantity) || 20,
-            defaultQuantity:
-              addon.defaultQuantity === ""
-                ? 0
-                : parseInt(addon.defaultQuantity) || 0,
-          })),
-        }),
+          variableAddons: (formData.addons.variableAddons || []).map(
+            (addon) => ({
+              ...addon,
+              pricePerUnit:
+                addon.pricePerUnit === "" ? 0 : Number(addon.pricePerUnit) || 0,
+              maxQuantity:
+                addon.maxQuantity === "" ? 20 : Number(addon.maxQuantity) || 20,
+              minQuantity: Number(addon.minQuantity) || 0,
+              defaultQuantity:
+                addon.defaultQuantity === ""
+                  ? 0
+                  : Number(addon.defaultQuantity) || 0,
+            })
+          ),
+        },
       };
 
-      // Debug logging (remove in production)
-      console.log(
-        "Processed data being sent:",
-        JSON.stringify(processedData, null, 2)
-      );
+      // Log for debugging
+      console.log("Submitting menu data:", processedData);
 
       let result;
       if (menu) {
@@ -960,6 +937,7 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
         onSuccess();
         resetForm();
       } else {
+        console.error("API Error:", result.error);
         toast.error(
           result.error || `Failed to ${menu ? "update" : "create"} package`
         );
