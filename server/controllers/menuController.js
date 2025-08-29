@@ -81,7 +81,15 @@ const getMenuById = async (req, res) => {
 // @access  Private/Admin
 const createMenu = async (req, res) => {
   try {
-    const { name, serviceId, locationId, packageType, categories, simpleItems, addons } = req.body;
+    const {
+      name,
+      serviceId,
+      locationId,
+      packageType,
+      categories,
+      simpleItems,
+      addons,
+    } = req.body;
 
     // Validate required fields
     if (!name || !serviceId || !locationId) {
@@ -144,11 +152,15 @@ const createMenu = async (req, res) => {
     }
 
     // Validate package structure based on type
-    const validationErrors = validatePackageStructure(packageType, categories, simpleItems);
+    const validationErrors = validatePackageStructure(
+      packageType,
+      categories,
+      simpleItems
+    );
     if (validationErrors.length > 0) {
       return res.status(400).json({
         success: false,
-        message: `Package validation failed: ${validationErrors.join(', ')}`,
+        message: `Package validation failed: ${validationErrors.join(", ")}`,
       });
     }
 
@@ -242,7 +254,12 @@ const updateMenu = async (req, res) => {
       }
 
       // Check if service belongs to the location
-      if (service.locationId.toString() !== locationId.toString()) {
+      const serviceLocationId =
+        typeof service.locationId === "object"
+          ? service.locationId._id
+          : service.locationId;
+
+      if (serviceLocationId.toString() !== locationId.toString()) {
         return res.status(400).json({
           success: false,
           message: "Service does not belong to the specified location",
@@ -253,25 +270,54 @@ const updateMenu = async (req, res) => {
     // Validate updated package structure
     const packageType = req.body.packageType || existingMenu.packageType;
     const validationErrors = validatePackageStructure(
-      packageType, 
-      req.body.categories || existingMenu.categories, 
+      packageType,
+      req.body.categories || existingMenu.categories,
       req.body.simpleItems || existingMenu.simpleItems
     );
-    
+
     if (validationErrors.length > 0) {
       return res.status(400).json({
         success: false,
-        message: `Package validation failed: ${validationErrors.join(', ')}`,
+        message: `Package validation failed: ${validationErrors.join(", ")}`,
       });
     }
 
-    // Update menu
-    const updatedMenu = await Menu.findByIdAndUpdate(id, req.body, {
-      new: true,
-      runValidators: true,
-    })
+    // ** CRITICAL FIX: Update fields individually instead of using findByIdAndUpdate **
+
+    // Update simple fields
+    Object.keys(req.body).forEach((key) => {
+      if (!["categories", "simpleItems", "addons"].includes(key)) {
+        existingMenu[key] = req.body[key];
+      }
+    });
+
+    // For nested arrays, completely replace them (this is the key fix)
+    if (req.body.categories !== undefined) {
+      existingMenu.categories = req.body.categories;
+      existingMenu.markModified("categories");
+    }
+
+    if (req.body.simpleItems !== undefined) {
+      existingMenu.simpleItems = req.body.simpleItems;
+      existingMenu.markModified("simpleItems");
+    }
+
+    if (req.body.addons !== undefined) {
+      existingMenu.addons = req.body.addons;
+      existingMenu.markModified("addons");
+    }
+
+    // Save the document
+    const savedMenu = await existingMenu.save();
+
+    // Populate and return
+    const updatedMenu = await Menu.findById(savedMenu._id)
       .populate("locationId", "name city")
       .populate("serviceId", "name description");
+
+    console.log(
+      `Menu ${id} updated successfully. New basePrice: ${updatedMenu.basePrice}`
+    );
 
     res.json({
       success: true,
@@ -433,12 +479,18 @@ const calculateMenuPrice = async (req, res) => {
     if (peopleCount < menu.minPeople || peopleCount > menu.maxPeople) {
       return res.status(400).json({
         success: false,
-        message: `People count must be between ${menu.minPeople} and ${menu.maxPeople || 'unlimited'}`,
+        message: `People count must be between ${menu.minPeople} and ${
+          menu.maxPeople || "unlimited"
+        }`,
       });
     }
 
     // Calculate price based on package structure
-    const priceCalculation = calculatePackagePrice(menu, selections, peopleCount);
+    const priceCalculation = calculatePackagePrice(
+      menu,
+      selections,
+      peopleCount
+    );
 
     res.json({
       success: true,
@@ -458,46 +510,60 @@ const calculateMenuPrice = async (req, res) => {
 const validatePackageStructure = (packageType, categories, simpleItems) => {
   const errors = [];
 
-  if (packageType === 'categorized') {
+  if (packageType === "categorized") {
     if (!categories || !Array.isArray(categories) || categories.length === 0) {
-      errors.push('Categorized packages must have at least one category');
+      errors.push("Categorized packages must have at least one category");
     } else {
       // Validate each category
       categories.forEach((category, index) => {
-        if (!category.name || category.name.trim() === '') {
+        if (!category.name || category.name.trim() === "") {
           errors.push(`Category ${index + 1} must have a name`);
         }
-        
+
         if (category.enabled) {
           // Check if category has any content
-          const hasIncludedItems = category.includedItems && category.includedItems.length > 0;
-          const hasSelectionGroups = category.selectionGroups && category.selectionGroups.length > 0;
-          
+          const hasIncludedItems =
+            category.includedItems && category.includedItems.length > 0;
+          const hasSelectionGroups =
+            category.selectionGroups && category.selectionGroups.length > 0;
+
           if (!hasIncludedItems && !hasSelectionGroups) {
-            errors.push(`Enabled category "${category.name}" must have at least one included item or selection group`);
+            errors.push(
+              `Enabled category "${category.name}" must have at least one included item or selection group`
+            );
           }
-          
+
           // Validate selection groups
           if (category.selectionGroups) {
             category.selectionGroups.forEach((group, groupIndex) => {
-              if (!group.name || group.name.trim() === '') {
-                errors.push(`Selection group ${groupIndex + 1} in category "${category.name}" must have a name`);
+              if (!group.name || group.name.trim() === "") {
+                errors.push(
+                  `Selection group ${groupIndex + 1} in category "${
+                    category.name
+                  }" must have a name`
+                );
               }
               if (!group.items || group.items.length === 0) {
-                errors.push(`Selection group "${group.name}" must have at least one item`);
+                errors.push(
+                  `Selection group "${group.name}" must have at least one item`
+                );
               }
             });
           }
         }
       });
     }
-  } else if (packageType === 'simple') {
-    if (!simpleItems || !Array.isArray(simpleItems) || simpleItems.length === 0) {
-      errors.push('Simple packages must have at least one item');
+  } else if (packageType === "simple") {
+    if (
+      !simpleItems ||
+      !Array.isArray(simpleItems) ||
+      simpleItems.length === 0
+    ) {
+      errors.push("Simple packages must have at least one item");
     } else {
       // Validate simple items
       simpleItems.forEach((item, index) => {
-        if (!item.name || item.name.trim() === '') {
+        if (!item.name || item.name.trim() === "") {
           errors.push(`Simple item ${index + 1} must have a name`);
         }
       });
@@ -519,7 +585,7 @@ const calculatePackagePrice = (menu, selections, peopleCount) => {
     variableAddons: 0,
   };
 
-  if (menu.packageType === 'simple') {
+  if (menu.packageType === "simple") {
     // Calculate simple package price
     if (selections.simpleItems) {
       menu.simpleItems.forEach((item, index) => {
@@ -530,10 +596,10 @@ const calculatePackagePrice = (menu, selections, peopleCount) => {
             totalPrice += item.priceModifier;
             priceBreakdown.itemModifiers += item.priceModifier;
           }
-          
+
           // Add choice price modifiers
           if (item.hasChoices && item.choices && itemSelection.choices) {
-            itemSelection.choices.forEach(choiceIndex => {
+            itemSelection.choices.forEach((choiceIndex) => {
               const choice = item.choices[choiceIndex];
               if (choice && choice.priceModifier) {
                 totalPrice += choice.priceModifier;
@@ -541,10 +607,10 @@ const calculatePackagePrice = (menu, selections, peopleCount) => {
               }
             });
           }
-          
+
           // Add option price modifiers
           if (item.options && itemSelection.options) {
-            itemSelection.options.forEach(optionIndex => {
+            itemSelection.options.forEach((optionIndex) => {
               const option = item.options[optionIndex];
               if (option && option.priceModifier) {
                 totalPrice += option.priceModifier;
@@ -555,19 +621,19 @@ const calculatePackagePrice = (menu, selections, peopleCount) => {
         }
       });
     }
-  } else if (menu.packageType === 'categorized') {
+  } else if (menu.packageType === "categorized") {
     // Calculate categorized package price
     if (selections.categories) {
-      menu.categories.forEach(category => {
+      menu.categories.forEach((category) => {
         if (category.enabled && selections.categories[category.name]) {
           const categorySelection = selections.categories[category.name];
-          
+
           // Add selection group item price modifiers
           if (category.selectionGroups) {
-            category.selectionGroups.forEach(group => {
+            category.selectionGroups.forEach((group) => {
               if (categorySelection[group.name]) {
                 const groupSelections = categorySelection[group.name];
-                groupSelections.forEach(itemIndex => {
+                groupSelections.forEach((itemIndex) => {
                   const item = group.items[itemIndex];
                   if (item && item.priceModifier) {
                     totalPrice += item.priceModifier;
@@ -587,7 +653,7 @@ const calculatePackagePrice = (menu, selections, peopleCount) => {
   if (menu.addons && menu.addons.enabled && selections.addons) {
     // Fixed addons (scale with people count)
     if (selections.addons.fixed) {
-      selections.addons.fixed.forEach(addonIndex => {
+      selections.addons.fixed.forEach((addonIndex) => {
         const addon = menu.addons.fixedAddons[addonIndex];
         if (addon && addon.pricePerPerson) {
           const addonTotal = addon.pricePerPerson * peopleCount;
@@ -596,17 +662,19 @@ const calculatePackagePrice = (menu, selections, peopleCount) => {
         }
       });
     }
-    
+
     // Variable addons (based on quantity selected)
     if (selections.addons.variable) {
-      Object.entries(selections.addons.variable).forEach(([addonIndex, quantity]) => {
-        const addon = menu.addons.variableAddons[parseInt(addonIndex)];
-        if (addon && addon.pricePerUnit && quantity > 0) {
-          const addonTotal = addon.pricePerUnit * quantity;
-          addonPrice += addonTotal;
-          priceBreakdown.variableAddons += addonTotal;
+      Object.entries(selections.addons.variable).forEach(
+        ([addonIndex, quantity]) => {
+          const addon = menu.addons.variableAddons[parseInt(addonIndex)];
+          if (addon && addon.pricePerUnit && quantity > 0) {
+            const addonTotal = addon.pricePerUnit * quantity;
+            addonPrice += addonTotal;
+            priceBreakdown.variableAddons += addonTotal;
+          }
         }
-      });
+      );
     }
   }
 
@@ -615,10 +683,10 @@ const calculatePackagePrice = (menu, selections, peopleCount) => {
     baseTotalPrice: (menu.basePrice || 0) * peopleCount,
     priceModifiers: totalPrice - (menu.basePrice || 0),
     addonPrice: addonPrice,
-    grandTotal: (totalPrice * peopleCount) + addonPrice,
+    grandTotal: totalPrice * peopleCount + addonPrice,
     perPersonPrice: totalPrice,
     peopleCount: peopleCount,
-    breakdown: priceBreakdown
+    breakdown: priceBreakdown,
   };
 };
 
