@@ -17,11 +17,11 @@ import { getServices } from "../../../services/serviceServices";
 
 // Reusable Add Button Component
 const AddButton = ({ onClick, children, className = "", size = "normal" }) => {
-  const baseClasses = "text-white rounded flex items-center gap-1 hover:opacity-90 transition-colors";
-  const sizeClasses = size === "small" 
-    ? "px-2 py-1 text-xs" 
-    : "px-3 py-2 text-sm";
-  
+  const baseClasses =
+    "text-white rounded flex items-center gap-1 hover:opacity-90 transition-colors";
+  const sizeClasses =
+    size === "small" ? "px-2 py-1 text-xs" : "px-3 py-2 text-sm";
+
   return (
     <button
       type="button"
@@ -42,7 +42,7 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
     description: "",
     basePrice: "",
     minPeople: 1,
-    maxPeople: "",
+    maxPeople: 1000,
     packageType: "categorized",
     // Dynamic categories
     categories: [],
@@ -101,8 +101,8 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
         locationId: extractId(menu.locationId),
         description: menu.description || "",
         basePrice: (menu.basePrice || menu.price)?.toString() || "",
-        minPeople: menu.minPeople || 1,
-        maxPeople: menu.maxPeople?.toString() || "",
+        minPeople: menu.minPeople || 10,
+        maxPeople: menu.maxPeople?.toString() || 1000,
         packageType: menu.packageType || "categorized",
         categories: menu.categories || [],
         simpleItems: menu.simpleItems || [],
@@ -139,8 +139,8 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
       locationId: "",
       description: "",
       basePrice: "",
-      minPeople: 1,
-      maxPeople: "",
+      minPeople: 10,
+      maxPeople: 1000,
       packageType: "categorized",
       categories: [],
       simpleItems: [],
@@ -1155,7 +1155,10 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
                   <Package className="text-purple-600" size={20} />
                   Categories
                 </h3>
-                <AddButton onClick={addCategory} className="bg-purple-600 hover:bg-purple-700">
+                <AddButton
+                  onClick={addCategory}
+                  className="bg-purple-600 hover:bg-purple-700"
+                >
                   Add Category
                 </AddButton>
               </div>
@@ -1206,10 +1209,13 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
                         <div className="bg-white rounded-lg p-4 border">
                           <div className="flex items-center justify-between mb-4">
                             <h4 className="font-medium text-gray-700 flex items-center gap-2">
-                              <CheckCircle2 size={16} className="text-green-500" />
+                              <CheckCircle2
+                                size={16}
+                                className="text-green-500"
+                              />
                               Included Items (Always served)
                             </h4>
-                            <AddButton 
+                            <AddButton
                               onClick={() => addIncludedItem(categoryIndex)}
                               className="bg-green-600 hover:bg-green-700"
                               size="small"
@@ -1356,11 +1362,11 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
                                 )}
                               </div>
                             ))}
-                            
+
                             {/* Add button after included items */}
                             {category.includedItems.length > 0 && (
                               <div className="flex justify-center pt-2">
-                                <AddButton 
+                                <AddButton
                                   onClick={() => addIncludedItem(categoryIndex)}
                                   className="bg-green-600 hover:bg-green-700"
                                   size="small"
@@ -1376,10 +1382,13 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
                         <div className="bg-white rounded-lg p-4 border">
                           <div className="flex items-center justify-between mb-4">
                             <h4 className="font-medium text-gray-700 flex items-center gap-2">
-                              <Settings size={16} className="text-primary-green" />
+                              <Settings
+                                size={16}
+                                className="text-primary-green"
+                              />
                               Customer Selection Groups
                             </h4>
-                            <AddButton 
+                            <AddButton
                               onClick={() => addSelectionGroup(categoryIndex)}
                               className="bg-primary-green hover:bg-green-700"
                               size="small"
@@ -1389,291 +1398,315 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
                           </div>
 
                           <div className="space-y-4">
-                            {category.selectionGroups.map((group, groupIndex) => (
-                              <div
-                                key={groupIndex}
-                                className="border border-gray-200 rounded-lg p-4 bg-blue-50"
-                              >
-                                <div className="flex items-center gap-3 mb-4">
-                                  <input
-                                    type="text"
-                                    value={group.name}
-                                    onChange={(e) =>
-                                      updateSelectionGroup(
-                                        categoryIndex,
-                                        groupIndex,
-                                        "name",
-                                        e.target.value
-                                      )
-                                    }
-                                    placeholder="Group name (e.g., Choose your protein)"
-                                    className="flex-1 border border-gray-300 px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-green"
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      removeSelectionGroup(
-                                        categoryIndex,
-                                        groupIndex
-                                      )
-                                    }
-                                    className="text-red-600 hover:text-red-800"
-                                  >
-                                    <Trash2 size={16} />
-                                  </button>
-                                </div>
-
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                                  <select
-                                    value={group.selectionType}
-                                    onChange={(e) =>
-                                      updateSelectionGroup(
-                                        categoryIndex,
-                                        groupIndex,
-                                        "selectionType",
-                                        e.target.value
-                                      )
-                                    }
-                                    className="text-sm border border-gray-300 rounded px-2 py-2"
-                                  >
-                                    <option value="single">Single Choice</option>
-                                    <option value="multiple">Multiple Choice</option>
-                                  </select>
-
-                                  <input
-                                    type="number"
-                                    value={group.minSelections}
-                                    onChange={(e) =>
-                                      updateSelectionGroup(
-                                        categoryIndex,
-                                        groupIndex,
-                                        "minSelections",
-                                        parseInt(e.target.value) || 0
-                                      )
-                                    }
-                                    placeholder="Min"
-                                    min="0"
-                                    className="text-sm border border-gray-300 rounded px-2 py-2"
-                                  />
-
-                                  <input
-                                    type="number"
-                                    value={group.maxSelections}
-                                    onChange={(e) =>
-                                      updateSelectionGroup(
-                                        categoryIndex,
-                                        groupIndex,
-                                        "maxSelections",
-                                        parseInt(e.target.value) || 1
-                                      )
-                                    }
-                                    placeholder="Max"
-                                    min="1"
-                                    className="text-sm border border-gray-300 rounded px-2 py-2"
-                                  />
-
-                                  <label className="flex items-center gap-1 text-sm">
+                            {category.selectionGroups.map(
+                              (group, groupIndex) => (
+                                <div
+                                  key={groupIndex}
+                                  className="border border-gray-200 rounded-lg p-4 bg-blue-50"
+                                >
+                                  <div className="flex items-center gap-3 mb-4">
                                     <input
-                                      type="checkbox"
-                                      checked={group.isRequired}
+                                      type="text"
+                                      value={group.name}
                                       onChange={(e) =>
                                         updateSelectionGroup(
                                           categoryIndex,
                                           groupIndex,
-                                          "isRequired",
-                                          e.target.checked
+                                          "name",
+                                          e.target.value
                                         )
                                       }
-                                      className="h-3 w-3"
+                                      placeholder="Group name (e.g., Choose your protein)"
+                                      className="flex-1 border border-gray-300 px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-green"
                                     />
-                                    Required
-                                  </label>
-                                </div>
-
-                                <div className="space-y-3">
-                                  <div className="flex items-center justify-between">
-                                    <h5 className="text-sm font-medium text-gray-600">
-                                      Items in this group:
-                                    </h5>
-                                    <AddButton 
-                                      onClick={() => addItemToSelectionGroup(categoryIndex, groupIndex)}
-                                      className="bg-blue-500 hover:bg-blue-600"
-                                      size="small"
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        removeSelectionGroup(
+                                          categoryIndex,
+                                          groupIndex
+                                        )
+                                      }
+                                      className="text-red-600 hover:text-red-800"
                                     >
-                                      Add Item
-                                    </AddButton>
+                                      <Trash2 size={16} />
+                                    </button>
                                   </div>
 
-                                  {group.items.map((item, itemIndex) => (
-                                    <div
-                                      key={itemIndex}
-                                      className="bg-white border border-gray-200 rounded p-3"
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                                    <select
+                                      value={group.selectionType}
+                                      onChange={(e) =>
+                                        updateSelectionGroup(
+                                          categoryIndex,
+                                          groupIndex,
+                                          "selectionType",
+                                          e.target.value
+                                        )
+                                      }
+                                      className="text-sm border border-gray-300 rounded px-2 py-2"
                                     >
-                                      <div className="flex items-center gap-3 mb-2">
-                                        <input
-                                          type="text"
-                                          value={item.name}
-                                          onChange={(e) =>
-                                            updateSelectionGroupItem(
-                                              categoryIndex,
-                                              groupIndex,
-                                              itemIndex,
-                                              "name",
-                                              e.target.value
-                                            )
-                                          }
-                                          placeholder="Item name"
-                                          className="flex-1 border border-gray-300 px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-green"
-                                        />
-                                        <div className="flex items-center gap-1">
-                                          <span className="text-sm">$</span>
+                                      <option value="single">
+                                        Single Choice
+                                      </option>
+                                      <option value="multiple">
+                                        Multiple Choice
+                                      </option>
+                                    </select>
+
+                                    <input
+                                      type="number"
+                                      value={group.minSelections}
+                                      onChange={(e) =>
+                                        updateSelectionGroup(
+                                          categoryIndex,
+                                          groupIndex,
+                                          "minSelections",
+                                          parseInt(e.target.value) || 0
+                                        )
+                                      }
+                                      placeholder="Min"
+                                      min="0"
+                                      className="text-sm border border-gray-300 rounded px-2 py-2"
+                                    />
+
+                                    <input
+                                      type="number"
+                                      value={group.maxSelections}
+                                      onChange={(e) =>
+                                        updateSelectionGroup(
+                                          categoryIndex,
+                                          groupIndex,
+                                          "maxSelections",
+                                          parseInt(e.target.value) || 1
+                                        )
+                                      }
+                                      placeholder="Max"
+                                      min="1"
+                                      className="text-sm border border-gray-300 rounded px-2 py-2"
+                                    />
+
+                                    <label className="flex items-center gap-1 text-sm">
+                                      <input
+                                        type="checkbox"
+                                        checked={group.isRequired}
+                                        onChange={(e) =>
+                                          updateSelectionGroup(
+                                            categoryIndex,
+                                            groupIndex,
+                                            "isRequired",
+                                            e.target.checked
+                                          )
+                                        }
+                                        className="h-3 w-3"
+                                      />
+                                      Required
+                                    </label>
+                                  </div>
+
+                                  <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                      <h5 className="text-sm font-medium text-gray-600">
+                                        Items in this group:
+                                      </h5>
+                                      <AddButton
+                                        onClick={() =>
+                                          addItemToSelectionGroup(
+                                            categoryIndex,
+                                            groupIndex
+                                          )
+                                        }
+                                        className="bg-blue-500 hover:bg-blue-600"
+                                        size="small"
+                                      >
+                                        Add Item
+                                      </AddButton>
+                                    </div>
+
+                                    {group.items.map((item, itemIndex) => (
+                                      <div
+                                        key={itemIndex}
+                                        className="bg-white border border-gray-200 rounded p-3"
+                                      >
+                                        <div className="flex items-center gap-3 mb-2">
                                           <input
-                                            type="number"
-                                            value={
-                                              item.priceModifier === ""
-                                                ? ""
-                                                : item.priceModifier
-                                            }
+                                            type="text"
+                                            value={item.name}
                                             onChange={(e) =>
                                               updateSelectionGroupItem(
                                                 categoryIndex,
                                                 groupIndex,
                                                 itemIndex,
-                                                "priceModifier",
+                                                "name",
                                                 e.target.value
                                               )
                                             }
-                                            placeholder="0.00"
-                                            step="0.01"
-                                            className="w-20 border border-gray-300 px-2 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-green"
+                                            placeholder="Item name"
+                                            className="flex-1 border border-gray-300 px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-green"
                                           />
+                                          <div className="flex items-center gap-1">
+                                            <span className="text-sm">$</span>
+                                            <input
+                                              type="number"
+                                              value={
+                                                item.priceModifier === ""
+                                                  ? ""
+                                                  : item.priceModifier
+                                              }
+                                              onChange={(e) =>
+                                                updateSelectionGroupItem(
+                                                  categoryIndex,
+                                                  groupIndex,
+                                                  itemIndex,
+                                                  "priceModifier",
+                                                  e.target.value
+                                                )
+                                              }
+                                              placeholder="0.00"
+                                              step="0.01"
+                                              className="w-20 border border-gray-300 px-2 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-green"
+                                            />
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              addOption(
+                                                "selection",
+                                                categoryIndex,
+                                                groupIndex,
+                                                itemIndex
+                                              )
+                                            }
+                                            className="text-primary-green hover:text-primary-green"
+                                            title="Add Options"
+                                          >
+                                            <Plus size={16} />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              removeItemFromSelectionGroup(
+                                                categoryIndex,
+                                                groupIndex,
+                                                itemIndex
+                                              )
+                                            }
+                                            className="text-red-600 hover:text-red-800"
+                                          >
+                                            <Trash2 size={16} />
+                                          </button>
                                         </div>
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            addOption(
-                                              "selection",
-                                              categoryIndex,
-                                              groupIndex,
-                                              itemIndex
-                                            )
-                                          }
-                                          className="text-primary-green hover:text-primary-green"
-                                          title="Add Options"
-                                        >
-                                          <Plus size={16} />
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            removeItemFromSelectionGroup(
-                                              categoryIndex,
-                                              groupIndex,
-                                              itemIndex
-                                            )
-                                          }
-                                          className="text-red-600 hover:text-red-800"
-                                        >
-                                          <Trash2 size={16} />
-                                        </button>
-                                      </div>
 
-                                      {/* Options for selection group items */}
-                                      {item.options && item.options.length > 0 && (
-                                        <div className="ml-4 space-y-2">
-                                          <h6 className="text-xs font-medium text-gray-600">
-                                            Options:
-                                          </h6>
-                                          {item.options.map((option, optionIndex) => (
-                                            <div
-                                              key={optionIndex}
-                                              className="flex items-center gap-2 bg-green-50 p-2 rounded"
-                                            >
-                                              <input
-                                                type="text"
-                                                value={option.name}
-                                                onChange={(e) =>
-                                                  updateOption(
-                                                    "selection",
-                                                    categoryIndex,
-                                                    groupIndex,
-                                                    itemIndex,
-                                                    optionIndex,
-                                                    "name",
-                                                    e.target.value
-                                                  )
-                                                }
-                                                placeholder="Option name"
-                                                className="flex-1 text-sm border border-gray-300 px-2 py-1 rounded"
-                                              />
-                                              <div className="flex items-center gap-1">
-                                                <span className="text-xs">$</span>
-                                                <input
-                                                  type="number"
-                                                  value={
-                                                    option.priceModifier === ""
-                                                      ? ""
-                                                      : option.priceModifier
-                                                  }
-                                                  onChange={(e) =>
-                                                    updateOption(
-                                                      "selection",
-                                                      categoryIndex,
-                                                      groupIndex,
-                                                      itemIndex,
-                                                      optionIndex,
-                                                      "priceModifier",
-                                                      e.target.value
-                                                    )
-                                                  }
-                                                  placeholder="0.00"
-                                                  step="0.01"
-                                                  className="w-16 text-sm border border-gray-300 px-1 py-1 rounded"
-                                                />
-                                              </div>
-                                              <button
-                                                type="button"
-                                                onClick={() =>
-                                                  removeOption(
-                                                    "selection",
-                                                    categoryIndex,
-                                                    groupIndex,
-                                                    itemIndex,
-                                                    optionIndex
-                                                  )
-                                                }
-                                                className="text-red-600 hover:text-red-800"
-                                              >
-                                                <X size={14} />
-                                              </button>
+                                        {/* Options for selection group items */}
+                                        {item.options &&
+                                          item.options.length > 0 && (
+                                            <div className="ml-4 space-y-2">
+                                              <h6 className="text-xs font-medium text-gray-600">
+                                                Options:
+                                              </h6>
+                                              {item.options.map(
+                                                (option, optionIndex) => (
+                                                  <div
+                                                    key={optionIndex}
+                                                    className="flex items-center gap-2 bg-green-50 p-2 rounded"
+                                                  >
+                                                    <input
+                                                      type="text"
+                                                      value={option.name}
+                                                      onChange={(e) =>
+                                                        updateOption(
+                                                          "selection",
+                                                          categoryIndex,
+                                                          groupIndex,
+                                                          itemIndex,
+                                                          optionIndex,
+                                                          "name",
+                                                          e.target.value
+                                                        )
+                                                      }
+                                                      placeholder="Option name"
+                                                      className="flex-1 text-sm border border-gray-300 px-2 py-1 rounded"
+                                                    />
+                                                    <div className="flex items-center gap-1">
+                                                      <span className="text-xs">
+                                                        $
+                                                      </span>
+                                                      <input
+                                                        type="number"
+                                                        value={
+                                                          option.priceModifier ===
+                                                          ""
+                                                            ? ""
+                                                            : option.priceModifier
+                                                        }
+                                                        onChange={(e) =>
+                                                          updateOption(
+                                                            "selection",
+                                                            categoryIndex,
+                                                            groupIndex,
+                                                            itemIndex,
+                                                            optionIndex,
+                                                            "priceModifier",
+                                                            e.target.value
+                                                          )
+                                                        }
+                                                        placeholder="0.00"
+                                                        step="0.01"
+                                                        className="w-16 text-sm border border-gray-300 px-1 py-1 rounded"
+                                                      />
+                                                    </div>
+                                                    <button
+                                                      type="button"
+                                                      onClick={() =>
+                                                        removeOption(
+                                                          "selection",
+                                                          categoryIndex,
+                                                          groupIndex,
+                                                          itemIndex,
+                                                          optionIndex
+                                                        )
+                                                      }
+                                                      className="text-red-600 hover:text-red-800"
+                                                    >
+                                                      <X size={14} />
+                                                    </button>
+                                                  </div>
+                                                )
+                                              )}
                                             </div>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </div>
-                                  ))}
+                                          )}
+                                      </div>
+                                    ))}
 
-                                  {/* Add button after selection group items */}
-                                  {group.items.length > 0 && (
-                                    <div className="flex justify-center pt-2">
-                                      <AddButton 
-                                        onClick={() => addItemToSelectionGroup(categoryIndex, groupIndex)}
-                                        className="bg-blue-500 hover:bg-blue-600"
-                                        size="small"
-                                      >
-                                        Add Another Item
-                                      </AddButton>
-                                    </div>
-                                  )}
+                                    {/* Add button after selection group items */}
+                                    {group.items.length > 0 && (
+                                      <div className="flex justify-center pt-2">
+                                        <AddButton
+                                          onClick={() =>
+                                            addItemToSelectionGroup(
+                                              categoryIndex,
+                                              groupIndex
+                                            )
+                                          }
+                                          className="bg-blue-500 hover:bg-blue-600"
+                                          size="small"
+                                        >
+                                          Add Another Item
+                                        </AddButton>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
+                              )
+                            )}
 
                             {/* Add button after selection groups */}
                             {category.selectionGroups.length > 0 && (
                               <div className="flex justify-center pt-2">
-                                <AddButton 
-                                  onClick={() => addSelectionGroup(categoryIndex)}
+                                <AddButton
+                                  onClick={() =>
+                                    addSelectionGroup(categoryIndex)
+                                  }
                                   className="bg-primary-green hover:bg-green-700"
                                   size="small"
                                 >
@@ -1691,7 +1724,10 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
                 {/* Add button after all categories */}
                 {formData.categories.length > 0 && (
                   <div className="flex justify-center pt-4">
-                    <AddButton onClick={addCategory} className="bg-purple-600 hover:bg-purple-700">
+                    <AddButton
+                      onClick={addCategory}
+                      className="bg-purple-600 hover:bg-purple-700"
+                    >
                       Add Another Category
                     </AddButton>
                   </div>
@@ -1701,7 +1737,9 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
                   <div className="text-center py-8 text-gray-500">
                     <Package size={48} className="mx-auto mb-2 text-gray-300" />
                     <p>No categories added yet</p>
-                    <p className="text-sm">Add categories to organize your package items</p>
+                    <p className="text-sm">
+                      Add categories to organize your package items
+                    </p>
                   </div>
                 )}
               </div>
@@ -1714,7 +1752,10 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
                   <List className="text-green-600" size={20} />
                   Simple Items
                 </h3>
-                <AddButton onClick={addSimpleItem} className="bg-green-600 hover:bg-green-700">
+                <AddButton
+                  onClick={addSimpleItem}
+                  className="bg-green-600 hover:bg-green-700"
+                >
                   Add Item
                 </AddButton>
               </div>
@@ -1822,7 +1863,7 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
                               <option value="multiple">Multiple Choice</option>
                             </select>
                           </div>
-                          <AddButton 
+                          <AddButton
                             onClick={() => addSimpleItemChoice(index)}
                             className="bg-yellow-600 hover:bg-yellow-700"
                             size="small"
@@ -1883,11 +1924,11 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
                               </button>
                             </div>
                           ))}
-                          
+
                           {/* Add button after choices */}
                           {(item.choices || []).length > 0 && (
                             <div className="flex justify-center pt-2">
-                              <AddButton 
+                              <AddButton
                                 onClick={() => addSimpleItemChoice(index)}
                                 className="bg-yellow-600 hover:bg-yellow-700"
                                 size="small"
@@ -1896,10 +1937,11 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
                               </AddButton>
                             </div>
                           )}
-                          
+
                           {(!item.choices || item.choices.length === 0) && (
                             <p className="text-xs text-gray-500 italic text-center py-2">
-                              No choices added yet. Add choices like "Pulao Rice: +$2", "Plain Rice: $0"
+                              No choices added yet. Add choices like "Pulao
+                              Rice: +$2", "Plain Rice: $0"
                             </p>
                           )}
                         </div>
@@ -1978,7 +2020,10 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
                 {/* Add button after all simple items */}
                 {formData.simpleItems.length > 0 && (
                   <div className="flex justify-center pt-4">
-                    <AddButton onClick={addSimpleItem} className="bg-green-600 hover:bg-green-700">
+                    <AddButton
+                      onClick={addSimpleItem}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
                       Add Another Item
                     </AddButton>
                   </div>
@@ -2021,7 +2066,7 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
                     <h4 className="font-medium text-gray-700">
                       Fixed Add-ons (Price scales with number of people)
                     </h4>
-                    <AddButton 
+                    <AddButton
                       onClick={addFixedAddon}
                       className="bg-orange-600 hover:bg-orange-700"
                     >
@@ -2078,7 +2123,7 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
                     {/* Add button after fixed addons */}
                     {formData.addons.fixedAddons.length > 0 && (
                       <div className="flex justify-center pt-2">
-                        <AddButton 
+                        <AddButton
                           onClick={addFixedAddon}
                           className="bg-orange-600 hover:bg-orange-700"
                           size="small"
@@ -2103,7 +2148,7 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
                     <h4 className="font-medium text-gray-700">
                       Variable Add-ons (Customer chooses quantity)
                     </h4>
-                    <AddButton 
+                    <AddButton
                       onClick={addVariableAddon}
                       className="bg-purple-600 hover:bg-purple-700"
                     >
@@ -2222,7 +2267,7 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
                     {/* Add button after variable addons */}
                     {formData.addons.variableAddons.length > 0 && (
                       <div className="flex justify-center pt-2">
-                        <AddButton 
+                        <AddButton
                           onClick={addVariableAddon}
                           className="bg-purple-600 hover:bg-purple-700"
                           size="small"

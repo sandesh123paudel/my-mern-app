@@ -28,7 +28,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
   }, []);
 
   useEffect(() => {
-    const initialCount = menu.minPeople || 1;
+    const initialCount = menu.minPeople || 10;
     setPeopleCount(String(initialCount));
   }, [menu.minPeople]);
   useEffect(() => {
@@ -534,17 +534,17 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
               className="border border-gray-300 rounded-lg p-4 bg-white"
             >
               <div className="mb-3">
-                <h4 className="font-medium text-gray-900 text-base">
+                <h4 className="font-normal text-gray-900 text-base">
                   {item.name}
                   {item.priceModifier !== 0 && (
-                    <span className="ml-2 text-primary-green font-medium">
+                    <span className="ml-2 text-primary-green font-normal">
                       {item.priceModifier > 0 ? "+" : ""}
                       {formatPrice(item.priceModifier)}
                     </span>
                   )}
                 </h4>
                 {item.quantity && item.quantity > 1 && (
-                  <p className="text-sm text-gray-600 mt-1">
+                  <p className="text-xs text-gray-600 mt-1">
                     Quantity: {item.quantity}
                   </p>
                 )}
@@ -553,7 +553,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
               {/* Customer Choices */}
               {item.hasChoices && item.choices && item.choices.length > 0 && (
                 <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <h5 className="font-medium text-gray-900 mb-3">
+                  <h5 className="font-normal text-gray-900 mb-3">
                     {item.selectionType === "single"
                       ? "Choose one option:"
                       : "Choose options:"}
@@ -587,9 +587,9 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
                             className="mr-3"
                           />
                           <div className="flex-1">
-                            <span className="font-medium">{choice.name}</span>
+                            <span className="font-normal">{choice.name}</span>
                             {choice.priceModifier !== 0 && (
-                              <span className="ml-2 text-primary-green font-medium">
+                              <span className="ml-2 text-primary-green font-normal">
                                 {choice.priceModifier > 0 ? "+" : ""}
                                 {formatPrice(choice.priceModifier)}
                               </span>
@@ -605,7 +605,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
               {/* Additional Options */}
               {item.options && item.options.length > 0 && (
                 <div className="p-3 bg-primary-green border border-primary-green rounded-lg">
-                  <h5 className="font-medium text-gray-900 mb-3">
+                  <h5 className="font-normal text-gray-900 mb-3">
                     Additional Options:
                   </h5>
                   <div className="space-y-2">
@@ -632,9 +632,9 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
                             className="mr-3"
                           />
                           <div className="flex-1">
-                            <span className="font-medium">{option.name}</span>
+                            <span className="font-normal">{option.name}</span>
                             {option.priceModifier !== 0 && (
-                              <span className="ml-2 text-green-600 font-medium">
+                              <span className="ml-2 text-green-600 font-normal">
                                 {option.priceModifier > 0 ? "+" : ""}
                                 {formatPrice(option.priceModifier)}
                               </span>
@@ -671,22 +671,22 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
               {/* Included Items */}
               {category.includedItems && category.includedItems.length > 0 && (
                 <div className="mb-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">
+                  <h4 className="text-xs font-normal text-gray-700 mb-2">
                     Included with your package:
                   </h4>
                   <div className="space-y-2">
                     {category.includedItems.map((item, itemIndex) => (
                       <div
                         key={itemIndex}
-                        className="flex items-center p-3 bg-green-50 border border-green-200 rounded-lg"
+                        className="flex items-center p-1 bg-green-50 border border-green-200 rounded-lg"
                       >
                         <Check size={16} className="text-green-600 mr-3" />
                         <div className="flex-1">
-                          <span className="font-medium text-gray-900">
+                          <span className="font-normal text-gray-900">
                             {item.name}
                           </span>
                           {item.priceModifier !== 0 && (
-                            <span className="ml-2 text-green-600 font-medium">
+                            <span className="ml-2 text-green-600 font-normal">
                               {item.priceModifier > 0 ? "+" : ""}
                               {formatPrice(item.priceModifier)}
                             </span>
@@ -705,20 +705,20 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
                     {category.selectionGroups.map((group, groupIndex) => (
                       <div
                         key={groupIndex}
-                        className="border border-gray-300 rounded-lg p-4 bg-white"
+                        className="border border-gray-300 rounded-lg p-2 bg-white"
                       >
                         <div className="flex items-center justify-between mb-3">
-                          <h4 className="font-medium text-gray-900">
+                          <h4 className="font-normal text-gray-900">
                             {group.name}
                           </h4>
                           {group.isRequired && (
-                            <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-medium">
+                            <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-normal">
                               Required
                             </span>
                           )}
                         </div>
 
-                        <p className="text-sm text-gray-600 mb-3">
+                        <p className="text-xs text-gray-600 mb-3">
                           {group.selectionType === "single"
                             ? "Choose one option:"
                             : `Choose up to ${
@@ -758,11 +758,11 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
                                   className="mr-3"
                                 />
                                 <div className="flex-1">
-                                  <span className="font-medium">
+                                  <span className="font-normal">
                                     {item.name}
                                   </span>
                                   {item.priceModifier !== 0 && (
-                                    <span className="ml-2 text-green-600 font-medium">
+                                    <span className="ml-2 text-green-600 font-normal">
                                       {item.priceModifier > 0 ? "+" : ""}
                                       {formatPrice(item.priceModifier)}
                                     </span>
@@ -796,7 +796,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
         {/* Fixed Addons */}
         {menu.addons.fixedAddons && menu.addons.fixedAddons.length > 0 && (
           <div className="mb-4">
-            <h4 className="font-medium text-gray-700 mb-3">
+            <h4 className="font-normal text-gray-700 mb-3">
               Fixed Add-ons (price per person):
             </h4>
             <div className="space-y-2">
@@ -817,8 +817,8 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
                         className="mr-3"
                       />
                       <div>
-                        <span className="font-medium">{addon.name}</span>
-                        <div className="text-sm text-gray-600">
+                        <span className="font-normal">{addon.name}</span>
+                        <div className="text-xs text-gray-600">
                           {formatPrice(addon.pricePerPerson)} per person
                         </div>
                       </div>
@@ -842,7 +842,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
         {menu.addons.variableAddons &&
           menu.addons.variableAddons.length > 0 && (
             <div className="mb-4">
-              <h4 className="font-medium text-gray-700 mb-3">
+              <h4 className="font-normal text-gray-700 mb-3">
                 Variable Add-ons (choose quantity):
               </h4>
               <div className="space-y-3">
@@ -855,8 +855,8 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
                     >
                       <div className="flex items-center justify-between mb-3">
                         <div>
-                          <h5 className="font-medium">{addon.name}</h5>
-                          <p className="text-sm text-gray-600">
+                          <h5 className="font-normal">{addon.name}</h5>
+                          <p className="text-xs text-gray-600">
                             {formatPrice(addon.pricePerUnit)} per{" "}
                             {addon.unit || "piece"}
                           </p>
@@ -910,7 +910,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
                         >
                           <Plus size={14} />
                         </button>
-                        <span className="text-sm text-gray-600">
+                        <span className="text-xs text-gray-600">
                           {addon.unit || "pieces"} (max:{" "}
                           {addon.maxQuantity || 20})
                         </span>
@@ -935,20 +935,20 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
 
     return (
       <div className="bg-white border border-gray-300 rounded-lg p-4">
-        <h4 className="font-medium text-gray-900 mb-3">Order Summary</h4>
+        <h4 className="font-normal text-gray-900 mb-3">Order Summary</h4>
 
-        <div className="space-y-2 text-sm">
+        <div className="space-y-2 text-xs">
           <div className="flex justify-between">
             <span className="text-gray-600">
               Base Package ({peopleCount || 0} people):
             </span>
-            <span className="font-medium">{formatPrice(basePrice)}</span>
+            <span className="font-normal">{formatPrice(basePrice)}</span>
           </div>
 
           {modifierPrice > 0 && (
             <div className="flex justify-between">
               <span className="text-gray-600">Item modifications:</span>
-              <span className="text-primary-green font-medium">
+              <span className="text-primary-green font-normal">
                 {formatPrice(modifierPrice)}
               </span>
             </div>
@@ -957,7 +957,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
           {isFunction && venueCharge > 0 && (
             <div className="flex justify-between">
               <span className="text-gray-600">Venue charge:</span>
-              <span className="text-orange-600 font-medium">
+              <span className="text-orange-600 font-normal">
                 {formatPrice(venueCharge)}
               </span>
             </div>
@@ -979,21 +979,21 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
                         )})`}
                     :
                   </span>
-                  <span className="text-orange-600 font-medium">
+                  <span className="text-orange-600 font-normal">
                     {formatPrice(addon.totalPrice)}
                   </span>
                 </div>
               ))}
               <div className="flex justify-between pt-2 border-t">
                 <span className="text-gray-600">Add-ons Total:</span>
-                <span className="text-orange-600 font-medium">
+                <span className="text-orange-600 font-normal">
                   {formatPrice(addonData.total)}
                 </span>
               </div>
             </>
           )}
 
-          <div className="flex justify-between pt-2 border-t font-medium">
+          <div className="flex justify-between pt-2 border-t font-normal">
             <span className="text-gray-900">Grand Total:</span>
             <span className="text-lg font-bold text-gray-900">
               {formatPrice(totalPrice)}
@@ -1041,7 +1041,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
               className="flex items-center gap-2 text-white hover:text-gray-200"
             >
               <ArrowLeft size={18} />
-              <span className="hidden sm:inline">Back</span>
+              <span className="hidden xs:inline">Back</span>
             </button>
             <button
               onClick={onClose}
@@ -1051,7 +1051,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
             </button>
           </div>
           <h2 className="text-xl font-bold mb-2">{menu.name}</h2>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-white text-sm">
+          <div className="flex flex-col xs:flex-row xs:items-center gap-2 xs:gap-4 text-white text-xs">
             <div className="flex items-center gap-1">
               <MapPin size={14} />
               <span>{menu.locationId?.name || "Location"}</span>
@@ -1059,7 +1059,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
             <div className="flex items-center gap-1">
               <Users size={14} />
               <span>
-                Min {menu.minPeople || 1}{" "}
+                Min {menu.minPeople || 10}{" "}
                 {menu.maxPeople ? `- Max ${menu.maxPeople}` : ""} People
               </span>
             </div>
@@ -1088,12 +1088,12 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
                 <div className="text-2xl font-bold text-green-700">
                   {formatPrice(menu.basePrice || menu.price || 0)}
                 </div>
-                <div className="text-sm text-green-600">per person</div>
+                <div className="text-xs text-green-600">per person</div>
               </div>
 
               {/* People Count */}
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-normal text-gray-700 mb-2">
                   Number of People *
                 </label>
                 <div className="flex items-center gap-2">
@@ -1106,7 +1106,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
                   </button>
                   <input
                     type="number"
-                    min={menu.minPeople || 1}
+                    min={menu.minPeople || 10}
                     max={menu.maxPeople || 1000}
                     value={peopleCount}
                     onChange={(e) => handlePeopleCountChange(e.target.value)}
@@ -1121,8 +1121,8 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
                     <Plus size={16} />
                   </button>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Min: {menu.minPeople || 1}
+                <p className="text-xs text-red-500 mt-1">
+                  *Min: {menu.minPeople || 10}
                   {menu.maxPeople &&
                     menu.maxPeople !== 1000 &&
                     ` | Max: ${menu.maxPeople}`}
@@ -1132,7 +1132,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
               {/* Add this after the people count section in the right column */}
               {isFunction && serviceVenueOptions && (
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs font-normal text-gray-700 mb-2">
                     Select Venue *
                   </label>
 
@@ -1184,7 +1184,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
                             <div className="flex items-center justify-between">
                               <div>
                                 <div
-                                  className={`font-medium ${
+                                  className={`font-normal ${
                                     isValidForPeopleCount
                                       ? "text-gray-900"
                                       : "text-red-600"
@@ -1204,7 +1204,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
 
                               {willHaveCharge && isValidForPeopleCount && (
                                 <div className="text-right">
-                                  <div className="text-sm font-semibold text-orange-600">
+                                  <div className="text-xs font-semibold text-orange-600">
                                     +{formatPrice(venue.venueCharge)}
                                   </div>
                                   <div className="text-xs text-gray-500">

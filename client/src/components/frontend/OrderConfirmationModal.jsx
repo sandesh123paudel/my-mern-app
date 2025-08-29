@@ -324,6 +324,9 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
                       ? "entree"
                       : categoryName === "mains"
                       ? "mains"
+                      : categoryName === "dessert" ||
+                        categoryName === "desserts"
+                      ? "desserts"
                       : categoryName.toLowerCase(),
                   type: "selected",
                   pricePerPerson: item.pricePerPerson || 0,
@@ -414,60 +417,61 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
       fullMenu.simpleItems.forEach((item, itemIndex) => {
         const itemSelection = selections[`simple-${itemIndex}`];
 
-        // Add base item
+        // Create a display name that includes selected choices
+        let displayName = item.name;
+        let totalPriceModifier = item.priceModifier || 0;
+
+        // If item has choices and user made selections, show the selected choice instead
+        if (item.hasChoices && itemSelection?.choices && item.choices) {
+          const selectedChoices = itemSelection.choices
+            .map((choiceIndex) => {
+              const choice = item.choices[choiceIndex];
+              if (choice) {
+                totalPriceModifier += choice.priceModifier || 0;
+                return choice.name;
+              }
+              return null;
+            })
+            .filter(Boolean);
+
+          if (selectedChoices.length > 0) {
+            displayName = selectedChoices.join(", ");
+          }
+        }
+
+        // Add selected options to the display name and price
+        const selectedOptions = [];
+        if (itemSelection?.options && item.options) {
+          itemSelection.options.forEach((optionIndex) => {
+            const option = item.options[optionIndex];
+            if (option) {
+              selectedOptions.push(option.name);
+              totalPriceModifier += option.priceModifier || 0;
+            }
+          });
+        }
+
+        // Append options to display name if any
+        if (selectedOptions.length > 0) {
+          displayName += ` (${selectedOptions.join(", ")})`;
+        }
+
+        // Add single consolidated item
         items.push({
-          name: item.name,
+          name: displayName,
           description: item.description || "",
           category: "package",
           type: "package",
-          priceModifier: item.priceModifier || 0,
+          priceModifier: totalPriceModifier,
           quantity: item.quantity || 1,
           isVegan: item.isVegan || false,
           isVegetarian: item.isVegetarian || false,
           allergens: item.allergens || [],
         });
-
-        // Add selected choices
-        if (itemSelection?.choices && item.choices) {
-          itemSelection.choices.forEach((choiceIndex) => {
-            const choice = item.choices[choiceIndex];
-            if (choice) {
-              items.push({
-                name: `${item.name} - ${choice.name}`,
-                description: choice.description || "",
-                category: "choices",
-                type: "choice",
-                priceModifier: choice.priceModifier || 0,
-                isVegan: choice.isVegan || false,
-                isVegetarian: choice.isVegetarian || false,
-                allergens: choice.allergens || [],
-              });
-            }
-          });
-        }
-
-        // Add selected options
-        if (itemSelection?.options && item.options) {
-          itemSelection.options.forEach((optionIndex) => {
-            const option = item.options[optionIndex];
-            if (option) {
-              items.push({
-                name: `${item.name} - ${option.name}`,
-                description: option.description || "",
-                category: "options",
-                type: "option",
-                priceModifier: option.priceModifier || 0,
-                isVegan: option.isVegan || false,
-                isVegetarian: option.isVegetarian || false,
-                allergens: option.allergens || [],
-              });
-            }
-          });
-        }
       });
     }
 
-    // Handle categorized package items
+    // Handle categorized package items (unchanged)
     if (fullMenu.packageType === "categorized" && fullMenu.categories) {
       fullMenu.categories.forEach((category, categoryIndex) => {
         if (!category.enabled) return;
@@ -514,7 +518,7 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
       });
     }
 
-    // Handle menu addons
+    // Handle menu addons (unchanged)
     if (fullMenu.addons?.enabled) {
       // Fixed addons
       if (selections["addons-fixed"] && fullMenu.addons.fixedAddons) {
@@ -1191,7 +1195,7 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
             </div>
 
             {/* Selected Items */}
-            <div className="max-h-64 lg:max-h-96 overflow-y-auto">
+            <div className=" overflow-y-auto">
               <h4 className="font-medium text-gray-900 mb-3">
                 Your Selections
               </h4>

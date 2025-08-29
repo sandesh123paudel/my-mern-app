@@ -48,10 +48,10 @@ const BookingPrintModal = ({
   const locationDetails = getLocationDetails();
 
   const handlePrint = () => {
-  const printWindow = window.open("", "_blank");
-  const printContent = printRef.current.innerHTML;
+    const printWindow = window.open("", "_blank");
+    const printContent = printRef.current.innerHTML;
 
-  printWindow.document.write(`
+    printWindow.document.write(`
     <!DOCTYPE html>
     <html>
       <head>
@@ -175,12 +175,12 @@ const BookingPrintModal = ({
     </html>
   `);
 
-  printWindow.document.close();
-  printWindow.onload = () => {
-    printWindow.print();
-    printWindow.close();
+    printWindow.document.close();
+    printWindow.onload = () => {
+      printWindow.print();
+      printWindow.close();
+    };
   };
-};
 
   const getStatusClass = (status) => {
     return `status-badge status-${status}`;
@@ -425,13 +425,21 @@ const BookingPrintModal = ({
                 <div className="section">
                   <div className="section-title">Pricing</div>
                   {!isCustomOrder && (
-                    <>
+                    <div>
                       <div className="line-item">
                         <span>Base Price:</span>
                         <span>
                           {formatPrice(booking.pricing?.basePrice || 0)}
                         </span>
                       </div>
+                      {booking.pricing?.modifierPrice > 0 && (
+                        <div className="line-item">
+                          <span>Item Modification:</span>
+                          <span>
+                            {formatPrice(booking.pricing?.modifierPrice || 0)}
+                          </span>
+                        </div>
+                      )}
                       {booking.pricing?.addonsPrice > 0 && (
                         <div className="line-item">
                           <span>Add-ons:</span>
@@ -440,7 +448,7 @@ const BookingPrintModal = ({
                           </span>
                         </div>
                       )}
-                    </>
+                    </div>
                   )}
 
                   {/* For custom orders, show item-based pricing if available */}
