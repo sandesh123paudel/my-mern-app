@@ -144,10 +144,20 @@ const DayDetailModal = ({
     return processedItems.join(", ");
   };
 
-  // Handle payment update
+  // Handle payment update with validation
   const handlePaymentUpdate = async (bookingId) => {
     try {
       const depositAmount = parseFloat(paymentData.depositAmount) || 0;
+      const totalAmount = selectedBooking?.pricing?.total || 0;
+
+      // Validate amount doesn't exceed total
+      if (depositAmount > totalAmount) {
+        alert(
+          `Amount cannot exceed total amount of ${formatPrice(totalAmount)}`
+        );
+        return;
+      }
+
       await onPaymentUpdate(bookingId, {
         ...paymentData,
         depositAmount,
@@ -156,6 +166,25 @@ const DayDetailModal = ({
       setSelectedBooking(null);
     } catch (error) {
       console.error("Error updating payment:", error);
+    }
+  };
+
+  // Handle amount change with validation
+  const handleAmountChange = (value) => {
+    const totalAmount = selectedBooking?.pricing?.total || 0;
+    const numericValue = parseFloat(value) || 0;
+
+    // Don't allow more than total amount
+    if (numericValue > totalAmount) {
+      setPaymentData({
+        ...paymentData,
+        depositAmount: totalAmount.toString(),
+      });
+    } else {
+      setPaymentData({
+        ...paymentData,
+        depositAmount: value,
+      });
     }
   };
 
@@ -708,7 +737,7 @@ const DayDetailModal = ({
                   <thead className="bg-gray-100 border-b border-gray-200">
                     <tr>
                       <th className="px-3 py-3 text-left font-medium text-gray-700">
-                     
+                        <Clock className="w-4 h-4 inline mr-1" />
                         Time
                       </th>
                       <th className="px-3 py-3 text-left font-medium text-gray-700">
@@ -718,7 +747,7 @@ const DayDetailModal = ({
                         Contact
                       </th>
                       <th className="px-3 py-3 text-left font-medium text-gray-700">
-                        
+                        <Users className="w-4 h-4 inline mr-1" />
                         Guests
                       </th>
                       <th className="px-3 py-3 text-left font-medium text-gray-700">
@@ -728,7 +757,7 @@ const DayDetailModal = ({
                         Service
                       </th>
                       <th className="px-3 py-3 text-left font-medium text-gray-700">
-                       
+                        <DollarSign className="w-4 h-4 inline mr-1" />
                         Amount
                       </th>
                       <th className="px-3 py-3 text-left font-medium text-gray-700">
@@ -956,18 +985,21 @@ const DayDetailModal = ({
                       min="0"
                       max={selectedBooking.pricing?.total || 0}
                       value={paymentData.depositAmount}
-                      onChange={(e) =>
-                        setPaymentData({
-                          ...paymentData,
-                          depositAmount: e.target.value,
-                        })
-                      }
+                      onChange={(e) => handleAmountChange(e.target.value)}
                       onFocus={(e) => e.target.select()}
                       className="w-full p-2 border border-gray-300 rounded-lg"
                       placeholder="Enter amount"
                     />
                     <p className="text-xs text-gray-600 mt-1">
-                      Max: {formatPrice(selectedBooking.pricing?.total)}
+                      Max: {formatPrice(selectedBooking.pricing?.total)} |
+                      Remaining:{" "}
+                      {formatPrice(
+                        Math.max(
+                          0,
+                          (selectedBooking.pricing?.total || 0) -
+                            (selectedBooking.depositAmount || 0)
+                        )
+                      )}
                     </p>
                   </div>
 
