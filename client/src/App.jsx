@@ -21,6 +21,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import AdminLayout from "./pages/admin/AdminLayout";
 import LocationServices from "./pages/admin/LocationServices";
 import CustomMenu from "./pages/admin/CustomOrderMenu";
+import CouponManagement from "./pages/admin/Coupon";
 
 const App = () => {
   return (
@@ -146,6 +147,7 @@ const App = () => {
           <Route path="bookings" element={<AdminBookings />} />
           <Route path="inquiries" element={<AdminInquiries />} />
           <Route path="users" element={<AdminUsers />} />
+          <Route path="coupons" element={<CouponManagement />} />
           <Route path="menu" element={<AdminMenu />} />
         </Route>
 

@@ -164,7 +164,28 @@ const addressSchema = new mongoose.Schema(
   { _id: false }
 );
 
-// Pricing schema
+// Admin addition schema
+const adminAdditionSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    price: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    addedAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { _id: true }
+);
+
+// Pricing schema with coupon and admin additions
 const pricingSchema = new mongoose.Schema(
   {
     basePrice: {
@@ -182,6 +203,26 @@ const pricingSchema = new mongoose.Schema(
       min: 0,
     },
     addonsPrice: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    adminAdditionsPrice: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    subtotal: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    // Coupon information
+    couponCode: {
+      type: String,
+      default: null,
+    },
+    couponDiscount: {
       type: Number,
       default: 0,
       min: 0,
@@ -252,7 +293,7 @@ const bookingSchema = new mongoose.Schema(
     // Auto-generated booking reference
     bookingReference: {
       type: String,
-      unique: true,
+     
     },
 
     // Order source (Menu or CustomOrder)
@@ -277,6 +318,9 @@ const bookingSchema = new mongoose.Schema(
 
     // All selected items with full details (no references)
     selectedItems: [selectedItemSchema],
+
+    // Admin additions
+    adminAdditions: [adminAdditionSchema],
 
     // Pricing breakdown
     pricing: {
@@ -405,6 +449,11 @@ bookingSchema.virtual("totalItems").get(function () {
   return this.selectedItems?.length || 0;
 });
 
+// Admin additions total virtual
+bookingSchema.virtual("adminAdditionsTotal").get(function () {
+  return this.adminAdditions?.reduce((sum, addition) => sum + addition.price, 0) || 0;
+});
+
 // Pre-save middleware to generate booking reference
 bookingSchema.pre("save", async function (next) {
   if (this.isNew && !this.bookingReference) {
@@ -455,6 +504,66 @@ bookingSchema.pre("save", async function (next) {
   next();
 });
 
+// Instance methods for admin additions
+bookingSchema.methods.addAdminAddition = function(name, price) {
+  if (!name || price === undefined || price < 0) {
+    throw new Error("Valid name and price are required for admin addition");
+  }
+  
+  this.adminAdditions.push({
+    name: name.trim(),
+    price: Number(price),
+  });
+  
+  // Calculate admin additions total explicitly instead of using virtual
+  const adminTotal = this.adminAdditions.reduce((sum, addition) => sum + addition.price, 0);
+  
+  // Update pricing
+  this.pricing.adminAdditionsPrice = adminTotal;
+  this.pricing.total = this.calculateFinalTotal();
+  
+  return this.save();
+};
+
+bookingSchema.methods.removeAdminAddition = function(additionId) {
+  this.adminAdditions = this.adminAdditions.filter(
+    addition => addition._id.toString() !== additionId.toString()
+  );
+  
+  // Update pricing
+  this.pricing.adminAdditionsPrice = this.adminAdditionsTotal;
+  this.pricing.total = this.calculateFinalTotal();
+  
+  return this.save();
+};
+
+// Calculate final total method
+bookingSchema.methods.calculateFinalTotal = function() {
+  const subtotal = this.pricing.subtotal || 0;
+  const adminAdditions = this.adminAdditionsTotal;
+  const couponDiscount = this.pricing.couponDiscount || 0;
+  const venueCharge = this.venueCharge || 0;
+  
+  return Math.max(0, subtotal + adminAdditions - couponDiscount + venueCharge);
+};
+
+// Coupon methods
+bookingSchema.methods.applyCoupon = function(couponCode, discountAmount) {
+  this.pricing.couponCode = couponCode;
+  this.pricing.couponDiscount = discountAmount;
+  this.pricing.total = this.calculateFinalTotal();
+  
+  return this.save();
+};
+
+bookingSchema.methods.removeCoupon = function() {
+  this.pricing.couponCode = null;
+  this.pricing.couponDiscount = 0;
+  this.pricing.total = this.calculateFinalTotal();
+  
+  return this.save();
+};
+
 // Static methods for analytics
 bookingSchema.statics.getBookingStats = function (
   locationId = null,
@@ -482,9 +591,45 @@ bookingSchema.statics.getBookingStats = function (
       $group: {
         _id: null,
         totalBookings: { $sum: 1 },
-        totalRevenue: { $sum: "$pricing.total" },
+
+        // Only count revenue from completed orders with proper payment status
+        totalRevenue: {
+          $sum: {
+            $cond: [
+              {
+                $and: [
+                  { $eq: ["$status", "completed"] },
+                  {
+                    $in: ["$paymentStatus", ["fully_paid", "deposit_paid"]],
+                  },
+                ],
+              },
+              "$pricing.total",
+              0,
+            ],
+          },
+        },
+
         totalPeople: { $sum: "$peopleCount" },
-        averageOrderValue: { $avg: "$pricing.total" },
+
+        // Average based only on revenue-generating orders
+        averageOrderValue: {
+          $avg: {
+            $cond: [
+              {
+                $and: [
+                  { $eq: ["$status", "completed"] },
+                  {
+                    $in: ["$paymentStatus", ["fully_paid", "deposit_paid"]],
+                  },
+                ],
+              },
+              "$pricing.total",
+              null,
+            ],
+          },
+        },
+
         customOrders: {
           $sum: {
             $cond: [{ $eq: ["$orderSource.sourceType", "customOrder"] }, 1, 0],

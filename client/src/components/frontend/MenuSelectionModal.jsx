@@ -534,7 +534,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
               className="border border-gray-300 rounded-lg p-4 bg-white"
             >
               <div className="mb-3">
-                <h4 className="font-normal text-gray-900 text-base">
+                <h4 className="font-normal  text-gray-900">
                   {item.name}
                   {item.priceModifier !== 0 && (
                     <span className="ml-2 text-primary-green font-normal">

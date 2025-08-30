@@ -3,6 +3,7 @@ const Menu = require("../models/menusModel.js");
 const CustomOrder = require("../models/customOrderModel.js");
 const Booking = require("../models/bookingModel.js");
 const Location = require("../models/locationModel.js");
+const Coupon = require("../models/couponModel.js");
 const {
   sendAdminBookingNotification,
   sendCustomerBookingConfirmation,
@@ -369,17 +370,17 @@ const convertCustomOrderSelectionsToBookingItems = (
   return items;
 };
 
-// @desc    Create new booking (Public - No auth required)
+// @desc    Create new booking (Public - No auth required) - Updated with coupon support
 // @route   POST /api/bookings
 // @access  Public
 const createBooking = asyncHandler(async (req, res) => {
   try {
     const {
-      menu, // From frontend: { menuId, locationId, serviceId, name, basePrice }
+      menu,
       customerDetails,
       peopleCount,
-      selectedItems, // Processed items from frontend
-      menuSelections, // Raw menu selections for reference
+      selectedItems,
+      menuSelections,
       pricing,
       deliveryType,
       deliveryDate,
@@ -388,6 +389,7 @@ const createBooking = asyncHandler(async (req, res) => {
       isFunction,
       venueSelection,
       venueCharge = 0,
+      couponCode, // New field for coupon
     } = req.body;
 
     // Validate required fields
@@ -411,6 +413,7 @@ const createBooking = asyncHandler(async (req, res) => {
     if (!menu || (!menu.menuId && !isCustomOrder)) {
       return sendResponse(res, 400, false, "Menu information is required");
     }
+
     if (isFunction) {
       if (!venueSelection) {
         return sendResponse(
@@ -438,8 +441,6 @@ const createBooking = asyncHandler(async (req, res) => {
     let processedItems = [];
 
     if (isCustomOrder) {
-      // Handle Custom Order
-
       if (!menu.locationId || !menu.serviceId) {
         return sendResponse(
           res,
@@ -449,14 +450,11 @@ const createBooking = asyncHandler(async (req, res) => {
         );
       }
 
-      // For custom orders, we might not have a specific customOrder document
-      // Instead, we use the location and service directly
       location = await Location.findById(menu.locationId);
       if (!location) {
         return sendResponse(res, 404, false, "Location not found");
       }
 
-      // Process selected items directly from frontend
       if (selectedItems && selectedItems.length > 0) {
         processedItems = processSelectedItems(selectedItems, peopleCount);
       } else {
@@ -468,8 +466,6 @@ const createBooking = asyncHandler(async (req, res) => {
         );
       }
     } else {
-      // Handle Menu Order
-
       source = await Menu.findById(menu.menuId)
         .populate("locationId")
         .populate("serviceId");
@@ -480,7 +476,6 @@ const createBooking = asyncHandler(async (req, res) => {
 
       location = source.locationId;
 
-      // Verify people count is within menu limits
       if (peopleCount < source.minPeople || peopleCount > source.maxPeople) {
         return sendResponse(
           res,
@@ -490,17 +485,14 @@ const createBooking = asyncHandler(async (req, res) => {
         );
       }
 
-      // Process selected items
       if (selectedItems && selectedItems.length > 0) {
         processedItems = processSelectedItems(selectedItems, peopleCount);
-      
       } else if (menuSelections) {
         processedItems = convertMenuSelectionsToBookingItems(
           source,
           menuSelections,
           peopleCount
         );
-       
       } else {
         return sendResponse(
           res,
@@ -509,6 +501,39 @@ const createBooking = asyncHandler(async (req, res) => {
           "Either selectedItems or menuSelections must be provided"
         );
       }
+    }
+
+    // Handle coupon validation and application
+    let appliedCoupon = null;
+    let finalPricing = { ...pricing };
+
+    if (couponCode && couponCode.trim()) {
+      const coupon = await Coupon.findValidCoupon(couponCode.trim());
+      
+      if (coupon) {
+        const locationId = isCustomOrder ? menu.locationId : source.locationId._id;
+        const serviceId = isCustomOrder ? menu.serviceId : source.serviceId._id;
+
+        if (coupon.canBeUsedForOrder(locationId, serviceId)) {
+          const discount = coupon.calculateDiscount(pricing.total);
+          
+          finalPricing = {
+            ...pricing,
+            subtotal: pricing.total,
+            couponCode: coupon.code,
+            couponDiscount: discount,
+            total: Math.max(0, pricing.total - discount + (venueCharge || 0)),
+          };
+
+          appliedCoupon = coupon;
+        }
+      }
+    }
+
+    // Set subtotal if no coupon applied
+    if (!finalPricing.subtotal) {
+      finalPricing.subtotal = pricing.total;
+      finalPricing.total = pricing.total + (venueCharge || 0);
     }
 
     // Generate booking reference
@@ -552,7 +577,7 @@ const createBooking = asyncHandler(async (req, res) => {
       bookingReference,
       orderSource: {
         sourceType: isCustomOrder ? "customOrder" : "menu",
-        sourceId: isCustomOrder ? new mongoose.Types.ObjectId() : source._id, // For custom orders without specific document
+        sourceId: isCustomOrder ? new mongoose.Types.ObjectId() : source._id,
         sourceName: menu.name || (source ? source.name : "Custom Order"),
         basePrice:
           menu.basePrice ||
@@ -572,21 +597,9 @@ const createBooking = asyncHandler(async (req, res) => {
       },
       peopleCount,
       selectedItems: processedItems,
-      pricing: pricing
-        ? {
-            ...pricing,
-            total: (pricing.total || 0) + (venueCharge || 0),
-          }
-        : {
-            basePrice: isCustomOrder
-              ? 0
-              : (source?.basePrice || source?.price || 0) * peopleCount,
-            modifierPrice: 0,
-            itemsPrice: 0,
-            addonsPrice: 0,
-            total: (pricing?.total || 0) + (venueCharge || 0),
-          },
-      deliveryType: isFunction ? "Event" : deliveryType || "Pickup", // ✅ Force Event for functions
+      adminAdditions: [], // Initialize empty admin additions
+      pricing: finalPricing,
+      deliveryType: isFunction ? "Event" : deliveryType || "Pickup",
       deliveryDate: new Date(deliveryDate),
       address: !isFunction && deliveryType === "Delivery" ? address : undefined,
       status: "pending",
@@ -596,18 +609,16 @@ const createBooking = asyncHandler(async (req, res) => {
       adminNotes: "",
       cancellationReason: "",
       isDeleted: false,
-      isFunction: !!isFunction, // ✅ Persist function flag
-      venueSelection: isFunction ? venueSelection : undefined, // ✅ Save venue selection
+      isFunction: !!isFunction,
+      venueSelection: isFunction ? venueSelection : undefined,
       venueCharge: isFunction ? venueCharge : 0,
     };
 
     if (isFunction) {
-      // Calculate start and end of day for given date
       const targetDate = new Date(deliveryDate);
       const startOfDay = new Date(targetDate.setHours(0, 0, 0, 0));
       const endOfDay = new Date(targetDate.setHours(23, 59, 59, 999));
 
-      // Fetch existing bookings for same location + service + day
       const existingBookings = await Booking.find({
         "orderSource.locationId": new mongoose.Types.ObjectId(location._id),
         "orderSource.serviceId": new mongoose.Types.ObjectId(
@@ -615,16 +626,14 @@ const createBooking = asyncHandler(async (req, res) => {
         ),
         isFunction: true,
         deliveryDate: { $gte: startOfDay, $lte: endOfDay },
-        status: { $nin: ["cancelled"] }, // exclude cancelled
+        status: { $nin: ["cancelled"] },
         isDeleted: false,
       });
 
-      // Check conflicts
       let conflict = existingBookings.find((b) => {
         const booked = b.venueSelection;
 
         if (venueSelection === "both") {
-          // if requesting both, ANY existing indoor/outdoor/both blocks it
           return ["indoor", "outdoor", "both"].includes(booked);
         } else if (venueSelection === "indoor") {
           return ["indoor", "both"].includes(booked);
@@ -644,11 +653,14 @@ const createBooking = asyncHandler(async (req, res) => {
       }
     }
 
-    // Create booking
     const booking = new Booking(bookingData);
     const savedBooking = await booking.save();
 
-    // Get location with bank details for customer email
+    // Increment coupon usage if coupon was applied
+    if (appliedCoupon) {
+      await appliedCoupon.incrementUsage();
+    }
+
     let locationWithBankDetails = null;
     try {
       const fullLocation = await Location.findById(location._id);
@@ -659,7 +671,6 @@ const createBooking = asyncHandler(async (req, res) => {
       console.warn("Could not fetch location bank details:", error.message);
     }
 
-    // Send email notifications (don't wait for them to complete)
     Promise.all([
       sendAdminBookingNotification(savedBooking.toObject()),
       sendCustomerBookingConfirmation(
@@ -681,7 +692,6 @@ const createBooking = asyncHandler(async (req, res) => {
         console.error("❌ Booking email notification error:", error);
       });
 
-    // Send SMS notifications (don't wait for them to complete)
     Promise.all([
       sendAdminBookingSMS(savedBooking.toObject()),
       sendCustomerBookingSMS(savedBooking.toObject()),
@@ -700,17 +710,27 @@ const createBooking = asyncHandler(async (req, res) => {
         console.error("❌ Booking SMS notification error:", error);
       });
 
-    // Return booking reference for customer
-    sendResponse(res, 201, true, "Booking created successfully", {
+    const responseData = {
       bookingReference: savedBooking.bookingReference,
       message: isCustomOrder
         ? "Your custom order has been submitted successfully. You will receive a confirmation email and SMS shortly."
         : "Your booking has been submitted successfully. You will receive a confirmation email and SMS shortly.",
-    });
+    };
+
+    // Add coupon information to response if applied
+    if (appliedCoupon) {
+      responseData.couponApplied = {
+        code: appliedCoupon.code,
+        name: appliedCoupon.name,
+        discount: finalPricing.couponDiscount,
+        savings: `You saved $${finalPricing.couponDiscount.toFixed(2)}!`
+      };
+    }
+
+    sendResponse(res, 201, true, "Booking created successfully", responseData);
   } catch (error) {
     console.error("Create booking error:", error);
 
-    // Enhanced error handling
     if (error.name === "ValidationError") {
       const errorMessages = Object.values(error.errors).map(
         (err) => err.message
@@ -742,7 +762,7 @@ const getAllBookings = asyncHandler(async (req, res) => {
       deliveryType,
       locationId,
       serviceId,
-      sourceType, // "menu" or "customOrder"
+      sourceType,
       startDate,
       endDate,
       search,
@@ -752,45 +772,36 @@ const getAllBookings = asyncHandler(async (req, res) => {
       sortOrder = "desc",
     } = req.query;
 
-    // Build query
     const query = { isDeleted: false };
 
-    // Filter by status
     if (status) {
       query.status = status;
     }
 
-    // Filter by delivery type
     if (deliveryType) {
       query.deliveryType = deliveryType;
     }
 
-    // Filter by location
     if (locationId) {
       query["orderSource.locationId"] = locationId;
     }
 
-    // Filter by service
     if (serviceId) {
       query["orderSource.serviceId"] = serviceId;
     }
 
-    // Filter by source type
     if (sourceType) {
       query["orderSource.sourceType"] = sourceType;
     }
 
-    // Dietary requirement filter
     if (dietaryRequirement) {
       query["customerDetails.dietaryRequirements"] = dietaryRequirement;
     }
 
-    // Spice level filter
     if (spiceLevel) {
       query["customerDetails.spiceLevel"] = spiceLevel;
     }
 
-    // Filter by date range
     if (startDate && endDate) {
       query.deliveryDate = {
         $gte: new Date(startDate),
@@ -798,7 +809,6 @@ const getAllBookings = asyncHandler(async (req, res) => {
       };
     }
 
-    // Search functionality
     if (search) {
       query.$or = [
         { bookingReference: { $regex: search, $options: "i" } },
@@ -809,12 +819,10 @@ const getAllBookings = asyncHandler(async (req, res) => {
       ];
     }
 
-    // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const sortOptions = {};
     sortOptions[sortBy] = sortOrder === "desc" ? -1 : 1;
 
-    // Execute query
     const [bookings, totalCount] = await Promise.all([
       Booking.find(query)
         .populate("orderSource.locationId", "name address phone email")
@@ -824,7 +832,6 @@ const getAllBookings = asyncHandler(async (req, res) => {
       Booking.countDocuments(query),
     ]);
 
-    // Calculate pagination info
     const totalPages = Math.ceil(totalCount / parseInt(limit));
     const hasNextPage = parseInt(page) < totalPages;
     const hasPrevPage = parseInt(page) > 1;
@@ -882,7 +889,6 @@ const updateBookingStatus = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { status, adminNotes } = req.body;
 
-    // Validate status
     const validStatuses = [
       "pending",
       "confirmed",
@@ -895,7 +901,6 @@ const updateBookingStatus = asyncHandler(async (req, res) => {
       return sendResponse(res, 400, false, "Invalid status value");
     }
 
-    // Find and update booking
     const booking = await Booking.findById(id);
     if (!booking) {
       return sendResponse(res, 404, false, "Booking not found");
@@ -931,13 +936,11 @@ const updatePaymentStatus = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { paymentStatus, depositAmount } = req.body;
 
-    // Validate payment status
     const validPaymentStatuses = ["pending", "deposit_paid", "fully_paid"];
     if (!validPaymentStatuses.includes(paymentStatus)) {
       return sendResponse(res, 400, false, "Invalid payment status value");
     }
 
-    // Find and update booking
     const booking = await Booking.findById(id);
     if (!booking) {
       return sendResponse(res, 404, false, "Booking not found");
@@ -983,13 +986,11 @@ const updateBooking = asyncHandler(async (req, res) => {
       adminNotes,
     } = req.body;
 
-    // Find booking
     const booking = await Booking.findById(id);
     if (!booking) {
       return sendResponse(res, 404, false, "Booking not found");
     }
 
-    // Update customer details if provided
     if (customerDetails) {
       if (customerDetails.name)
         booking.customerDetails.name = customerDetails.name;
@@ -1002,7 +1003,6 @@ const updateBooking = asyncHandler(async (req, res) => {
           customerDetails.specialInstructions;
       }
 
-      // Update dietary requirements
       if (customerDetails.dietaryRequirements !== undefined) {
         booking.customerDetails.dietaryRequirements =
           customerDetails.dietaryRequirements;
@@ -1012,7 +1012,6 @@ const updateBooking = asyncHandler(async (req, res) => {
       }
     }
 
-    // Update other fields if provided
     if (peopleCount) booking.peopleCount = peopleCount;
     if (deliveryType) booking.deliveryType = deliveryType;
     if (deliveryDate) booking.deliveryDate = new Date(deliveryDate);
@@ -1051,7 +1050,6 @@ const getBookingStats = asyncHandler(async (req, res) => {
     const { locationId, serviceId, sourceType, startDate, endDate, date } =
       req.query;
 
-    // Build match query
     const matchQuery = { isDeleted: false };
 
     if (locationId) {
@@ -1077,16 +1075,66 @@ const getBookingStats = asyncHandler(async (req, res) => {
       };
     }
 
-    // Get overall stats
     const [stats] = await Booking.aggregate([
       { $match: matchQuery },
       {
         $group: {
           _id: null,
           totalBookings: { $sum: 1 },
-          totalRevenue: { $sum: "$pricing.total" },
+
+          totalRevenue: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ["$status", "completed"] },
+                    {
+                      $in: ["$paymentStatus", ["fully_paid", "deposit_paid"]],
+                    },
+                  ],
+                },
+                "$pricing.total",
+                0,
+              ],
+            },
+          },
+
+          revenueGeneratingOrders: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ["$status", "completed"] },
+                    {
+                      $in: ["$paymentStatus", ["fully_paid", "deposit_paid"]],
+                    },
+                  ],
+                },
+                1,
+                0,
+              ],
+            },
+          },
+
           totalPeople: { $sum: "$peopleCount" },
-          averageOrderValue: { $avg: "$pricing.total" },
+
+          averageOrderValue: {
+            $avg: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ["$status", "completed"] },
+                    {
+                      $in: ["$paymentStatus", ["fully_paid", "deposit_paid"]],
+                    },
+                  ],
+                },
+                "$pricing.total",
+                null,
+              ],
+            },
+          },
+
           customOrders: {
             $sum: {
               $cond: [
@@ -1114,9 +1162,14 @@ const getBookingStats = asyncHandler(async (req, res) => {
       },
     ]);
 
-    // Get popular items
     const popularItems = await Booking.aggregate([
-      { $match: matchQuery },
+      {
+        $match: {
+          ...matchQuery,
+          status: "completed",
+          paymentStatus: { $in: ["fully_paid", "deposit_paid"] },
+        },
+      },
       { $unwind: "$selectedItems" },
       {
         $group: {
@@ -1132,7 +1185,6 @@ const getBookingStats = asyncHandler(async (req, res) => {
       { $limit: 15 },
     ]);
 
-    // Get unique dishes for today if date is provided
     let uniqueDishesToday = 0;
     if (date) {
       const targetDate = new Date(date);
@@ -1145,6 +1197,8 @@ const getBookingStats = asyncHandler(async (req, res) => {
           $gte: startOfDay,
           $lte: endOfDay,
         },
+        status: "completed",
+        paymentStatus: { $in: ["fully_paid", "deposit_paid"] },
       };
 
       const uniqueDishesResult = await Booking.aggregate([
@@ -1170,7 +1224,6 @@ const getBookingStats = asyncHandler(async (req, res) => {
       }
     }
 
-    // Get daily booking trends (last 7 days)
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
@@ -1190,16 +1243,38 @@ const getBookingStats = asyncHandler(async (req, res) => {
             },
           },
           bookings: { $sum: 1 },
-          revenue: { $sum: "$pricing.total" },
+
+          revenue: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ["$status", "completed"] },
+                    {
+                      $in: ["$paymentStatus", ["fully_paid", "deposit_paid"]],
+                    },
+                  ],
+                },
+                "$pricing.total",
+                0,
+              ],
+            },
+          },
+
           people: { $sum: "$peopleCount" },
         },
       },
       { $sort: { _id: 1 } },
     ]);
 
-    // Get category breakdown
     const categoryBreakdown = await Booking.aggregate([
-      { $match: matchQuery },
+      {
+        $match: {
+          ...matchQuery,
+          status: "completed",
+          paymentStatus: { $in: ["fully_paid", "deposit_paid"] },
+        },
+      },
       { $unwind: "$selectedItems" },
       {
         $group: {
@@ -1211,7 +1286,6 @@ const getBookingStats = asyncHandler(async (req, res) => {
       { $sort: { count: -1 } },
     ]);
 
-    // Process status breakdown
     const statusCounts = {};
     if (stats && stats.statusBreakdown) {
       stats.statusBreakdown.forEach((status) => {
@@ -1219,7 +1293,6 @@ const getBookingStats = asyncHandler(async (req, res) => {
       });
     }
 
-    // Process dietary requirements breakdown
     const dietaryCounts = {};
     if (stats && stats.dietaryBreakdown) {
       stats.dietaryBreakdown.forEach((requirements) => {
@@ -1231,7 +1304,6 @@ const getBookingStats = asyncHandler(async (req, res) => {
       });
     }
 
-    // Process spice level breakdown
     const spiceCounts = {};
     if (stats && stats.spiceLevelBreakdown) {
       stats.spiceLevelBreakdown.forEach((level) => {
@@ -1251,6 +1323,7 @@ const getBookingStats = asyncHandler(async (req, res) => {
         : {
             totalBookings: 0,
             totalRevenue: 0,
+            revenueGeneratingOrders: 0,
             totalPeople: 0,
             averageOrderValue: 0,
             customOrders: 0,
@@ -1295,7 +1368,6 @@ const getUniqueDishesCount = asyncHandler(async (req, res) => {
     const startOfDay = new Date(targetDate.setHours(0, 0, 0, 0));
     const endOfDay = new Date(targetDate.setHours(23, 59, 59, 999));
 
-    // Build match query
     const matchQuery = {
       isDeleted: false,
       deliveryDate: {
@@ -1316,7 +1388,6 @@ const getUniqueDishesCount = asyncHandler(async (req, res) => {
       );
     }
 
-    // Get unique dishes with details
     const dishesData = await Booking.aggregate([
       { $match: matchQuery },
       { $unwind: "$selectedItems" },
@@ -1364,7 +1435,6 @@ const getUniqueDishesCount = asyncHandler(async (req, res) => {
       0
     );
 
-    // Group by category
     const categoryBreakdown = {};
     dishesData.forEach((dish) => {
       const category = dish.category || "other";
@@ -1445,16 +1515,13 @@ const getBookingsByCustomer = asyncHandler(async (req, res) => {
       return sendResponse(res, 400, false, "Email is required");
     }
 
-    // Build query
     const query = {
       "customerDetails.email": email.toLowerCase(),
       isDeleted: false,
     };
 
-    // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    // Execute query
     const [bookings, totalCount] = await Promise.all([
       Booking.find(query)
         .populate("orderSource.locationId", "name address phone email")
@@ -1465,7 +1532,6 @@ const getBookingsByCustomer = asyncHandler(async (req, res) => {
       Booking.countDocuments(query),
     ]);
 
-    // Calculate pagination info
     const totalPages = Math.ceil(totalCount / parseInt(limit));
     const hasNextPage = parseInt(page) < totalPages;
     const hasPrevPage = parseInt(page) > 1;
@@ -1495,19 +1561,17 @@ const getBookingsByCustomer = asyncHandler(async (req, res) => {
 const getBookingByReference = asyncHandler(async (req, res) => {
   try {
     const { reference } = req.params;
-    const { email } = req.query; // Optional email for additional verification
+    const { email } = req.query;
 
     if (!reference) {
       return sendResponse(res, 400, false, "Booking reference is required");
     }
 
-    // Build query
     const query = {
       bookingReference: reference.toUpperCase(),
       isDeleted: false,
     };
 
-    // Add email verification if provided
     if (email) {
       query["customerDetails.email"] = email.toLowerCase();
     }
@@ -1620,7 +1684,6 @@ const calculateCustomOrderPrice = asyncHandler(async (req, res) => {
       );
     }
 
-    // Validate selections
     const validation = customOrder.validateSelections(selections, peopleCount);
     if (!validation.isValid) {
       return sendResponse(res, 400, false, validation.errors[0], {
@@ -1628,7 +1691,6 @@ const calculateCustomOrderPrice = asyncHandler(async (req, res) => {
       });
     }
 
-    // Calculate price
     const priceCalculation = customOrder.calculatePrice(
       selections,
       peopleCount
@@ -1704,7 +1766,6 @@ const checkVenueAvailability = asyncHandler(async (req, res) => {
     const startOfDay = new Date(targetDate.setHours(0, 0, 0, 0));
     const endOfDay = new Date(targetDate.setHours(23, 59, 59, 999));
 
-    // Check for existing bookings on this date
     const existingBookings = await Booking.find({
       "orderSource.locationId": new mongoose.Types.ObjectId(locationId),
       "orderSource.serviceId": new mongoose.Types.ObjectId(serviceId),
@@ -1713,11 +1774,10 @@ const checkVenueAvailability = asyncHandler(async (req, res) => {
         $gte: startOfDay,
         $lte: endOfDay,
       },
-      status: { $nin: ["cancelled"] }, // Exclude cancelled bookings
+      status: { $nin: ["cancelled"] },
       isDeleted: false,
     });
 
-    // Check availability based on venue type
     let isAvailable = true;
     let conflictingBookings = [];
 
@@ -1725,7 +1785,6 @@ const checkVenueAvailability = asyncHandler(async (req, res) => {
       const bookedVenue = booking.venueSelection;
 
       if (venueType === "both") {
-        // If requesting both venues, check if either is booked
         if (
           bookedVenue === "both" ||
           bookedVenue === "indoor" ||
@@ -1740,7 +1799,6 @@ const checkVenueAvailability = asyncHandler(async (req, res) => {
           });
         }
       } else if (venueType === "indoor") {
-        // If requesting indoor, check if both or indoor is booked
         if (bookedVenue === "both" || bookedVenue === "indoor") {
           isAvailable = false;
           conflictingBookings.push({
@@ -1751,7 +1809,6 @@ const checkVenueAvailability = asyncHandler(async (req, res) => {
           });
         }
       } else if (venueType === "outdoor") {
-        // If requesting outdoor, check if both or outdoor is booked
         if (bookedVenue === "both" || bookedVenue === "outdoor") {
           isAvailable = false;
           conflictingBookings.push({
@@ -1779,6 +1836,199 @@ const checkVenueAvailability = asyncHandler(async (req, res) => {
   }
 });
 
+// ============================================================================
+// NEW ADMIN ADDITION FUNCTIONS
+// ============================================================================
+
+// @desc    Add admin addition to booking
+// @route   POST /api/bookings/:id/admin-additions
+// @access  Private (Admin only)
+const addAdminAddition = asyncHandler(async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, price } = req.body;
+
+    if (!name || price === undefined || price < 0) {
+      return sendResponse(res, 400, false, "Valid name and price are required");
+    }
+
+    const booking = await Booking.findById(id);
+    if (!booking) {
+      return sendResponse(res, 404, false, "Booking not found");
+    }
+
+    await booking.addAdminAddition(name, price);
+
+    const updatedBooking = await Booking.findById(id)
+      .populate("orderSource.locationId", "name address phone email")
+      .populate("orderSource.serviceId", "name description");
+
+    sendResponse(res, 200, true, "Admin addition added successfully", {
+      booking: updatedBooking,
+      addedItem: { name, price }
+    });
+  } catch (error) {
+    console.error("Add admin addition error:", error);
+    sendResponse(res, 500, false, "Failed to add admin addition", {
+      error: error.message,
+    });
+  }
+});
+
+// @desc    Remove admin addition from booking
+// @route   DELETE /api/bookings/:id/admin-additions/:additionId
+// @access  Private (Admin only)
+const removeAdminAddition = asyncHandler(async (req, res) => {
+  try {
+    const { id, additionId } = req.params;
+
+    const booking = await Booking.findById(id);
+    if (!booking) {
+      return sendResponse(res, 404, false, "Booking not found");
+    }
+
+    const addition = booking.adminAdditions.id(additionId);
+    if (!addition) {
+      return sendResponse(res, 404, false, "Admin addition not found");
+    }
+
+    await booking.removeAdminAddition(additionId);
+
+    const updatedBooking = await Booking.findById(id)
+      .populate("orderSource.locationId", "name address phone email")
+      .populate("orderSource.serviceId", "name description");
+
+    sendResponse(res, 200, true, "Admin addition removed successfully", {
+      booking: updatedBooking,
+    });
+  } catch (error) {
+    console.error("Remove admin addition error:", error);
+    sendResponse(res, 500, false, "Failed to remove admin addition", {
+      error: error.message,
+    });
+  }
+});
+
+// @desc    Get all admin additions for a booking
+// @route   GET /api/bookings/:id/admin-additions
+// @access  Private (Admin only)
+const getAdminAdditions = asyncHandler(async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const booking = await Booking.findById(id);
+    if (!booking) {
+      return sendResponse(res, 404, false, "Booking not found");
+    }
+
+    const totalAdditions = booking.adminAdditionsTotal;
+
+    sendResponse(res, 200, true, "Admin additions retrieved successfully", {
+      adminAdditions: booking.adminAdditions,
+      totalAdditions,
+      count: booking.adminAdditions.length,
+    });
+  } catch (error) {
+    console.error("Get admin additions error:", error);
+    sendResponse(res, 500, false, "Failed to retrieve admin additions", {
+      error: error.message,
+    });
+  }
+});
+
+// ============================================================================
+// NEW COUPON FUNCTIONS
+// ============================================================================
+
+// @desc    Apply coupon to existing booking
+// @route   PUT /api/bookings/:id/apply-coupon
+// @access  Private (Admin only)
+const applyCouponToBooking = asyncHandler(async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { couponCode } = req.body;
+
+    if (!couponCode) {
+      return sendResponse(res, 400, false, "Coupon code is required");
+    }
+
+    const booking = await Booking.findById(id);
+    if (!booking) {
+      return sendResponse(res, 404, false, "Booking not found");
+    }
+
+    if (booking.pricing.couponCode) {
+      return sendResponse(res, 400, false, "Booking already has a coupon applied");
+    }
+
+    const coupon = await Coupon.findValidCoupon(couponCode);
+    if (!coupon) {
+      return sendResponse(res, 404, false, "Invalid or expired coupon code");
+    }
+
+    if (!coupon.canBeUsedForOrder(booking.orderSource.locationId, booking.orderSource.serviceId)) {
+      return sendResponse(res, 400, false, "Coupon is not applicable for this booking");
+    }
+
+    const discount = coupon.calculateDiscount(booking.pricing.subtotal + booking.adminAdditionsTotal);
+    await booking.applyCoupon(coupon.code, discount);
+    await coupon.incrementUsage();
+
+    const updatedBooking = await Booking.findById(id)
+      .populate("orderSource.locationId", "name address phone email")
+      .populate("orderSource.serviceId", "name description");
+
+    sendResponse(res, 200, true, "Coupon applied successfully", {
+      booking: updatedBooking,
+      appliedCoupon: {
+        code: coupon.code,
+        name: coupon.name,
+        discount: discount
+      }
+    });
+  } catch (error) {
+    console.error("Apply coupon error:", error);
+    sendResponse(res, 500, false, "Failed to apply coupon", {
+      error: error.message,
+    });
+  }
+});
+
+// @desc    Remove coupon from booking
+// @route   DELETE /api/bookings/:id/remove-coupon
+// @access  Private (Admin only)
+const removeCouponFromBooking = asyncHandler(async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const booking = await Booking.findById(id);
+    if (!booking) {
+      return sendResponse(res, 404, false, "Booking not found");
+    }
+
+    if (!booking.pricing.couponCode) {
+      return sendResponse(res, 400, false, "No coupon applied to this booking");
+    }
+
+    const removedCouponCode = booking.pricing.couponCode;
+    await booking.removeCoupon();
+
+    const updatedBooking = await Booking.findById(id)
+      .populate("orderSource.locationId", "name address phone email")
+      .populate("orderSource.serviceId", "name description");
+
+    sendResponse(res, 200, true, "Coupon removed successfully", {
+      booking: updatedBooking,
+      removedCoupon: removedCouponCode
+    });
+  } catch (error) {
+    console.error("Remove coupon error:", error);
+    sendResponse(res, 500, false, "Failed to remove coupon", {
+      error: error.message,
+    });
+  }
+});
+
 module.exports = {
   createBooking,
   getAllBookings,
@@ -1796,4 +2046,11 @@ module.exports = {
   calculateCustomOrderPrice,
   getBookingItemsByCategory,
   checkVenueAvailability,
+  // New admin addition functions
+  addAdminAddition,
+  removeAdminAddition,
+  getAdminAdditions,
+  // New coupon functions
+  applyCouponToBooking,
+  removeCouponFromBooking,
 };

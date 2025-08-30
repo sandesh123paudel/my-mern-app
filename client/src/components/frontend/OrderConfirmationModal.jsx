@@ -24,6 +24,7 @@ import { getLocations } from "../../services/locationServices";
 import { getServices, getServiceById } from "../../services/serviceServices";
 import { getInquiries } from "../../services/inquiryService";
 import { AppContext } from "../../context/AppContext";
+import { validateCoupon } from "../../services/couponService";
 
 // Helper function to format currency
 const formatPrice = (price) => {
@@ -70,6 +71,12 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
   const [hasDietaryRequirements, setHasDietaryRequirements] = useState(false);
   const [dietaryRequirements, setDietaryRequirements] = useState([]);
   const [spiceLevel, setSpiceLevel] = useState("medium");
+
+  //Coupon Code
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState("");
 
   useEffect(() => {
     const loadData = async () => {
@@ -897,6 +904,54 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
     return errors;
   };
 
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      toast.error("Please enter a coupon code");
+      return;
+    }
+
+    setCouponLoading(true);
+    setCouponError("");
+
+    try {
+      // Extract the actual IDs properly
+      const locationId = orderData?.isCustomOrder
+        ? orderData?.menu?.locationId || orderData?.locationId
+        : orderData?.menu?.locationId?._id || orderData?.menu?.locationId;
+
+      const serviceId = orderData?.isCustomOrder
+        ? orderData?.menu?.serviceId || orderData?.serviceId
+        : orderData?.menu?.serviceId?._id || orderData?.menu?.serviceId;
+
+      
+      const result = await validateCoupon({
+        code: couponCode,
+        locationId,
+        serviceId,
+        orderTotal: orderData?.pricing?.total || 0,
+      });
+
+      if (result.success) {
+        setAppliedCoupon(result.data);
+        toast.success("Coupon Code Applied");
+      } else {
+        setCouponError(result.error);
+        setAppliedCoupon(null);
+      }
+    } catch (error) {
+      console.error("Coupon validation error:", error); // More detailed error logging
+      setCouponError("Failed to validate coupon");
+      setAppliedCoupon(null);
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode("");
+    setCouponError("");
+  };
   const handleFinalSubmit = async (e) => {
     e.preventDefault();
 
@@ -964,6 +1019,7 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
         deliveryType: isFunction ? "Event" : formData.deliveryType,
 
         deliveryDate: formData.deliveryDate,
+        couponCode: appliedCoupon?.coupon?.code || null,
 
         // Address (conditional)
         address:
@@ -1037,8 +1093,8 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
   };
 
   const totalPrice = orderData?.pricing?.total || 0;
-  const pricePerPerson =
-    orderData?.peopleCount > 0 ? totalPrice / orderData.peopleCount : 0;
+  const discount = appliedCoupon?.discount || 0;
+  const realTotal = totalPrice + (venueCharge || 0) - discount;
 
   // Define the order of categories for display
   const categoryOrder = [
@@ -1051,8 +1107,6 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
     "addons",
     "other",
   ];
-  const total = orderData?.pricing?.total || 0;
-  const realTotal = total + (venueCharge || 0);
 
   return (
     <motion.div
@@ -1119,11 +1173,19 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
 
               <div className="text-center mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
                 <div className="text-xl sm:text-2xl font-bold text-green-700">
-                  {formatPrice(totalPrice)}
+                  {formatPrice(
+                    appliedCoupon
+                      ? totalPrice - appliedCoupon.discount
+                      : totalPrice
+                  )}
                 </div>
                 <div className="text-sm text-green-600">
-                  {formatPrice(totalPrice / (orderData?.peopleCount || 1))} per
-                  person per person
+                  {formatPrice(
+                    (appliedCoupon
+                      ? totalPrice - appliedCoupon.discount
+                      : totalPrice) / (orderData?.peopleCount || 1)
+                  )}{" "}
+                  per person
                 </div>
               </div>
 
@@ -1165,6 +1227,17 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
                       <span className="text-gray-600">Add-ons:</span>
                       <span className="font-medium text-blue-600">
                         {formatPrice(orderData?.pricing?.addonsPrice || 0)}
+                      </span>
+                    </div>
+                  )}
+                  {/* Discount */}
+                  {appliedCoupon && (
+                    <div className="flex justify-between mb-1">
+                      <span className="text-gray-600">
+                        Discount ({appliedCoupon.coupon.code}):
+                      </span>
+                      <span className="font-medium text-green-600">
+                        -{formatPrice(appliedCoupon.discount)}
                       </span>
                     </div>
                   )}
@@ -1739,6 +1812,72 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
                   when orders are cancelled. Please review your order carefully
                   before submitting.
                 </p>
+              </div>
+
+              {/* Coupon Section */}
+              <div className="bg-white rounded-lg p-4 border border-gray-200 mb-6">
+                <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  🎫 Discount Coupon
+                </h3>
+
+                {!appliedCoupon ? (
+                  <div className="space-y-3">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={couponCode}
+                        onChange={(e) =>
+                          setCouponCode(e.target.value.toUpperCase())
+                        }
+                        placeholder="Enter coupon code"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                        disabled={couponLoading}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleApplyCoupon}
+                        disabled={couponLoading || !couponCode.trim()}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      >
+                        {couponLoading ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                            Validating...
+                          </>
+                        ) : (
+                          "Apply"
+                        )}
+                      </button>
+                    </div>
+
+                    {couponError && (
+                      <div className="text-red-600 text-sm">{couponError}</div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium text-green-800">
+                          {appliedCoupon.coupon.code} Applied!
+                        </div>
+                        <div className="text-sm text-green-600">
+                          {appliedCoupon.coupon.name}
+                        </div>
+                        <div className="text-sm text-green-700 font-semibold">
+                          You saved ${appliedCoupon.discount.toFixed(2)}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRemoveCoupon}
+                        className="text-red-600 hover:text-red-800 text-sm underline"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Submit Button */}

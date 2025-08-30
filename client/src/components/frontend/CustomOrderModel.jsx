@@ -816,7 +816,7 @@ const CustomOrderModal = ({
         <div className="space-y-2 text-sm">
           {selectedItems.length > 0 ? (
             <>
-              <div className="max-h-32 overflow-y-auto space-y-1 mb-2">
+              <div className=" overflow-y-auto space-y-1 mb-2">
                 {selectedItems.map((item, index) => (
                   <div key={index} className="flex justify-between text-xs">
                     <span className="text-gray-600 truncate mr-2">
@@ -1223,7 +1223,7 @@ const CustomOrderModal = ({
               <h4 className="text-sm font-medium text-gray-700 mb-2">
                 Selected Items ({getAllSelectedItems().length}):
               </h4>
-              <div className="max-h-32 overflow-y-auto">
+              <div className=" overflow-y-auto">
                 {getAllSelectedItems().length === 0 ? (
                   <p className="text-sm text-gray-500">No items selected yet</p>
                 ) : (

@@ -165,7 +165,7 @@ class SMSService {
             cost: result.cost,
           };
         } else {
-          console.error("❌ SMS send failed:", result);
+          
           return {
             success: false,
             error: result?.error || "SMS send failed",

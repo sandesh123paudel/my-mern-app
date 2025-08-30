@@ -196,6 +196,10 @@ const BookingPrintModal = ({
   const { total, paid, balance } = calculateTotals();
   const isCustomOrder = booking.orderSource?.sourceType === "customOrder";
 
+  // Calculate total for admin additions
+  const adminAdditionsTotal =
+    booking.adminAdditions?.reduce((sum, item) => sum + item.price, 0) || 0;
+
   return (
     <div className="fixed inset-0 top-[-50px] bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
@@ -357,10 +361,8 @@ const BookingPrintModal = ({
                   </div>
                 </div>
 
-                {/* Selected Items */}
-
-                {/* Selected Items */}
-                {booking.selectedItems?.length > 0 && (
+                {/* Selected Items - Only for non-custom orders */}
+                {!isCustomOrder && booking.selectedItems?.length > 0 && (
                   <div className="section">
                     <div className="section-title">Selected Items</div>
                     {(() => {
@@ -370,7 +372,6 @@ const BookingPrintModal = ({
                       booking.selectedItems.forEach((item, index) => {
                         if (usedItems.has(index)) return;
 
-                        // Check if this is a base item with choices
                         const relatedChoices = booking.selectedItems.filter(
                           (otherItem, otherIndex) =>
                             otherIndex !== index &&
@@ -379,17 +380,13 @@ const BookingPrintModal = ({
                         );
 
                         if (relatedChoices.length > 0) {
-                          // Group choices with base item
                           const choiceNames = relatedChoices.map((choice) =>
                             choice.name.replace(item.name + " - ", "")
                           );
-
                           processedItems.push({
                             name: `${item.name} (${choiceNames.join(", ")})`,
                             quantity: item.quantity,
                           });
-
-                          // Mark related items as used
                           relatedChoices.forEach((_, choiceIndex) => {
                             const originalIndex =
                               booking.selectedItems.findIndex(
@@ -400,7 +397,6 @@ const BookingPrintModal = ({
                           });
                           usedItems.add(index);
                         } else if (!item.name.includes(" - ")) {
-                          // Standalone item
                           processedItems.push({
                             name: item.name,
                             quantity: item.quantity,
@@ -409,22 +405,110 @@ const BookingPrintModal = ({
                         }
                       });
 
-                      return processedItems.map((item, index) => (
-                        <div key={index} className="item-line">
-                          <span>• {item.name}</span>
-                          {item.quantity && item.quantity > 1 && (
-                            <span>({item.quantity}x)</span>
-                          )}
-                        </div>
-                      ));
+                      return (
+                        <>
+                          {processedItems.map((item, index) => (
+                            <div key={index} className="item-line">
+                              <span>• {item.name}</span>
+                              {item.quantity && item.quantity > 1 && (
+                                <span>({item.quantity}x)</span>
+                              )}
+                            </div>
+                          ))}
+                          {/* Show admin additions for regular orders too */}
+                          {booking.adminAdditions?.map((addition, index) => (
+                            <div key={`admin-${index}`} className="item-line">
+                              <span>+ {addition.name}</span>
+                            </div>
+                          ))}
+                        </>
+                      );
                     })()}
                   </div>
                 )}
 
                 {/* Pricing */}
                 <div className="section">
-                  <div className="section-title">Pricing</div>
-                  {!isCustomOrder && (
+                  <div className="section-title">
+                    {isCustomOrder ? "Order Details & Pricing" : "Pricing"}
+                  </div>
+
+                  {/* Custom Order - Show items with prices directly */}
+                  {isCustomOrder ? (
+                    <div>
+                      {/* Show individual items with prices */}
+                      {booking.selectedItems
+                        ?.filter((item) => item.totalPrice)
+                        .map((item, index) => (
+                          <div key={index} className="line-item">
+                            <span>• {item.name}:</span>
+                            <span>{formatPrice(item.totalPrice)}</span>
+                          </div>
+                        ))}
+
+                      {/* Show individual admin additions */}
+                      {booking.adminAdditions?.map((addition, index) => (
+                        <div key={`admin-${index}`} className="line-item">
+                          <span>+ {addition.name}:</span>
+                          <span>{formatPrice(addition.price)}</span>
+                        </div>
+                      ))}
+
+                      {/* Calculate and show subtotal for custom orders */}
+                      {(() => {
+                        const itemsTotal =
+                          booking.selectedItems
+                            ?.filter((item) => item.totalPrice)
+                            .reduce(
+                              (sum, item) => sum + (item.totalPrice || 0),
+                              0
+                            ) || 0;
+                        const adminTotal = adminAdditionsTotal;
+                        const subtotalBeforeCoupon =
+                          itemsTotal + adminTotal + (booking.venueCharge || 0);
+
+                        return (
+                          <>
+                            {booking.venueCharge > 0 && (
+                              <div className="line-item">
+                                <span>Venue Charge:</span>
+                                <span>{formatPrice(booking.venueCharge)}</span>
+                              </div>
+                            )}
+
+                            <div className="line-item total-line">
+                              <span>SUBTOTAL:</span>
+                              <span>{formatPrice(subtotalBeforeCoupon)}</span>
+                            </div>
+
+                            {booking.pricing?.couponCode && (
+                              <div className="line-item">
+                                <span>
+                                  Coupon ({booking.pricing.couponCode}):
+                                </span>
+                                <span>
+                                  -
+                                  {formatPrice(
+                                    booking.pricing?.couponDiscount || 0
+                                  )}
+                                </span>
+                              </div>
+                            )}
+
+                            <div className="line-item total-line">
+                              <span>FINAL TOTAL:</span>
+                              <span>
+                                {formatPrice(
+                                  booking.pricing?.total || subtotalBeforeCoupon
+                                )}
+                              </span>
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  ) : (
+                    /* Regular Order - Show traditional pricing breakdown */
                     <div>
                       <div className="line-item">
                         <span>Base Price:</span>
@@ -432,6 +516,7 @@ const BookingPrintModal = ({
                           {formatPrice(booking.pricing?.basePrice || 0)}
                         </span>
                       </div>
+
                       {booking.pricing?.modifierPrice > 0 && (
                         <div className="line-item">
                           <span>Item Modification:</span>
@@ -440,6 +525,7 @@ const BookingPrintModal = ({
                           </span>
                         </div>
                       )}
+
                       {booking.pricing?.addonsPrice > 0 && (
                         <div className="line-item">
                           <span>Add-ons:</span>
@@ -448,48 +534,64 @@ const BookingPrintModal = ({
                           </span>
                         </div>
                       )}
+
+                      {adminAdditionsTotal > 0 && (
+                        <div className="line-item">
+                          <span>Extra Additions:</span>
+                          <span>{formatPrice(adminAdditionsTotal)}</span>
+                        </div>
+                      )}
+
+                      {booking.venueCharge > 0 && (
+                        <div className="line-item">
+                          <span>Venue Charge:</span>
+                          <span>{formatPrice(booking.venueCharge)}</span>
+                        </div>
+                      )}
+
+                      {booking.pricing?.couponCode ? (
+                        <>
+                          <div className="line-item">
+                            <span>Subtotal:</span>
+                            <span>
+                              {formatPrice(booking.pricing?.subtotal || 0)}
+                            </span>
+                          </div>
+                          <div className="line-item">
+                            <span>Coupon ({booking.pricing.couponCode}):</span>
+                            <span>
+                              -
+                              {formatPrice(
+                                booking.pricing?.couponDiscount || 0
+                              )}
+                            </span>
+                          </div>
+                          <div className="line-item total-line">
+                            <span>FINAL TOTAL:</span>
+                            <span>
+                              {formatPrice(booking.pricing?.total || 0)}
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="line-item total-line">
+                          <span>TOTAL:</span>
+                          <span>{formatPrice(total)}</span>
+                        </div>
+                      )}
                     </div>
                   )}
 
-                  {/* For custom orders, show item-based pricing if available */}
-                  {isCustomOrder &&
-                    booking.selectedItems?.some((item) => item.totalPrice) && (
-                      <div style={{ fontSize: "9px", marginBottom: "5px" }}>
-                        <div>Items Total:</div>
-                        {booking.selectedItems
-                          .filter((item) => item.totalPrice)
-                          .map((item, index) => (
-                            <div
-                              key={index}
-                              className="line-item"
-                              style={{ marginLeft: "5px" }}
-                            >
-                              <span>{item.name}:</span>
-                              <span>{formatPrice(item.totalPrice)}</span>
-                            </div>
-                          ))}
-                      </div>
-                    )}
-
-                  {booking.venueCharge > 0 && (
-                    <div className="line-item">
-                      <span>Venue Charge:</span>
-                      <span>{formatPrice(booking.venueCharge)}</span>
-                    </div>
-                  )}
-                  <div className="line-item total-line">
-                    <span>TOTAL:</span>
-                    <span>{formatPrice(total)}</span>
-                  </div>
+                  {/* Payment Information - Same for both order types */}
                   {paid > 0 && (
                     <div className="line-item">
-                      <span>Paid:</span>
+                      <span>Amount Paid:</span>
                       <span>{formatPrice(paid)}</span>
                     </div>
                   )}
                   {balance > 0 && (
                     <div className="line-item">
-                      <span>Due-Balance:</span>
+                      <span>Balance Due:</span>
                       <span>{formatPrice(balance)}</span>
                     </div>
                   )}

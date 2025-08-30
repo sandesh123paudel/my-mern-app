@@ -91,7 +91,6 @@ const createMenu = async (req, res) => {
       addons,
     } = req.body;
 
-    console.log("Received menu data:", JSON.stringify(req.body, null, 2));
 
     // Validate required fields
     if (!name || !serviceId || !locationId) {
@@ -173,15 +172,12 @@ const createMenu = async (req, res) => {
       serviceId: new mongoose.Types.ObjectId(serviceId),
     };
 
-    console.log(
-      "Creating menu with processed data:",
-      JSON.stringify(menuData, null, 2)
-    );
+    
 
     const menu = new Menu(menuData);
     const savedMenu = await menu.save();
 
-    console.log("Menu saved successfully:", savedMenu._id);
+  
 
     // Populate the saved menu before returning
     const populatedMenu = await Menu.findById(savedMenu._id)
@@ -236,7 +232,6 @@ const updateMenu = async (req, res) => {
   }
 
   try {
-    console.log("Updating menu with data:", JSON.stringify(req.body, null, 2));
 
     // Check if menu exists
     const existingMenu = await Menu.findById(id);
@@ -321,7 +316,6 @@ const updateMenu = async (req, res) => {
       updateData.serviceId = new mongoose.Types.ObjectId(updateData.serviceId);
     }
 
-    console.log("Processed update data:", JSON.stringify(updateData, null, 2));
 
     // Use findOneAndReplace to completely replace the document
     // This ensures that nested arrays are properly updated
@@ -346,7 +340,6 @@ const updateMenu = async (req, res) => {
       });
     }
 
-    console.log("Menu updated successfully:", updatedMenu._id);
 
     // Populate and return
     const populatedMenu = await Menu.findById(updatedMenu._id)

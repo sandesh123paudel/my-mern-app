@@ -179,11 +179,10 @@ export const getMenuById = async (id) => {
 // Create new menu
 export const createMenu = async (menuData) => {
   try {
-    console.log("Creating menu with data:", menuData);
+   
 
     // Prepare and clean the data
     const cleanData = prepareMenuData(menuData);
-    console.log("Cleaned data:", cleanData);
 
     const response = await axios.post(`${backendUrl}/api/menus`, cleanData, {
       headers: {
@@ -191,7 +190,6 @@ export const createMenu = async (menuData) => {
       },
     });
 
-    console.log("Create response:", response.data);
     return {
       success: true,
       data: response.data.data,
@@ -210,11 +208,11 @@ export const createMenu = async (menuData) => {
 // Update menu
 export const updateMenu = async (id, menuData) => {
   try {
-    console.log("Updating menu with data:", menuData);
+   
 
     // Prepare and clean the data
     const cleanData = prepareMenuData(menuData);
-    console.log("Cleaned data for update:", cleanData);
+   
 
     const response = await axios.put(
       `${backendUrl}/api/menus/${id}`,
@@ -226,7 +224,6 @@ export const updateMenu = async (id, menuData) => {
       }
     );
 
-    console.log("Update response:", response.data);
     return {
       success: true,
       data: response.data.data,

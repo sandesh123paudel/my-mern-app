@@ -9,9 +9,15 @@ import {
   CreditCard,
   FileText,
   ChefHat,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import bookingService from "../../../services/bookingService";
 import toast from "react-hot-toast";
+import {
+  addAdminAddition,
+  removeAdminAddition,
+} from "../../../services/bookingService";
 
 const BookingDetailsModal = ({
   booking,
@@ -20,6 +26,7 @@ const BookingDetailsModal = ({
   onDeleteBooking,
   onPrintBooking,
   onKitchenDocket,
+  onRefreshBooking,
   getStatusColor,
   formatPrice,
   formatDate,
@@ -36,6 +43,10 @@ const BookingDetailsModal = ({
     depositAmount: (booking.depositAmount || 0).toString(),
   });
   const [isUpdating, setIsUpdating] = useState(false);
+
+  const [showAdditionForm, setShowAdditionForm] = useState(false);
+  const [additionForm, setAdditionForm] = useState({ name: "", price: "" });
+  const [isAddingItem, setIsAddingItem] = useState(false);
 
   // Helper functions
   const formatDietaryRequirements = (requirements) => {
@@ -127,9 +138,10 @@ const BookingDetailsModal = ({
   };
 
   const calculateFinancials = () => {
+    const discount = booking.couponCode ? booking.couponCode.discount : 0;
     const total = booking.pricing?.total || 0;
     const paid = booking.depositAmount || 0;
-    const balance = total - paid;
+    const balance = total - paid - discount;
     const isFullyPaid = balance <= 0 && total > 0;
     const isCancelled = booking.status === "cancelled";
     const isCompleted = booking.status === "completed";
@@ -190,9 +202,9 @@ const BookingDetailsModal = ({
         setShowPaymentForm(false);
         booking.paymentStatus = paymentData.paymentStatus;
         booking.depositAmount = depositAmount;
-        setTimeout(() => {
-          onClose();
-        }, 1000);
+        if (onRefreshBooking) {
+          await onRefreshBooking(booking._id);
+        }
       } else {
         toast.error(result.error || "Failed To Update Payment");
       }
@@ -214,6 +226,60 @@ const BookingDetailsModal = ({
         return "bg-green-100 text-green-800 border-green-200";
       default:
         return "bg-gray-100 text-gray-800 border-gray-200";
+    }
+  };
+
+  const handleAddAdminAddition = async (e) => {
+    e.preventDefault();
+
+    if (
+      !additionForm.name.trim() ||
+      !additionForm.price ||
+      additionForm.price <= 0
+    ) {
+      toast.error("Please provide valid item name and price");
+      return;
+    }
+
+    setIsAddingItem(true);
+    try {
+      const result = await addAdminAddition(booking._id, {
+        name: additionForm.name.trim(),
+        price: parseFloat(additionForm.price),
+      });
+
+      if (result.success) {
+        toast.success("Item added successfully");
+        setAdditionForm({ name: "", price: "" });
+        setShowAdditionForm(false);
+        if (onRefreshBooking) {
+          await onRefreshBooking(booking._id);
+        }
+      } else {
+        toast.error(result.error);
+      }
+    } catch (error) {
+      toast.error("Failed to add item");
+    } finally {
+      setIsAddingItem(false);
+    }
+  };
+
+  const handleRemoveAdminAddition = async (additionId) => {
+    if (!window.confirm("Are you sure you want to remove this item?")) return;
+
+    try {
+      const result = await removeAdminAddition(booking._id, additionId);
+      if (result.success) {
+        toast.success("Item removed successfully");
+        if (onRefreshBooking) {
+          await onRefreshBooking(booking._id);
+        }
+      } else {
+        toast.error(result.error);
+      }
+    } catch (error) {
+      toast.error("Failed to remove item");
     }
   };
 
@@ -475,67 +541,214 @@ const BookingDetailsModal = ({
               </div>
             </div>
           )}
-          {/* Payment Information */}
-          {financials.showRevenue && (
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                <CreditCard className="w-5 h-5" />
-                Payment information
-              </h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                <div className="bg-white p-3 rounded border">
-                  <label className="text-sm font-medium text-gray-600">
-                    Total amount
+          {/* Add Item Form */}
+          {showAdditionForm && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="font-medium text-blue-800 mb-3">Add New Item</h4>
+              <form onSubmit={handleAddAdminAddition} className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Item Name
                   </label>
-                  <p className="text-xl font-bold text-gray-900">
-                    {formatPrice(financials.total)}
-                  </p>
+                  <input
+                    type="text"
+                    value={additionForm.name}
+                    onChange={(e) =>
+                      setAdditionForm((prev) => ({
+                        ...prev,
+                        name: e.target.value,
+                      }))
+                    }
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g., Extra Rice, Additional Curry"
+                    required
+                  />
                 </div>
-                <div className="bg-white p-3 rounded border">
-                  <label className="text-sm font-medium text-gray-600">
-                    Amount paid
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Price
                   </label>
-                  <p className="text-xl font-bold text-green-600">
-                    {formatPrice(financials.paid)}
-                  </p>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={additionForm.price}
+                    onChange={(e) =>
+                      setAdditionForm((prev) => ({
+                        ...prev,
+                        price: e.target.value,
+                      }))
+                    }
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="0.00"
+                    required
+                  />
                 </div>
-                <div className="bg-white p-3 rounded border">
-                  <label className="text-sm font-medium text-gray-600">
-                    Balance due
-                  </label>
-                  <p className="text-xl font-bold text-orange-600">
-                    {formatPrice(financials.balance)}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-gray-600">
-                    Payment status:
-                  </span>
-                  <span
-                    className={`px-3 py-1 rounded-full text-sm font-medium border ${getPaymentStatusColor(
-                      booking.paymentStatus || "pending"
-                    )}`}
-                  >
-                    {(booking.paymentStatus || "pending")
-                      .replace("_", " ")
-                      .replace(/\b\w/g, (l) => l.toUpperCase())}
-                  </span>
-                </div>
-                {financials.showPaymentOption && (
+                <div className="flex gap-2">
                   <button
-                    onClick={() => setShowPaymentForm(true)}
-                    className="text-green-600 hover:text-green-800 text-sm underline"
+                    type="submit"
+                    disabled={isAddingItem}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
                   >
-                    Update payment
+                    {isAddingItem ? "Adding..." : "Add Item"}
                   </button>
-                )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAdditionForm(false);
+                      setAdditionForm({ name: "", price: "" });
+                    }}
+                    className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          <button
+            onClick={() => setShowAdditionForm(true)}
+            className="bg-orange-600 text-white ml-5 px-4 py-2 rounded-lg hover:bg-orange-700"
+          >
+            Add Extra Item
+          </button>
+          {/* Admin Additions Section */}
+          {booking.adminAdditions && booking.adminAdditions.length > 0 && (
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-orange-800 mb-3 flex items-center gap-2">
+                <Plus size={18} />
+                Added Items ({booking.adminAdditions.length})
+              </h3>
+              <div className="space-y-2">
+                {booking.adminAdditions.map((addition) => (
+                  <div
+                    key={addition._id}
+                    className="flex justify-between items-center bg-white rounded p-3 border border-orange-200"
+                  >
+                    <div>
+                      <div className="font-medium text-gray-900">
+                        {addition.name}
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        Added on {formatDate(addition.addedAt)}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="font-semibold text-orange-700">
+                        {formatPrice(addition.price)}
+                      </span>
+                      <button
+                        onClick={() => handleRemoveAdminAddition(addition._id)}
+                        className="text-red-600 hover:text-red-800 p-1"
+                        title="Remove item"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
+
+         {/* Payment Information */}
+{financials.showRevenue && (
+  <div className="bg-gray-50 rounded-lg p-4">
+    <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+      <CreditCard className="w-5 h-5" />
+      Payment Information
+    </h3>
+
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+      {/* Always show Subtotal */}
+      <div className="bg-white p-3 rounded border">
+        <label className="text-sm font-medium text-gray-600">Subtotal</label>
+        <p className="text-xl font-bold text-gray-900">
+          {formatPrice(booking.pricing?.subtotal || 0)}
+        </p>
+      </div>
+
+      {/* Always show Admin Additions if any */}
+      {booking.adminAdditions?.length > 0 && (
+        <div className="bg-white p-3 rounded border">
+          <label className="text-sm font-medium text-gray-600">
+            Extra Additions
+          </label>
+          <p className="mt-2 text-lg font-bold text-gray-900">
+            +{formatPrice(booking.pricing?.adminAdditionsPrice || 0)}
+          </p>
+        </div>
+      )}
+
+      {/* Coupon Section (only if applied) */}
+      {booking.pricing?.couponCode && (
+        <div className="bg-white p-3 rounded border">
+          <label className="text-sm font-medium text-gray-600">
+            Coupon Applied
+          </label>
+          <p className="text-xl font-bold text-green-600">
+            -{formatPrice(booking.pricing?.couponDiscount || 0)} (
+            {booking.pricing?.couponCode})
+          </p>
+        </div>
+      )}
+
+      {/* Final Total */}
+      <div className="bg-white p-3 rounded border">
+        <label className="text-sm font-medium text-gray-600">Total</label>
+        <p className="text-xl font-bold text-gray-900">
+          {formatPrice(booking.pricing?.total || 0)}
+        </p>
+      </div>
+
+      {/* Always show Paid & Balance */}
+      <div className="bg-white p-3 rounded border">
+        <label className="text-sm font-medium text-gray-600">Amount Paid</label>
+        <p className="text-xl font-bold text-green-600">
+          {formatPrice(financials.paid)}
+        </p>
+      </div>
+
+      <div className="bg-white p-3 rounded border">
+        <label className="text-sm font-medium text-gray-600">Balance Due</label>
+        <p className="text-xl font-bold text-orange-600">
+          {formatPrice(financials.balance)}
+        </p>
+      </div>
+    </div>
+
+    {/* Payment Status */}
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-medium text-gray-600">
+          Payment Status:
+        </span>
+        <span
+          className={`px-3 py-1 rounded-full text-sm font-medium border ${getPaymentStatusColor(
+            booking.paymentStatus || "pending"
+          )}`}
+        >
+          {(booking.paymentStatus || "pending")
+            .replace("_", " ")
+            .replace(/\b\w/g, (l) => l.toUpperCase())}
+        </span>
+      </div>
+
+      {financials.showPaymentOption && (
+        <button
+          onClick={() => setShowPaymentForm(true)}
+          className="text-green-600 hover:text-green-800 text-sm underline"
+        >
+          Update Payment
+        </button>
+      )}
+    </div>
+  </div>
+)}
+
+
           {/* Admin Notes */}
           {booking.adminNotes && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">

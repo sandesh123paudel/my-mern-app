@@ -57,6 +57,7 @@ export const createBooking = async (bookingData) => {
       isFunction: bookingData.isFunction || false,
       venueSelection: bookingData.venueSelection || undefined,
       venueCharge: bookingData.venueCharge || 0,
+      couponCode: bookingData.couponCode || null,
 
       // Selected items - ensure proper format
       selectedItems: (bookingData.selectedItems || []).map((item) => ({
@@ -1115,4 +1116,49 @@ const getKitchenInstructions = (dishName, quantity) => {
   // This would typically come from a database of dish preparation guidelines
 
   return instructions;
+};
+
+
+// Add admin addition to booking
+export const addAdminAddition = async (bookingId, additionData) => {
+  try {
+    const response = await axios.post(
+      `${backendUrl}/api/bookings/${bookingId}/admin-additions`,
+      additionData,
+      {
+        headers: { "Content-Type": "application/json" },
+        timeout: 10000,
+      }
+    );
+    return {
+      success: true,
+      data: response.data.data.booking,
+      message: response.data.message,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || "Failed to add admin addition",
+    };
+  }
+};
+
+// Remove admin addition from booking
+export const removeAdminAddition = async (bookingId, additionId) => {
+  try {
+    const response = await axios.delete(
+      `${backendUrl}/api/bookings/${bookingId}/admin-additions/${additionId}`,
+      { timeout: 10000 }
+    );
+    return {
+      success: true,
+      data: response.data.data.booking,
+      message: response.data.message,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || "Failed to remove admin addition",
+    };
+  }
 };

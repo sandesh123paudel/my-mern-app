@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { InlineLoading } from "../../components/Loading";
-import bookingService from "../../services/bookingService";
+import bookingService, { getBookingById } from "../../services/bookingService";
 import { getLocations } from "../../services/locationServices";
 import { getServices } from "../../services/serviceServices";
 import toast from "react-hot-toast";
@@ -229,6 +229,48 @@ const AdminBookings = () => {
   const handleKitchenDocket = (booking) => {
     setShowKitchenDocket(booking);
   };
+
+    const refreshBookingData = async (bookingId) => {
+    try {
+      // Use your existing getBookingById function
+      const result = await bookingService.getBookingById(bookingId);
+      
+      if (result.success) {
+        const updatedBooking = result.data;
+        
+        // Update the booking in allBookings array
+        setAllBookings(prevBookings => 
+          prevBookings.map(booking => 
+            booking._id === bookingId ? updatedBooking : booking
+          )
+        );
+        
+        // Update the calendar bookings
+        const dateKey = new Date(updatedBooking.deliveryDate).toDateString();
+        setCalendarBookings(prev => {
+          const updated = { ...prev };
+          if (updated[dateKey]) {
+            updated[dateKey] = updated[dateKey].map(booking =>
+              booking._id === bookingId ? updatedBooking : booking
+            );
+          }
+          return updated;
+        });
+        
+        // Update the selected booking if it's the one being viewed
+        if (selectedBooking && selectedBooking._id === bookingId) {
+          setSelectedBooking(updatedBooking);
+        }
+      } else {
+        console.error("Failed to refresh booking:", result.error);
+        toast.error("Failed to refresh booking data");
+      }
+    } catch (error) {
+      console.error("Error refreshing booking:", error);
+      toast.error("Failed to refresh booking data");
+    }
+  };
+
 
   // Load data when location/service selection is ready or month changes
   useEffect(() => {
@@ -1043,6 +1085,8 @@ const AdminBookings = () => {
               onDeleteBooking={deleteBooking}
               onPrintBooking={handlePrintBooking}
               getStatusColor={getStatusColor}
+              onKitchenDocket={handleKitchenDocket} // ← Make sure this is here
+              onRefreshBooking={refreshBookingData}
               formatPrice={formatPrice}
               formatDate={formatDate}
               formatDateTime={formatDateTime}

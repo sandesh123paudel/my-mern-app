@@ -279,6 +279,12 @@ const KitchenDocketModal = ({ booking, onClose, formatDateTime }) => {
                       }
                     });
 
+                    booking.adminAdditions?.forEach((item, index) => {
+                      processedItems.push({
+                        name: item.name,
+                      });
+                    });
+
                     return processedItems.map((item, index) => (
                       <div key={index} className="item-line">
                         • {item.name}

@@ -936,8 +936,7 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
         },
       };
 
-      // Log for debugging
-      console.log("Submitting menu data:", processedData);
+      
 
       let result;
       if (menu) {

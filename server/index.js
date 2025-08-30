@@ -12,6 +12,7 @@ const menuItemRouter = require("./routes/menuItemRoutes.js");
 const menuRouter = require("./routes/menuRoutes.js");
 const bookingRouter = require("./routes/bookingRoutes.js");
 const customOrderRouter = require("./routes/customOrderRoutes.js");
+const couponRouter = require("./routes/couponRoutes.js");
 
 const app = express();
 const port = process.env.PORT || 9000;
@@ -40,6 +41,7 @@ app.use("/api/menuItems", menuItemRouter);
 app.use("/api/menus", menuRouter);
 app.use("/api/bookings", bookingRouter);
 app.use("/api/custom-orders", customOrderRouter);
+app.use("/api/coupons", couponRouter);
 
 // Serve static files from Vite build in production
 if (process.env.NODE_ENV === "production") {

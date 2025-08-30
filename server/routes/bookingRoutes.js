@@ -7,7 +7,7 @@ const {
   updatePaymentStatus,
   updateBooking,
   getBookingStats,
-  getUniqueDishesCount, // Added this function
+  getUniqueDishesCount,
   cancelBooking,
   getBookingsByCustomer,
   getBookingByReference,
@@ -16,6 +16,12 @@ const {
   calculateCustomOrderPrice,
   getBookingItemsByCategory,
   checkVenueAvailability,
+  // New functions
+  addAdminAddition,
+  removeAdminAddition,
+  getAdminAdditions,
+  applyCouponToBooking,
+  removeCouponFromBooking,
 } = require("../controllers/bookingController.js");
 
 const {
@@ -36,7 +42,7 @@ const bookingRouter = express.Router();
 // PUBLIC ROUTES (No authentication required)
 // ============================================================================
 
-// Create new booking
+// Create new booking (now with coupon support)
 bookingRouter.post(
   "/",
   bookingFormValidation(),
@@ -61,6 +67,9 @@ bookingRouter.post(
   calculateCustomOrderPrice
 );
 
+// Venue availability check
+bookingRouter.get("/venue-availability", checkVenueAvailability);
+
 // ============================================================================
 // ADMIN ROUTES (Authentication required)
 // ============================================================================
@@ -71,20 +80,14 @@ bookingRouter.get("/", userAuth, getAllBookings);
 // Get booking statistics and analytics
 bookingRouter.get("/stats", userAuth, getBookingStats);
 
-// Get unique dishes count for dashboard (NEW ROUTE)
+// Get unique dishes count for dashboard
 bookingRouter.get("/unique-dishes", userAuth, getUniqueDishesCount);
-// Add this route to your booking routes
-bookingRouter.get("/venue-availability", checkVenueAvailability);
 
 // Get single booking by ID
 bookingRouter.get("/:id", userAuth, getBookingById);
 
 // Get booking items grouped by category
-bookingRouter.get(
-  "/:id/items-by-category",
-  userAuth,
-  getBookingItemsByCategory
-);
+bookingRouter.get("/:id/items-by-category", userAuth, getBookingItemsByCategory);
 
 // ============================================================================
 // ADMIN UPDATE ROUTES (Authentication required)
@@ -125,5 +128,28 @@ bookingRouter.put(
   handleValidationErrors,
   cancelBooking
 );
+
+// ============================================================================
+// ADMIN ADDITION ROUTES (Authentication required)
+// ============================================================================
+
+// Get admin additions for a booking
+bookingRouter.get("/:id/admin-additions", userAuth, getAdminAdditions);
+
+// Add admin addition to booking
+bookingRouter.post("/:id/admin-additions", userAuth, addAdminAddition);
+
+// Remove admin addition from booking
+bookingRouter.delete("/:id/admin-additions/:additionId", userAuth, removeAdminAddition);
+
+// ============================================================================
+// COUPON ROUTES (Authentication required for admin functions)
+// ============================================================================
+
+// Apply coupon to existing booking (admin only)
+bookingRouter.put("/:id/apply-coupon", userAuth, applyCouponToBooking);
+
+// Remove coupon from booking (admin only)
+bookingRouter.delete("/:id/remove-coupon", userAuth, removeCouponFromBooking);
 
 module.exports = bookingRouter;
