@@ -293,7 +293,6 @@ const bookingSchema = new mongoose.Schema(
     // Auto-generated booking reference
     bookingReference: {
       type: String,
-     
     },
 
     // Order source (Menu or CustomOrder)
@@ -331,7 +330,7 @@ const bookingSchema = new mongoose.Schema(
     // Delivery information
     deliveryType: {
       type: String,
-      enum: ["Pickup", "Delivery","Event"],
+      enum: ["Pickup", "Delivery", "Event"],
       required: true,
       default: "Pickup",
     },
@@ -451,7 +450,9 @@ bookingSchema.virtual("totalItems").get(function () {
 
 // Admin additions total virtual
 bookingSchema.virtual("adminAdditionsTotal").get(function () {
-  return this.adminAdditions?.reduce((sum, addition) => sum + addition.price, 0) || 0;
+  return (
+    this.adminAdditions?.reduce((sum, addition) => sum + addition.price, 0) || 0
+  );
 });
 
 // Pre-save middleware to generate booking reference
@@ -504,63 +505,118 @@ bookingSchema.pre("save", async function (next) {
   next();
 });
 
-// Instance methods for admin additions
-bookingSchema.methods.addAdminAddition = function(name, price) {
+// Add these updated methods to your bookingModel.js
+
+// Calculate final total method with proper order of operations
+bookingSchema.methods.calculateFinalTotal = function () {
+  // Start with the original subtotal (before admin additions and coupons)
+  const originalSubtotal = this.pricing.subtotal || 0;
+  const adminAdditions = this.adminAdditionsTotal;
+  const venueCharge = this.venueCharge || 0;
+
+  // New subtotal includes admin additions and venue charge
+  const newSubtotal = originalSubtotal + adminAdditions + venueCharge;
+
+  // Apply coupon discount to the new subtotal
+  const couponDiscount = this.pricing.couponDiscount || 0;
+
+  return Math.max(0, newSubtotal - couponDiscount);
+};
+
+// Updated addAdminAddition method
+bookingSchema.methods.addAdminAddition = function (name, price) {
   if (!name || price === undefined || price < 0) {
     throw new Error("Valid name and price are required for admin addition");
   }
-  
+
   this.adminAdditions.push({
     name: name.trim(),
     price: Number(price),
   });
-  
-  // Calculate admin additions total explicitly instead of using virtual
-  const adminTotal = this.adminAdditions.reduce((sum, addition) => sum + addition.price, 0);
-  
+
+  // Calculate admin additions total
+  const adminTotal = this.adminAdditions.reduce(
+    (sum, addition) => sum + addition.price,
+    0
+  );
+
+  // Update pricing - keep original subtotal intact, update admin additions price
+  this.pricing.adminAdditionsPrice = adminTotal;
+
+  // If there's a coupon, we need to recalculate the discount on the new total
+  if (this.pricing.couponCode) {
+    // Recalculate coupon discount on new subtotal (original + admin additions + venue)
+    const newSubtotal =
+      this.pricing.subtotal + adminTotal + (this.venueCharge || 0);
+
+    // You might need to fetch the coupon again to recalculate discount
+    // For now, we'll assume the discount percentage stays the same
+    // In a real implementation, you'd want to re-fetch the coupon and recalculate
+    const originalSubtotal = this.pricing.subtotal + (this.venueCharge || 0);
+    const discountPercentage =
+      originalSubtotal > 0 ? this.pricing.couponDiscount / originalSubtotal : 0;
+    this.pricing.couponDiscount = Math.min(
+      newSubtotal * discountPercentage,
+      newSubtotal
+    );
+  }
+
+  this.pricing.total = this.calculateFinalTotal();
+
+  return this.save();
+};
+
+// Updated removeAdminAddition method
+bookingSchema.methods.removeAdminAddition = function (additionId) {
+  this.adminAdditions = this.adminAdditions.filter(
+    (addition) => addition._id.toString() !== additionId.toString()
+  );
+
+  // Calculate new admin additions total
+  const adminTotal = this.adminAdditions.reduce(
+    (sum, addition) => sum + addition.price,
+    0
+  );
+
   // Update pricing
   this.pricing.adminAdditionsPrice = adminTotal;
+
+  // If there's a coupon, recalculate discount
+  if (this.pricing.couponCode) {
+    const newSubtotal =
+      this.pricing.subtotal + adminTotal + (this.venueCharge || 0);
+    const originalSubtotal = this.pricing.subtotal + (this.venueCharge || 0);
+    const discountPercentage =
+      originalSubtotal > 0 ? this.pricing.couponDiscount / originalSubtotal : 0;
+    this.pricing.couponDiscount = Math.min(
+      newSubtotal * discountPercentage,
+      newSubtotal
+    );
+  }
+
   this.pricing.total = this.calculateFinalTotal();
-  
+
   return this.save();
 };
 
-bookingSchema.methods.removeAdminAddition = function(additionId) {
-  this.adminAdditions = this.adminAdditions.filter(
-    addition => addition._id.toString() !== additionId.toString()
-  );
-  
-  // Update pricing
-  this.pricing.adminAdditionsPrice = this.adminAdditionsTotal;
-  this.pricing.total = this.calculateFinalTotal();
-  
-  return this.save();
-};
+// Updated coupon methods
+bookingSchema.methods.applyCoupon = function (couponCode, discountAmount) {
+  // Calculate the current total (including admin additions and venue charge)
+  const currentSubtotal =
+    this.pricing.subtotal + this.adminAdditionsTotal + (this.venueCharge || 0);
 
-// Calculate final total method
-bookingSchema.methods.calculateFinalTotal = function() {
-  const subtotal = this.pricing.subtotal || 0;
-  const adminAdditions = this.adminAdditionsTotal;
-  const couponDiscount = this.pricing.couponDiscount || 0;
-  const venueCharge = this.venueCharge || 0;
-  
-  return Math.max(0, subtotal + adminAdditions - couponDiscount + venueCharge);
-};
-
-// Coupon methods
-bookingSchema.methods.applyCoupon = function(couponCode, discountAmount) {
   this.pricing.couponCode = couponCode;
-  this.pricing.couponDiscount = discountAmount;
+  this.pricing.couponDiscount = Math.min(discountAmount, currentSubtotal); // Don't allow discount > total
   this.pricing.total = this.calculateFinalTotal();
-  
+
   return this.save();
 };
 
-bookingSchema.methods.removeCoupon = function() {
+bookingSchema.methods.removeCoupon = function () {
   this.pricing.couponCode = null;
   this.pricing.couponDiscount = 0;
   this.pricing.total = this.calculateFinalTotal();
-  
+
   return this.save();
 };
 

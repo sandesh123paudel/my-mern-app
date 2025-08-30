@@ -509,14 +509,16 @@ const createBooking = asyncHandler(async (req, res) => {
 
     if (couponCode && couponCode.trim()) {
       const coupon = await Coupon.findValidCoupon(couponCode.trim());
-      
+
       if (coupon) {
-        const locationId = isCustomOrder ? menu.locationId : source.locationId._id;
+        const locationId = isCustomOrder
+          ? menu.locationId
+          : source.locationId._id;
         const serviceId = isCustomOrder ? menu.serviceId : source.serviceId._id;
 
         if (coupon.canBeUsedForOrder(locationId, serviceId)) {
           const discount = coupon.calculateDiscount(pricing.total);
-          
+
           finalPricing = {
             ...pricing,
             subtotal: pricing.total,
@@ -723,7 +725,7 @@ const createBooking = asyncHandler(async (req, res) => {
         code: appliedCoupon.code,
         name: appliedCoupon.name,
         discount: finalPricing.couponDiscount,
-        savings: `You saved $${finalPricing.couponDiscount.toFixed(2)}!`
+        savings: `You saved $${finalPricing.couponDiscount.toFixed(2)}!`,
       };
     }
 
@@ -1857,16 +1859,46 @@ const addAdminAddition = asyncHandler(async (req, res) => {
       return sendResponse(res, 404, false, "Booking not found");
     }
 
+    // If there's a coupon applied, we might need to recalculate discount
+    let recalculatedDiscount = false;
+    if (booking.pricing.couponCode) {
+      // Fetch the original coupon to recalculate discount properly
+      const coupon = await Coupon.findOne({ code: booking.pricing.couponCode });
+      if (coupon) {
+        // Calculate new total after adding the admin addition
+        const newTotal =
+          booking.pricing.subtotal +
+          booking.adminAdditionsTotal +
+          Number(price) +
+          (booking.venueCharge || 0);
+        const newDiscount = coupon.calculateDiscount(newTotal);
+
+        // Temporarily update discount for calculation
+        booking.pricing.couponDiscount = newDiscount;
+        recalculatedDiscount = true;
+      }
+    }
+
     await booking.addAdminAddition(name, price);
 
     const updatedBooking = await Booking.findById(id)
       .populate("orderSource.locationId", "name address phone email")
       .populate("orderSource.serviceId", "name description");
 
-    sendResponse(res, 200, true, "Admin addition added successfully", {
+    const response = {
       booking: updatedBooking,
-      addedItem: { name, price }
-    });
+      addedItem: { name, price },
+    };
+
+    if (recalculatedDiscount) {
+      response.couponRecalculated = {
+        code: booking.pricing.couponCode,
+        newDiscount: booking.pricing.couponDiscount,
+        message: "Coupon discount has been recalculated for the new total",
+      };
+    }
+
+    sendResponse(res, 200, true, "Admin addition added successfully", response);
   } catch (error) {
     console.error("Add admin addition error:", error);
     sendResponse(res, 500, false, "Failed to add admin addition", {
@@ -1958,7 +1990,12 @@ const applyCouponToBooking = asyncHandler(async (req, res) => {
     }
 
     if (booking.pricing.couponCode) {
-      return sendResponse(res, 400, false, "Booking already has a coupon applied");
+      return sendResponse(
+        res,
+        400,
+        false,
+        "Booking already has a coupon applied"
+      );
     }
 
     const coupon = await Coupon.findValidCoupon(couponCode);
@@ -1966,11 +2003,27 @@ const applyCouponToBooking = asyncHandler(async (req, res) => {
       return sendResponse(res, 404, false, "Invalid or expired coupon code");
     }
 
-    if (!coupon.canBeUsedForOrder(booking.orderSource.locationId, booking.orderSource.serviceId)) {
-      return sendResponse(res, 400, false, "Coupon is not applicable for this booking");
+    if (
+      !coupon.canBeUsedForOrder(
+        booking.orderSource.locationId,
+        booking.orderSource.serviceId
+      )
+    ) {
+      return sendResponse(
+        res,
+        400,
+        false,
+        "Coupon is not applicable for this booking"
+      );
     }
 
-    const discount = coupon.calculateDiscount(booking.pricing.subtotal + booking.adminAdditionsTotal);
+    // Calculate discount on current total (including admin additions and venue charge)
+    const currentTotal =
+      booking.pricing.subtotal +
+      booking.adminAdditionsTotal +
+      (booking.venueCharge || 0);
+    const discount = coupon.calculateDiscount(currentTotal);
+
     await booking.applyCoupon(coupon.code, discount);
     await coupon.incrementUsage();
 
@@ -1983,8 +2036,10 @@ const applyCouponToBooking = asyncHandler(async (req, res) => {
       appliedCoupon: {
         code: coupon.code,
         name: coupon.name,
-        discount: discount
-      }
+        discount: discount,
+        appliedTo: currentTotal,
+        savings: `You saved $${discount.toFixed(2)}!`,
+      },
     });
   } catch (error) {
     console.error("Apply coupon error:", error);
@@ -2019,7 +2074,7 @@ const removeCouponFromBooking = asyncHandler(async (req, res) => {
 
     sendResponse(res, 200, true, "Coupon removed successfully", {
       booking: updatedBooking,
-      removedCoupon: removedCouponCode
+      removedCoupon: removedCouponCode,
     });
   } catch (error) {
     console.error("Remove coupon error:", error);

@@ -653,101 +653,147 @@ const BookingDetailsModal = ({
             </div>
           )}
 
-         {/* Payment Information */}
-{financials.showRevenue && (
-  <div className="bg-gray-50 rounded-lg p-4">
-    <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-      <CreditCard className="w-5 h-5" />
-      Payment Information
-    </h3>
+          {/* Payment Information */}
+          {/* Payment Information */}
+          {financials.showRevenue && (
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                <CreditCard className="w-5 h-5" />
+                Payment Information
+              </h3>
 
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-      {/* Always show Subtotal */}
-      <div className="bg-white p-3 rounded border">
-        <label className="text-sm font-medium text-gray-600">Subtotal</label>
-        <p className="text-xl font-bold text-gray-900">
-          {formatPrice(booking.pricing?.subtotal || 0)}
-        </p>
-      </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                {/* Show pricing breakdown properly */}
+                <div className="bg-white p-3 rounded border">
+                  <label className="text-sm font-medium text-gray-600">
+                    Original Order
+                  </label>
+                  <p className="text-xl font-bold text-gray-900">
+                    {formatPrice(booking.pricing.subtotal || 0)}
+                  </p>
+                </div>
 
-      {/* Always show Admin Additions if any */}
-      {booking.adminAdditions?.length > 0 && (
-        <div className="bg-white p-3 rounded border">
-          <label className="text-sm font-medium text-gray-600">
-            Extra Additions
-          </label>
-          <p className="mt-2 text-lg font-bold text-gray-900">
-            +{formatPrice(booking.pricing?.adminAdditionsPrice || 0)}
-          </p>
-        </div>
-      )}
+                {/* Show base price components if available */}
+                {booking.pricing?.basePrice > 0 && (
+                  <div className="bg-white p-3 rounded border">
+                    <label className="text-sm font-medium text-gray-600">
+                      Base Price
+                    </label>
+                    <p className="text-lg font-semibold text-gray-700">
+                      {formatPrice(booking.pricing.basePrice)}
+                    </p>
+                  </div>
+                )}
 
-      {/* Coupon Section (only if applied) */}
-      {booking.pricing?.couponCode && (
-        <div className="bg-white p-3 rounded border">
-          <label className="text-sm font-medium text-gray-600">
-            Coupon Applied
-          </label>
-          <p className="text-xl font-bold text-green-600">
-            -{formatPrice(booking.pricing?.couponDiscount || 0)} (
-            {booking.pricing?.couponCode})
-          </p>
-        </div>
-      )}
+                {booking.pricing?.modifierPrice !== 0 && (
+                  <div className="bg-white p-3 rounded border">
+                    <label className="text-sm font-medium text-gray-600">
+                      Item Modifications
+                    </label>
+                    <p className="text-lg font-semibold text-gray-700">
+                      {booking.pricing.modifierPrice > 0 ? "+" : ""}
+                      {formatPrice(booking.pricing.modifierPrice)}
+                    </p>
+                  </div>
+                )}
 
-      {/* Final Total */}
-      <div className="bg-white p-3 rounded border">
-        <label className="text-sm font-medium text-gray-600">Total</label>
-        <p className="text-xl font-bold text-gray-900">
-          {formatPrice(booking.pricing?.total || 0)}
-        </p>
-      </div>
+                {booking.pricing?.addonsPrice > 0 && (
+                  <div className="bg-white p-3 rounded border">
+                    <label className="text-sm font-medium text-gray-600">
+                      Add-ons
+                    </label>
+                    <p className="text-lg font-semibold text-gray-700">
+                      +{formatPrice(booking.pricing.addonsPrice)}
+                    </p>
+                  </div>
+                )}
 
-      {/* Always show Paid & Balance */}
-      <div className="bg-white p-3 rounded border">
-        <label className="text-sm font-medium text-gray-600">Amount Paid</label>
-        <p className="text-xl font-bold text-green-600">
-          {formatPrice(financials.paid)}
-        </p>
-      </div>
+                {booking.venueCharge > 0 && (
+                  <div className="bg-white p-3 rounded border">
+                    <label className="text-sm font-medium text-gray-600">
+                      Venue Charge
+                    </label>
+                    <p className="text-lg font-semibold text-orange-700">
+                      +{formatPrice(booking.venueCharge)}
+                    </p>
+                  </div>
+                )}
 
-      <div className="bg-white p-3 rounded border">
-        <label className="text-sm font-medium text-gray-600">Balance Due</label>
-        <p className="text-xl font-bold text-orange-600">
-          {formatPrice(financials.balance)}
-        </p>
-      </div>
-    </div>
+                {/* Show admin additions if any */}
+                {booking.adminAdditions?.length > 0 && (
+                  <div className="bg-white p-3 rounded border">
+                    <label className="text-sm font-medium text-gray-600">
+                      Extra Additions ({booking.adminAdditions.length})
+                    </label>
+                    <p className="text-lg font-semibold text-blue-700">
+                      +{formatPrice(booking.pricing.adminAdditionsPrice || 0)}
+                    </p>
+                  </div>
+                )}
 
-    {/* Payment Status */}
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-medium text-gray-600">
-          Payment Status:
-        </span>
-        <span
-          className={`px-3 py-1 rounded-full text-sm font-medium border ${getPaymentStatusColor(
-            booking.paymentStatus || "pending"
-          )}`}
-        >
-          {(booking.paymentStatus || "pending")
-            .replace("_", " ")
-            .replace(/\b\w/g, (l) => l.toUpperCase())}
-        </span>
-      </div>
+                {/* Calculate and show subtotal before discount */}
+                {(() => {
+                  const subtotalBeforeDiscount =
+                    (booking.pricing.subtotal || 0) +
+                    (booking.pricing.adminAdditionsPrice || 0) +
+                    (booking.venueCharge || 0);
 
-      {financials.showPaymentOption && (
-        <button
-          onClick={() => setShowPaymentForm(true)}
-          className="text-green-600 hover:text-green-800 text-sm underline"
-        >
-          Update Payment
-        </button>
-      )}
-    </div>
-  </div>
-)}
+                  return (
+                    <div className="bg-blue-50 p-3 rounded border border-blue-200">
+                      <label className="text-sm font-medium text-blue-800">
+                        Subtotal
+                      </label>
+                      <p className="text-xl font-bold text-blue-900">
+                        {formatPrice(subtotalBeforeDiscount)}
+                      </p>
+                    </div>
+                  );
+                })()}
 
+                {/* Show coupon discount if applied */}
+                {booking.pricing?.couponCode &&
+                  booking.pricing?.couponDiscount > 0 && (
+                    <div className="bg-green-50 p-3 rounded border border-green-200">
+                      <label className="text-sm font-medium text-green-600">
+                        Coupon Applied ({booking.pricing.couponCode})
+                      </label>
+                      <p className="text-xl font-bold text-green-700">
+                        -{formatPrice(booking.pricing.couponDiscount)}
+                      </p>
+                    </div>
+                  )}
+
+                {/* Final Total */}
+                <div className="bg-gray-800 p-3 rounded border">
+                  <label className="text-sm font-medium text-gray-200">
+                    Final Total
+                  </label>
+                  <p className="text-2xl font-bold text-white">
+                    {formatPrice(booking.pricing.total)}
+                  </p>
+                </div>
+
+                {/* Always show Paid & Balance */}
+                <div className="bg-white p-3 rounded border">
+                  <label className="text-sm font-medium text-gray-600">
+                    Amount Paid
+                  </label>
+                  <p className="text-xl font-bold text-green-600">
+                    {formatPrice(financials.paid)}
+                  </p>
+                </div>
+
+                <div className="bg-white p-3 rounded border">
+                  <label className="text-sm font-medium text-gray-600">
+                    Balance Due
+                  </label>
+                  <p className="text-xl font-bold text-orange-600">
+                    {formatPrice(financials.balance)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Admin Notes */}
           {booking.adminNotes && (

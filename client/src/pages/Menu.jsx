@@ -341,7 +341,7 @@ const Menu = () => {
                       {location.name}
                     </h3>
                     <p className="text-gray-600 text-sm mb-4">
-                      {location.city}, {location.state}
+                      {location.city}, {location.address}
                     </p>
                     <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
                       <span>View Menus</span>
@@ -396,7 +396,7 @@ const Menu = () => {
                     ,{" "}
                     {
                       locations.find((loc) => loc._id === selectedLocation)
-                        ?.state
+                        ?.address
                     }
                   </p>
                 </div>

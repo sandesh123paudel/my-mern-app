@@ -428,6 +428,8 @@ const BookingPrintModal = ({
                 )}
 
                 {/* Pricing */}
+
+                {/* Pricing */}
                 <div className="section">
                   <div className="section-title">
                     {isCustomOrder ? "Order Details & Pricing" : "Pricing"}
@@ -454,7 +456,15 @@ const BookingPrintModal = ({
                         </div>
                       ))}
 
-                      {/* Calculate and show subtotal for custom orders */}
+                      {/* Venue charge for custom orders */}
+                      {booking.venueCharge > 0 && (
+                        <div className="line-item">
+                          <span>Venue Charge:</span>
+                          <span>{formatPrice(booking.venueCharge)}</span>
+                        </div>
+                      )}
+
+                      {/* Calculate subtotal before discount */}
                       {(() => {
                         const itemsTotal =
                           booking.selectedItems
@@ -463,43 +473,46 @@ const BookingPrintModal = ({
                               (sum, item) => sum + (item.totalPrice || 0),
                               0
                             ) || 0;
-                        const adminTotal = adminAdditionsTotal;
-                        const subtotalBeforeCoupon =
-                          itemsTotal + adminTotal + (booking.venueCharge || 0);
+
+                        const adminAdditionsTotal =
+                          booking.adminAdditions?.reduce(
+                            (sum, add) => sum + (add.price || 0),
+                            0
+                          ) || 0;
+
+                        const subtotalBeforeDiscount =
+                          itemsTotal +
+                          adminAdditionsTotal +
+                          (booking.venueCharge || 0);
 
                         return (
                           <>
-                            {booking.venueCharge > 0 && (
-                              <div className="line-item">
-                                <span>Venue Charge:</span>
-                                <span>{formatPrice(booking.venueCharge)}</span>
-                              </div>
-                            )}
-
                             <div className="line-item total-line">
                               <span>SUBTOTAL:</span>
-                              <span>{formatPrice(subtotalBeforeCoupon)}</span>
+                              <span>{formatPrice(subtotalBeforeDiscount)}</span>
                             </div>
 
-                            {booking.pricing?.couponCode && (
-                              <div className="line-item">
-                                <span>
-                                  Coupon ({booking.pricing.couponCode}):
-                                </span>
-                                <span>
-                                  -
-                                  {formatPrice(
-                                    booking.pricing?.couponDiscount || 0
-                                  )}
-                                </span>
-                              </div>
-                            )}
+                            {booking.pricing?.couponCode &&
+                              booking.pricing?.couponDiscount > 0 && (
+                                <div className="line-item">
+                                  <span>
+                                    Coupon ({booking.pricing.couponCode}):
+                                  </span>
+                                  <span>
+                                    -
+                                    {formatPrice(
+                                      booking.pricing.couponDiscount
+                                    )}
+                                  </span>
+                                </div>
+                              )}
 
                             <div className="line-item total-line">
                               <span>FINAL TOTAL:</span>
                               <span>
                                 {formatPrice(
-                                  booking.pricing?.total || subtotalBeforeCoupon
+                                  booking.pricing?.total ||
+                                    subtotalBeforeDiscount
                                 )}
                               </span>
                             </div>
@@ -510,75 +523,101 @@ const BookingPrintModal = ({
                   ) : (
                     /* Regular Order - Show traditional pricing breakdown */
                     <div>
+                      {/* Base pricing components */}
                       <div className="line-item">
-                        <span>Base Price:</span>
+                        <span>Original Order:</span>
                         <span>
-                          {formatPrice(booking.pricing?.basePrice || 0)}
+                          {formatPrice(booking.pricing?.subtotal || 0)}
                         </span>
                       </div>
 
-                      {booking.pricing?.modifierPrice > 0 && (
-                        <div className="line-item">
-                          <span>Item Modification:</span>
+                      {booking.pricing?.basePrice > 0 &&
+                        booking.pricing.basePrice !==
+                          booking.pricing.subtotal && (
+                          <div className="item-line">
+                            <span>Base Price:</span>
+                            <span>
+                              {formatPrice(booking.pricing.basePrice)}
+                            </span>
+                          </div>
+                        )}
+
+                      {booking.pricing?.modifierPrice !== 0 && (
+                        <div className="item-line">
+                          <span>Item Modifications:</span>
                           <span>
-                            {formatPrice(booking.pricing?.modifierPrice || 0)}
+                            {booking.pricing.modifierPrice > 0 ? "+" : ""}
+                            {formatPrice(booking.pricing.modifierPrice)}
                           </span>
                         </div>
                       )}
 
                       {booking.pricing?.addonsPrice > 0 && (
-                        <div className="line-item">
+                        <div className="item-line">
                           <span>Add-ons:</span>
                           <span>
-                            {formatPrice(booking.pricing?.addonsPrice || 0)}
+                            +{formatPrice(booking.pricing.addonsPrice)}
                           </span>
                         </div>
                       )}
 
-                      {adminAdditionsTotal > 0 && (
-                        <div className="line-item">
-                          <span>Extra Additions:</span>
-                          <span>{formatPrice(adminAdditionsTotal)}</span>
-                        </div>
-                      )}
-
+                      {/* Venue charge */}
                       {booking.venueCharge > 0 && (
                         <div className="line-item">
                           <span>Venue Charge:</span>
-                          <span>{formatPrice(booking.venueCharge)}</span>
+                          <span>+{formatPrice(booking.venueCharge)}</span>
                         </div>
                       )}
 
-                      {booking.pricing?.couponCode ? (
-                        <>
-                          <div className="line-item">
-                            <span>Subtotal:</span>
-                            <span>
-                              {formatPrice(booking.pricing?.subtotal || 0)}
-                            </span>
-                          </div>
-                          <div className="line-item">
-                            <span>Coupon ({booking.pricing.couponCode}):</span>
-                            <span>
-                              -
-                              {formatPrice(
-                                booking.pricing?.couponDiscount || 0
-                              )}
-                            </span>
-                          </div>
-                          <div className="line-item total-line">
-                            <span>FINAL TOTAL:</span>
-                            <span>
-                              {formatPrice(booking.pricing?.total || 0)}
-                            </span>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="line-item total-line">
-                          <span>TOTAL:</span>
-                          <span>{formatPrice(total)}</span>
+                      {/* Admin additions */}
+                      {adminAdditionsTotal > 0 && (
+                        <div className="line-item">
+                          <span>Extra Additions:</span>
+                          <span>+{formatPrice(adminAdditionsTotal)}</span>
                         </div>
                       )}
+
+                      {/* Calculate subtotal before discount */}
+                      {(() => {
+                        const subtotalBeforeDiscount =
+                          (booking.pricing?.subtotal || 0) +
+                          (booking.venueCharge || 0) +
+                          adminAdditionsTotal;
+
+                        return (
+                          <>
+                            <div className="line-item total-line">
+                              <span>SUBTOTAL:</span>
+                              <span>{formatPrice(subtotalBeforeDiscount)}</span>
+                            </div>
+
+                            {booking.pricing?.couponCode &&
+                              booking.pricing?.couponDiscount > 0 && (
+                                <div className="line-item">
+                                  <span>
+                                    Coupon ({booking.pricing.couponCode}):
+                                  </span>
+                                  <span>
+                                    -
+                                    {formatPrice(
+                                      booking.pricing.couponDiscount
+                                    )}
+                                  </span>
+                                </div>
+                              )}
+
+                            <div className="line-item total-line">
+                              <span>FINAL TOTAL:</span>
+                              <span>
+                                {formatPrice(
+                                  booking.pricing?.total ||
+                                    subtotalBeforeDiscount
+                                )}
+                              </span>
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
                   )}
 

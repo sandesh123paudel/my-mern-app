@@ -14,7 +14,8 @@ const MenuFilters = ({
   filteredServices,
   menuCount,
 }) => {
-  const hasActiveFilters = selectedLocation || selectedService || sortBy !== "default";
+  const hasActiveFilters =
+    selectedLocation || selectedService || sortBy !== "default";
 
   const clearAllFilters = () => {
     setSelectedLocation("");
@@ -30,9 +31,9 @@ const MenuFilters = ({
       y: 0,
       transition: {
         duration: 0.6,
-        staggerChildren: 0.1
-      }
-    }
+        staggerChildren: 0.1,
+      },
+    },
   };
 
   const itemVariants = {
@@ -40,8 +41,8 @@ const MenuFilters = ({
     visible: {
       opacity: 1,
       y: 0,
-      transition: { duration: 0.5, ease: "easeOut" }
-    }
+      transition: { duration: 0.5, ease: "easeOut" },
+    },
   };
 
   const filterCardVariants = {
@@ -49,25 +50,22 @@ const MenuFilters = ({
     visible: {
       opacity: 1,
       scale: 1,
-      transition: { duration: 0.4, ease: "easeOut" }
-    }
+      transition: { duration: 0.4, ease: "easeOut" },
+    },
   };
 
   return (
-    <motion.div 
+    <motion.div
       className="py-8 border-b"
-      style={{ backgroundColor: 'var(--primary-green)' }}
+      style={{ backgroundColor: "var(--primary-green)" }}
       variants={containerVariants}
       initial="hidden"
       animate="visible"
     >
       <div className="container mx-auto px-6">
         {/* Header */}
-        <motion.div 
-          className="text-center mb-8"
-          variants={itemVariants}
-        >
-          <motion.h2 
+        <motion.div className="text-center mb-8" variants={itemVariants}>
+          <motion.h2
             className="text-2xl md:text-3xl font-bold text-white mb-2"
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -75,13 +73,13 @@ const MenuFilters = ({
           >
             Available Menu Packages
           </motion.h2>
-          <motion.div 
+          <motion.div
             className="flex items-center justify-center gap-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2, duration: 0.6 }}
           >
-            <motion.span 
+            <motion.span
               className="text-white/90"
               key={menuCount} // Key change triggers animation
               initial={{ scale: 0.8, opacity: 0 }}
@@ -110,20 +108,20 @@ const MenuFilters = ({
         </motion.div>
 
         {/* Filters */}
-        <motion.div 
+        <motion.div
           className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto"
           variants={containerVariants}
         >
           {/* Location Filter */}
-          <motion.div 
+          <motion.div
             className="bg-white rounded-lg p-4 shadow-sm"
             variants={filterCardVariants}
             whileHover={{ y: -2, boxShadow: "0 8px 25px rgba(0, 0, 0, 0.1)" }}
             transition={{ duration: 0.3 }}
           >
-            <motion.label 
-              className="block text-sm font-semibold mb-2" 
-              style={{ color: 'var(--primary-brown)' }}
+            <motion.label
+              className="block text-sm font-semibold mb-2"
+              style={{ color: "var(--primary-brown)" }}
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.1 }}
@@ -135,9 +133,9 @@ const MenuFilters = ({
               value={selectedLocation}
               onChange={(e) => setSelectedLocation(e.target.value)}
               className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:border-transparent bg-white text-gray-700 transition-all duration-300"
-              style={{ 
-                focusRingColor: 'var(--primary-green)',
-                ':focus': { borderColor: 'var(--primary-green)' }
+              style={{
+                focusRingColor: "var(--primary-green)",
+                ":focus": { borderColor: "var(--primary-green)" },
               }}
               whileFocus={{ scale: 1.02 }}
               transition={{ duration: 0.2 }}
@@ -145,25 +143,31 @@ const MenuFilters = ({
               <option value="">All Locations</option>
               {locations.map((location) => (
                 <option key={location._id} value={location._id}>
-                  {location.name} - {location.city}
+                  {location.name} - {location.city} 
                 </option>
               ))}
             </motion.select>
           </motion.div>
 
           {/* Service Filter */}
-          <motion.div 
+          <motion.div
             className="bg-white rounded-lg p-4 shadow-sm"
             variants={filterCardVariants}
-            whileHover={{ 
-              y: selectedLocation ? -2 : 0, 
-              boxShadow: selectedLocation ? "0 8px 25px rgba(0, 0, 0, 0.1)" : "0 4px 6px rgba(0, 0, 0, 0.1)" 
+            whileHover={{
+              y: selectedLocation ? -2 : 0,
+              boxShadow: selectedLocation
+                ? "0 8px 25px rgba(0, 0, 0, 0.1)"
+                : "0 4px 6px rgba(0, 0, 0, 0.1)",
             }}
             transition={{ duration: 0.3 }}
           >
-            <motion.label 
-              className={`block text-sm font-semibold mb-2 transition-colors duration-300 ${!selectedLocation ? 'text-gray-400' : ''}`}
-              style={{ color: selectedLocation ? 'var(--primary-brown)' : '#9CA3AF' }}
+            <motion.label
+              className={`block text-sm font-semibold mb-2 transition-colors duration-300 ${
+                !selectedLocation ? "text-gray-400" : ""
+              }`}
+              style={{
+                color: selectedLocation ? "var(--primary-brown)" : "#9CA3AF",
+              }}
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
@@ -176,11 +180,13 @@ const MenuFilters = ({
               onChange={(e) => setSelectedService(e.target.value)}
               disabled={!selectedLocation}
               className={`w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:border-transparent bg-white transition-all duration-300 ${
-                !selectedLocation ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700'
+                !selectedLocation
+                  ? "text-gray-400 cursor-not-allowed"
+                  : "text-gray-700"
               }`}
-              style={{ 
-                focusRingColor: 'var(--primary-green)',
-                ':focus': { borderColor: 'var(--primary-green)' }
+              style={{
+                focusRingColor: "var(--primary-green)",
+                ":focus": { borderColor: "var(--primary-green)" },
               }}
               whileFocus={{ scale: selectedLocation ? 1.02 : 1 }}
               transition={{ duration: 0.2 }}
@@ -197,15 +203,15 @@ const MenuFilters = ({
           </motion.div>
 
           {/* Sort Filter */}
-          <motion.div 
+          <motion.div
             className="bg-white rounded-lg p-4 shadow-sm"
             variants={filterCardVariants}
             whileHover={{ y: -2, boxShadow: "0 8px 25px rgba(0, 0, 0, 0.1)" }}
             transition={{ duration: 0.3 }}
           >
-            <motion.label 
-              className="block text-sm font-semibold mb-2" 
-              style={{ color: 'var(--primary-brown)' }}
+            <motion.label
+              className="block text-sm font-semibold mb-2"
+              style={{ color: "var(--primary-brown)" }}
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3 }}
@@ -217,9 +223,9 @@ const MenuFilters = ({
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
               className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:border-transparent bg-white text-gray-700 transition-all duration-300"
-              style={{ 
-                focusRingColor: 'var(--primary-green)',
-                ':focus': { borderColor: 'var(--primary-green)' }
+              style={{
+                focusRingColor: "var(--primary-green)",
+                ":focus": { borderColor: "var(--primary-green)" },
               }}
               whileFocus={{ scale: 1.02 }}
               transition={{ duration: 0.2 }}
@@ -241,17 +247,19 @@ const MenuFilters = ({
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.4 }}
             >
-              <motion.div 
+              <motion.div
                 className="inline-flex flex-wrap items-center gap-2 bg-white/10 rounded-lg px-4 py-2"
                 initial={{ scale: 0.9 }}
                 animate={{ scale: 1 }}
                 transition={{ duration: 0.3 }}
               >
-                <span className="text-white/90 text-sm font-medium">Active filters:</span>
-                
+                <span className="text-white/90 text-sm font-medium">
+                  Active filters:
+                </span>
+
                 <AnimatePresence>
                   {selectedLocation && (
-                    <motion.span 
+                    <motion.span
                       className="inline-flex items-center gap-1 bg-white/20 text-white px-2 py-1 rounded text-sm"
                       initial={{ opacity: 0, scale: 0.8, x: -10 }}
                       animate={{ opacity: 1, scale: 1, x: 0 }}
@@ -259,7 +267,7 @@ const MenuFilters = ({
                       transition={{ duration: 0.3 }}
                       layout
                     >
-                      {locations.find(l => l._id === selectedLocation)?.name}
+                      {locations.find((l) => l._id === selectedLocation)?.name}
                       <motion.button
                         onClick={() => setSelectedLocation("")}
                         className="hover:bg-white/20 rounded p-0.5 transition-colors"
@@ -271,10 +279,10 @@ const MenuFilters = ({
                     </motion.span>
                   )}
                 </AnimatePresence>
-                
+
                 <AnimatePresence>
                   {selectedService && (
-                    <motion.span 
+                    <motion.span
                       className="inline-flex items-center gap-1 bg-white/20 text-white px-2 py-1 rounded text-sm"
                       initial={{ opacity: 0, scale: 0.8, x: -10 }}
                       animate={{ opacity: 1, scale: 1, x: 0 }}
@@ -282,7 +290,7 @@ const MenuFilters = ({
                       transition={{ duration: 0.3 }}
                       layout
                     >
-                      {services.find(s => s._id === selectedService)?.name}
+                      {services.find((s) => s._id === selectedService)?.name}
                       <motion.button
                         onClick={() => setSelectedService("")}
                         className="hover:bg-white/20 rounded p-0.5 transition-colors"
@@ -294,10 +302,10 @@ const MenuFilters = ({
                     </motion.span>
                   )}
                 </AnimatePresence>
-                
+
                 <AnimatePresence>
                   {sortBy !== "default" && (
-                    <motion.span 
+                    <motion.span
                       className="inline-flex items-center gap-1 bg-white/20 text-white px-2 py-1 rounded text-sm"
                       initial={{ opacity: 0, scale: 0.8, x: -10 }}
                       animate={{ opacity: 1, scale: 1, x: 0 }}
@@ -305,7 +313,9 @@ const MenuFilters = ({
                       transition={{ duration: 0.3 }}
                       layout
                     >
-                      {sortBy === "price-low" ? "Price: Low-High" : "Price: High-Low"}
+                      {sortBy === "price-low"
+                        ? "Price: Low-High"
+                        : "Price: High-Low"}
                       <motion.button
                         onClick={() => setSortBy("default")}
                         className="hover:bg-white/20 rounded p-0.5 transition-colors"
