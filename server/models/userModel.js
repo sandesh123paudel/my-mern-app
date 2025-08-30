@@ -7,8 +7,8 @@ const userSchema = new mongoose.Schema(
     password: { type: String, required: true },
     role: {
       type: String,
-      default: "admin",
-      enum: ["admin", "superadmin"],
+      default: "superadmin",
+      enum: ["superadmin"], // Only superadmin role
     },
   },
   { timestamps: true }

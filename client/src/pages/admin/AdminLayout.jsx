@@ -74,13 +74,13 @@ const AdminLayout = () => {
           </ul>
         </nav>
 
-        <div className="absolute bottom-4 left-4 right-4">
+        <div className="absolute bottom-1 left-4 right-4">
           <div className="bg-amber-50 rounded-lg p-4 mb-4 border border-amber-200">
-            <p className="text-sm text-amber-700">Logged in as:</p>
-            <p className="font-medium text-amber-800">
+            <p className="text-xs text-amber-700">Logged in as:</p>
+            <p className="font-medium text-sm text-amber-800">
               {userData?.name || "Admin"}
             </p>
-            <p className="text-sm text-amber-600">{userData?.email}</p>
+            <p className="text-xs text-amber-600">{userData?.email}</p>
           </div>
 
           <button

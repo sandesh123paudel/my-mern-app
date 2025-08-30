@@ -1,28 +1,38 @@
 const express = require("express");
-const { loginValidator } = require("../middlewares/validator.js");
+const { 
+  loginValidator, 
+  createSuperAdminValidator, 
+  updateSuperAdminValidator 
+} = require("../middlewares/validator.js");
 const {
   createSuperAdmin,
+  createNewSuperAdmin,
+  getAllSuperAdmins,
+  updateSuperAdmin,
+  deleteSuperAdmin,
   getUserData,
   isAuthenticated,
   loginUser,
   logout,
-  getAllAdmins,
 } = require("../controllers/authController.js");
 const handleValidationErrors = require("../utils/handleValidationErrors.js");
-const  userAuth  = require("../middlewares/auth.js");
+const userAuth = require("../middlewares/auth.js");
 
 const authRouter = express.Router();
 
-// Create Super Admin Route
+// Create initial Super Admin Route (for setup)
 authRouter.post("/create-superadmin", createSuperAdmin);
 
-//Login Route
+// Login Route
 authRouter.post("/login", loginValidator(), handleValidationErrors, loginUser);
 authRouter.post("/logout", userAuth, logout);
 authRouter.get("/is-auth", userAuth, isAuthenticated);
 authRouter.get("/data", userAuth, getUserData);
 
-// //admin users
-// authRouter.get("/admins", superAdminAuth, getAllAdmins);
+// Super Admin management routes
+authRouter.post("/create-new-superadmin", userAuth, createSuperAdminValidator(), handleValidationErrors, createNewSuperAdmin);
+authRouter.get("/superadmins", userAuth, getAllSuperAdmins);
+authRouter.put("/superadmin/:userId", userAuth, updateSuperAdminValidator(), handleValidationErrors, updateSuperAdmin);
+authRouter.delete("/superadmin/:userId", userAuth, deleteSuperAdmin);
 
 module.exports = authRouter;

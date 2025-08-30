@@ -76,22 +76,71 @@ exports.inquiryFormValidation = () => {
   ];
 };
 
-exports.loginValidator = () => {
+exports.createSuperAdminValidator = () => {
   return [
-    body("email")
+    body('name')
       .trim()
       .notEmpty()
-      .withMessage("Email is required")
+      .withMessage('Name is required')
+      .isLength({ min: 2, max: 50 })
+      .withMessage('Name must be between 2 and 50 characters'),
+    
+    body('email')
+      .trim()
       .isEmail()
-      .withMessage("Invalid email format"),
-
-    body("password")
-      .notEmpty()
-      .withMessage("Password is required")
+      .withMessage('Please provide a valid email')
+      .normalizeEmail(),
+    
+    body('password')
       .isLength({ min: 6 })
-      .withMessage("Password must be at least 6 characters long"),
+      .withMessage('Password must be at least 6 characters long')
+      .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+      .withMessage('Password must contain at least one lowercase letter, one uppercase letter, and one number')
   ];
 };
+
+// Validation for updating superadmin
+exports.updateSuperAdminValidator = () => {
+  return [
+    body('name')
+      .optional()
+      .trim()
+      .notEmpty()
+      .withMessage('Name cannot be empty')
+      .isLength({ min: 2, max: 50 })
+      .withMessage('Name must be between 2 and 50 characters'),
+    
+    body('email')
+      .optional()
+      .trim()
+      .isEmail()
+      .withMessage('Please provide a valid email')
+      .normalizeEmail(),
+    
+    body('password')
+      .optional()
+      .isLength({ min: 6 })
+      .withMessage('Password must be at least 6 characters long')
+      .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+      .withMessage('Password must contain at least one lowercase letter, one uppercase letter, and one number')
+  ];
+};
+
+// Login validation (existing, but updated)
+exports.loginValidator = () => {
+  return [
+    body('email')
+      .trim()
+      .isEmail()
+      .withMessage('Please provide a valid email')
+      .normalizeEmail(),
+    
+    body('password')
+      .notEmpty()
+      .withMessage('Password is required')
+  ];
+};
+
 
 // Updated booking form validation to match frontend data structure
 exports.bookingFormValidation = () => {

@@ -7,11 +7,10 @@ export const AppContextProvider = ({ children }) => {
   axios.defaults.withCredentials = true;
 
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
-  // console.log("Backend URL from env:", backendUrl);
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userData, setUserData] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   const getUserData = async () => {
     try {
@@ -20,21 +19,18 @@ export const AppContextProvider = ({ children }) => {
       if (data.success) {
         setUserData(data.userData);
         setIsLoggedIn(true);
-        // Check if user is admin
-        setIsAdmin(
-          data.userData?.role === "admin" ||
-            data.userData?.role === "superadmin"
-        );
+        // Check if user is superadmin
+        setIsSuperAdmin(data.userData?.role === "superadmin");
       } else {
         setUserData(null);
         setIsLoggedIn(false);
-        setIsAdmin(false);
+        setIsSuperAdmin(false);
       }
     } catch (error) {
       console.error("Error fetching user data:", error);
       setUserData(null);
       setIsLoggedIn(false);
-      setIsAdmin(false);
+      setIsSuperAdmin(false);
     }
   };
 
@@ -43,24 +39,20 @@ export const AppContextProvider = ({ children }) => {
       const { data } = await axios.get(backendUrl + "/api/auth/is-auth");
       if (data.success) {
         setIsLoggedIn(true);
-        // Check if user is admin from the auth response
-        setIsAdmin(
-          data.user?.role === "admin" || data.user?.role === "superadmin"
-        );
-        // Only fetch user data if successfully authenticated
-        if (!userData || userData.email !== data.user?.email) {
+        // Fetch user data if successfully authenticated
+        if (!userData) {
           getUserData();
         }
       } else {
         setIsLoggedIn(false);
         setUserData(null);
-        setIsAdmin(false);
+        setIsSuperAdmin(false);
       }
     } catch (error) {
       console.error("Error getting auth state:", error);
       setIsLoggedIn(false);
       setUserData(null);
-      setIsAdmin(false);
+      setIsSuperAdmin(false);
     }
   };
 
@@ -69,13 +61,66 @@ export const AppContextProvider = ({ children }) => {
       await axios.post(backendUrl + "/api/auth/logout");
       setIsLoggedIn(false);
       setUserData(null);
-      setIsAdmin(false);
+      setIsSuperAdmin(false);
     } catch (error) {
       console.error("Error during logout:", error);
       // Even if logout fails on server, clear local state
       setIsLoggedIn(false);
       setUserData(null);
-      setIsAdmin(false);
+      setIsSuperAdmin(false);
+    }
+  };
+
+  // Super Admin management functions
+  const createNewSuperAdmin = async (adminData) => {
+    try {
+      const { data } = await axios.post(
+        backendUrl + "/api/auth/create-new-superadmin",
+        adminData
+      );
+      return data;
+    } catch (error) {
+      console.error("Error creating superadmin:", error);
+      throw error;
+    }
+  };
+
+  const getAllSuperAdmins = async () => {
+    try {
+      const { data } = await axios.get(backendUrl + "/api/auth/superadmins");
+      return data;
+    } catch (error) {
+      console.error("Error fetching superadmins:", error);
+      throw error;
+    }
+  };
+
+  const updateSuperAdmin = async (userId, updateData) => {
+    try {
+      const { data } = await axios.put(
+        backendUrl + `/api/auth/superadmin/${userId}`,
+        updateData
+      );
+      // If updating current user, refresh user data
+      if (userId === userData?.id) {
+        getUserData();
+      }
+      return data;
+    } catch (error) {
+      console.error("Error updating superadmin:", error);
+      throw error;
+    }
+  };
+
+  const deleteSuperAdmin = async (userId) => {
+    try {
+      const { data } = await axios.delete(
+        backendUrl + `/api/auth/superadmin/${userId}`
+      );
+      return data;
+    } catch (error) {
+      console.error("Error deleting superadmin:", error);
+      throw error;
     }
   };
 
@@ -90,9 +135,13 @@ export const AppContextProvider = ({ children }) => {
     userData,
     setUserData,
     getUserData,
-    isAdmin,
-    setIsAdmin,
+    isSuperAdmin,
+    setIsSuperAdmin,
     logout,
+    createNewSuperAdmin,
+    getAllSuperAdmins,
+    updateSuperAdmin,
+    deleteSuperAdmin,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
