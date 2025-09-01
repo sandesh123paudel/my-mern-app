@@ -332,21 +332,43 @@ const BookingDetailsModal = ({
   };
 
   const handleRemoveAdminAddition = async (additionId) => {
-    if (!window.confirm("Are you sure you want to remove this item?")) return;
-
-    try {
-      const result = await removeAdminAddition(booking._id, additionId);
-      if (result.success) {
-        toast.success("Item removed successfully");
-        if (onRefreshBooking) {
-          await onRefreshBooking(booking._id);
-        }
-      } else {
-        toast.error(result.error);
-      }
-    } catch (error) {
-      toast.error("Failed to remove item");
-    }
+    toast((t) => (
+      <div>
+        <p>Are you sure you want to remove this item?</p>
+        <div className="flex justify-start mt-3">
+          <button
+            onClick={async () => {
+              toast.dismiss(t.id);
+              try {
+                const result = await removeAdminAddition(
+                  booking._id,
+                  additionId
+                );
+                if (result.success) {
+                  toast.success("Item removed successfully");
+                  if (onRefreshBooking) {
+                    await onRefreshBooking(booking._id);
+                  }
+                } else {
+                  toast.error(result.error);
+                }
+              } catch (error) {
+                toast.error("Failed to remove item");
+              }
+            }}
+            className="bg-red-500 text-white px-2 py-1 rounded"
+          >
+            Remove
+          </button>
+          <button
+            onClick={() => toast.dismiss(t.id)}
+            className="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400 transition-colors ml-2"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    ));
   };
 
   const calculateCurrentBalance = () => {
