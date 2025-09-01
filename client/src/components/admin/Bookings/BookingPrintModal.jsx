@@ -646,13 +646,7 @@ const BookingPrintModal = ({
                   </div>
                 )}
 
-                {/* Admin Notes */}
-                {booking.adminNotes && (
-                  <div className="section">
-                    <div className="section-title">Admin Notes</div>
-                    <div style={{ fontSize: "9px" }}>{booking.adminNotes}</div>
-                  </div>
-                )}
+               
 
                 {/* Footer */}
                 <div className="footer">

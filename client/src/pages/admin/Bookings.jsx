@@ -688,26 +688,35 @@ const AdminBookings = () => {
 
   // Update functions
   const updateBookingStatus = async (bookingId, status, notes = "") => {
-    try {
-      const statusData = { status };
-      if (notes) statusData.adminNotes = notes;
+  try {
+    const statusData = { status };
+    if (notes) statusData.adminNotes = notes;
 
-      const result = await bookingService.updateBookingStatus(
-        bookingId,
-        statusData
-      );
+    const result = await bookingService.updateBookingStatus(
+      bookingId,
+      statusData
+    );
 
-      if (result.success) {
-        toast.success(result.message || "Booking status updated successfully");
-        fetchBookingsData(currentDate);
-      } else {
-        toast.error(result.error || "Failed to update booking status");
-      }
-    } catch (error) {
-      console.error("Error updating booking status:", error);
-      toast.error("Failed to update booking status");
+    if (result.success) {
+      toast.success(result.message || "Booking status updated successfully");
+      
+      // Refresh the specific booking data
+      await refreshBookingData(bookingId);
+      
+      // Also refresh the full data to ensure calendar is updated
+      await fetchBookingsData(currentDate);
+      
+      return result.data; // Return updated booking for modal
+    } else {
+      toast.error(result.error || "Failed to update booking status");
+      throw new Error(result.error);
     }
-  };
+  } catch (error) {
+    console.error("Error updating booking status:", error);
+    toast.error("Failed to update booking status");
+    throw error;
+  }
+};
 
   const updatePayment = async (bookingId, paymentData) => {
     try {
@@ -732,21 +741,32 @@ const AdminBookings = () => {
   };
 
   const deleteBooking = async (bookingId, reason = "") => {
-    try {
-      const result = await bookingService.cancelBooking(bookingId, { reason });
+  try {
+    const result = await bookingService.cancelBooking(bookingId, { reason });
 
-      if (result.success) {
-        toast.success(result.message || "Booking cancelled successfully");
-        fetchBookingsData(currentDate);
-        closeBookingDetails();
-      } else {
-        toast.error(result.error || "Failed to cancel booking");
-      }
-    } catch (error) {
-      console.error("Error cancelling booking:", error);
-      toast.error("Failed to cancel booking");
+    if (result.success) {
+      toast.success(result.message || "Booking cancelled successfully");
+      
+      // Refresh the specific booking data first
+      await refreshBookingData(bookingId);
+      
+      // Then refresh all data
+      await fetchBookingsData(currentDate);
+      
+      // Don't close modal immediately - let it show updated status
+      // closeBookingDetails();
+      
+      return result.data;
+    } else {
+      toast.error(result.error || "Failed to cancel booking");
+      throw new Error(result.error);
     }
-  };
+  } catch (error) {
+    console.error("Error cancelling booking:", error);
+    toast.error("Failed to cancel booking");
+    throw error;
+  }
+};
 
   const handleFilterChange = (newFilters) => {
     setFilters((prev) => ({ ...prev, ...newFilters }));
@@ -1085,7 +1105,7 @@ const AdminBookings = () => {
               onDeleteBooking={deleteBooking}
               onPrintBooking={handlePrintBooking}
               getStatusColor={getStatusColor}
-              onKitchenDocket={handleKitchenDocket} // ← Make sure this is here
+              onKitchenDocket={handleKitchenDocket} 
               onRefreshBooking={refreshBookingData}
               formatPrice={formatPrice}
               formatDate={formatDate}

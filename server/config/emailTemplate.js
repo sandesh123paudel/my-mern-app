@@ -212,10 +212,11 @@ const CUSTOMER_BOOKING_CONFIRMATION_TEMPLATE = `
       <p>Dear <strong>{{customerName}}</strong>,</p>
       <p>Thank you for your order! We're excited to be a part of your event. Please review the booking summary below.</p>
 
-      <div class="summary-box">
-        <div class="total">Total: {{totalAmountFormatted}}</div>
-        <div class="reference">Booking Reference: <strong>{{bookingReference}}</strong></div>
-      </div>
+     <div class="summary-box">
+  {{priceSummaryHtml}}
+
+  <div class="reference">Booking Reference: <strong>{{bookingReference}}</strong></div>
+</div>
 
       <div class="info-box">
         <div class="box-header">Event Details</div>
@@ -495,9 +496,10 @@ const ADMIN_BOOKING_NOTIFICATION_TEMPLATE = `
       <p><strong>Action Required:</strong> A new booking has been received and requires processing.</p>
 
       <div class="summary-box">
-        <div class="total">Revenue: {{totalAmountFormatted}}</div>
-        <div class="reference">Booking Reference: <strong>{{bookingReference}}</strong></div>
-      </div>
+  {{priceSummaryHtml}}
+
+  <div class="reference">Booking Reference: <strong>{{bookingReference}}</strong></div>
+</div>
 
       {{urgentWarning}}
 

@@ -517,7 +517,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
     }
   };
 
-  // Render simple items
+  // Updated renderSimpleItems function with numbering
   const renderSimpleItems = () => {
     if (!menu.simpleItems || menu.simpleItems.length === 0) return null;
 
@@ -531,29 +531,30 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
           {menu.simpleItems.map((item, itemIndex) => (
             <div
               key={itemIndex}
-              className="border border-gray-300 rounded-lg p-4 bg-white"
+              className="border border-gray-300 rounded-lg p-2 bg-white"
             >
-              <div className="mb-3">
-                <h4 className="font-normal  text-gray-900">
-                  {item.name}
-                  {item.priceModifier !== 0 && (
-                    <span className="ml-2 text-primary-green font-normal">
-                      {item.priceModifier > 0 ? "+" : ""}
-                      {formatPrice(item.priceModifier)}
-                    </span>
-                  )}
-                </h4>
-                {item.quantity && item.quantity > 1 && (
-                  <p className="text-xs text-gray-600 mt-1">
-                    Quantity: {item.quantity}
-                  </p>
+              <h4 className="font-normal text-gray-900">
+                <span className="inline-flex items-center justify-center w-6 h-6   text-sm font-semibold rounded-full mr-2">
+                  {itemIndex + 1}.
+                </span>
+                {item.name}
+                {item.priceModifier !== 0 && (
+                  <span className="ml-2 text-primary-green font-normal">
+                    {item.priceModifier > 0 ? "+" : ""}
+                    {formatPrice(item.priceModifier)}
+                  </span>
                 )}
-              </div>
+              </h4>
+              {item.quantity && item.quantity > 1 && (
+                <p className="text-xs text-gray-600 mt-1 ml-8">
+                  Quantity: {item.quantity}
+                </p>
+              )}
 
               {/* Customer Choices */}
               {item.hasChoices && item.choices && item.choices.length > 0 && (
-                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <h5 className="font-normal text-gray-900 mb-3">
+                <div className="mb-2 p-3 mt-2 bg-green-50 border border-green-200 rounded-lg ml-8">
+                  <h5 className="font-normal text-xs text-gray-900 mb-3">
                     {item.selectionType === "single"
                       ? "Choose one option:"
                       : "Choose options:"}
@@ -589,7 +590,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
                           <div className="flex-1">
                             <span className="font-normal">{choice.name}</span>
                             {choice.priceModifier !== 0 && (
-                              <span className="ml-2 text-primary-green font-normal">
+                              <span className="ml-2 text-red-500 font-normal">
                                 {choice.priceModifier > 0 ? "+" : ""}
                                 {formatPrice(choice.priceModifier)}
                               </span>
@@ -604,7 +605,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
 
               {/* Additional Options */}
               {item.options && item.options.length > 0 && (
-                <div className="p-3 bg-primary-green border border-primary-green rounded-lg">
+                <div className="p-3 bg-primary-green border border-primary-green rounded-lg ml-8">
                   <h5 className="font-normal text-gray-900 mb-3">
                     Additional Options:
                   </h5>
@@ -653,7 +654,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
     );
   };
 
-  // Render categorized content
+  // Updated renderCategorizedContent function with numbering
   const renderCategorizedContent = () => {
     if (!menu.categories || menu.categories.length === 0) return null;
 
@@ -680,7 +681,10 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
                         key={itemIndex}
                         className="flex items-center p-1 bg-green-50 border border-green-200 rounded-lg"
                       >
-                        <Check size={16} className="text-green-600 mr-3" />
+                        <span className="inline-flex items-center justify-center w-5 h-5   text-xs  font-semibold rounded-full mr-2">
+                          {itemIndex + 1}.
+                        </span>
+
                         <div className="flex-1">
                           <span className="font-normal text-gray-900">
                             {item.name}
@@ -702,78 +706,87 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
               {category.selectionGroups &&
                 category.selectionGroups.length > 0 && (
                   <div className="space-y-4">
-                    {category.selectionGroups.map((group, groupIndex) => (
-                      <div
-                        key={groupIndex}
-                        className="border border-gray-300 rounded-lg p-2 bg-white"
-                      >
-                        <div className="flex items-center justify-between mb-3">
-                          <h4 className="font-normal text-gray-900">
-                            {group.name}
-                          </h4>
-                          {group.isRequired && (
-                            <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-normal">
-                              Required
-                            </span>
-                          )}
-                        </div>
+                    {category.selectionGroups.map((group, groupIndex) => {
+                      // Calculate continuous numbering: included items + current group index + 1
+                      const groupNumber =
+                        (category.includedItems?.length || 0) + groupIndex + 1;
 
-                        <p className="text-xs text-gray-600 mb-3">
-                          {group.selectionType === "single"
-                            ? "Choose one option:"
-                            : `Choose up to ${
-                                group.maxSelections || "unlimited"
-                              } options:`}
-                        </p>
+                      return (
+                        <div
+                          key={groupIndex}
+                          className="border border-gray-300 rounded-lg p-2 bg-white"
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="font-normal text-gray-900 flex items-center">
+                              <span className="inline-flex items-center justify-center w-6 h-6  text-xs font-semibold rounded-full mr-2">
+                                {groupNumber}.
+                              </span>
+                              {group.name}
+                            </h4>
+                            {group.isRequired && (
+                              <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-normal">
+                                Required
+                              </span>
+                            )}
+                          </div>
 
-                        <div className="space-y-2">
-                          {group.items.map((item, itemIndex) => {
-                            const isSelected = isCategoryItemSelected(
-                              categoryIndex,
-                              groupIndex,
-                              itemIndex
-                            );
-                            return (
-                              <label
-                                key={itemIndex}
-                                className="flex items-center p-2 border border-gray-200 rounded cursor-pointer hover:bg-gray-50"
-                              >
-                                <input
-                                  type={
-                                    group.selectionType === "single"
-                                      ? "radio"
-                                      : "checkbox"
-                                  }
-                                  name={`category-${categoryIndex}-group-${groupIndex}`}
-                                  checked={isSelected}
-                                  onChange={() =>
-                                    handleCategoryItemSelection(
-                                      categoryIndex,
-                                      groupIndex,
-                                      itemIndex,
-                                      !isSelected,
-                                      group
-                                    )
-                                  }
-                                  className="mr-3"
-                                />
-                                <div className="flex-1">
-                                  <span className="font-normal">
-                                    {item.name}
-                                  </span>
-                                  {item.priceModifier !== 0 && (
-                                    <span className="ml-2 text-green-600 font-normal">
-                                      {item.priceModifier > 0 ? "+" : ""}
-                                      {formatPrice(item.priceModifier)}
+                          <p className="text-xs text-gray-600 mb-3 ml-8">
+                            {group.selectionType === "single"
+                              ? "Choose one option:"
+                              : `Choose up to ${
+                                  group.maxSelections || "unlimited"
+                                } options:`}
+                          </p>
+
+                          <div className="space-y-2 ml-8">
+                            {group.items.map((item, itemIndex) => {
+                              const isSelected = isCategoryItemSelected(
+                                categoryIndex,
+                                groupIndex,
+                                itemIndex
+                              );
+                              return (
+                                <label
+                                  key={itemIndex}
+                                  className="flex items-center p-2 border border-gray-200 rounded cursor-pointer hover:bg-gray-50"
+                                >
+                                  <input
+                                    type={
+                                      group.selectionType === "single"
+                                        ? "radio"
+                                        : "checkbox"
+                                    }
+                                    name={`category-${categoryIndex}-group-${groupIndex}`}
+                                    checked={isSelected}
+                                    onChange={() =>
+                                      handleCategoryItemSelection(
+                                        categoryIndex,
+                                        groupIndex,
+                                        itemIndex,
+                                        !isSelected,
+                                        group
+                                      )
+                                    }
+                                    className="mr-3"
+                                  />
+                                  <div className="flex-1">
+                                    <span className="font-normal">
+                                      {item.name}
                                     </span>
-                                  )}
-                                </div>
-                              </label>
-                            );
-                          })}
+                                    {item.priceModifier !== 0 && (
+                                      <span className="ml-2 text-red-500 font-normal">
+                                        {item.priceModifier > 0 ? "+" : ""}
+                                        {formatPrice(item.priceModifier)}
+                                      </span>
+                                    )}
+                                  </div>
+                                </label>
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
             </div>

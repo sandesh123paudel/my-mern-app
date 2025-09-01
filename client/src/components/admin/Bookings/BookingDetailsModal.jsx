@@ -17,6 +17,7 @@ import toast from "react-hot-toast";
 import {
   addAdminAddition,
   removeAdminAddition,
+  updateAdminNotes,
 } from "../../../services/bookingService";
 
 const BookingDetailsModal = ({
@@ -43,10 +44,17 @@ const BookingDetailsModal = ({
     depositAmount: (booking.depositAmount || 0).toString(),
   });
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   const [showAdditionForm, setShowAdditionForm] = useState(false);
   const [additionForm, setAdditionForm] = useState({ name: "", price: "" });
   const [isAddingItem, setIsAddingItem] = useState(false);
+
+  const [showAdminNotesForm, setShowAdminNotesForm] = useState(false);
+  const [adminNotesText, setAdminNotesText] = useState(
+    booking.adminNotes || ""
+  );
+  const [isUpdatingNotes, setIsUpdatingNotes] = useState(false);
 
   // Helper functions
   const formatDietaryRequirements = (requirements) => {
@@ -161,7 +169,9 @@ const BookingDetailsModal = ({
 
   const financials = calculateFinancials();
 
-  const handleStatusUpdate = (status) => {
+  const handleStatusUpdate = async (status) => {
+    if (isUpdatingStatus) return; // Prevent multiple clicks
+
     if (status === "cancelled") {
       setShowCancellationForm(true);
       setPendingStatus(status);
@@ -169,22 +179,54 @@ const BookingDetailsModal = ({
       setPendingStatus(status);
       setShowStatusForm(true);
     } else {
-      onUpdateStatus(booking._id, status);
+      // Direct status update
+      setIsUpdatingStatus(true);
+      try {
+        await onUpdateStatus(booking._id, status);
+        // The parent will handle refreshing
+      } catch (error) {
+        console.error("Error updating status:", error);
+        toast.error("Failed to update status");
+      } finally {
+        setIsUpdatingStatus(false);
+      }
     }
   };
 
-  const handleConfirmStatusUpdate = () => {
-    onUpdateStatus(booking._id, pendingStatus, statusNotes);
-    setShowStatusForm(false);
-    setStatusNotes("");
-    setPendingStatus("");
+  // Update handleConfirmStatusUpdate
+  const handleConfirmStatusUpdate = async () => {
+    if (isUpdatingStatus) return;
+
+    setIsUpdatingStatus(true);
+    try {
+      await onUpdateStatus(booking._id, pendingStatus, statusNotes);
+      setShowStatusForm(false);
+      setStatusNotes("");
+      setPendingStatus("");
+    } catch (error) {
+      console.error("Error updating status:", error);
+      toast.error("Failed to update status");
+    } finally {
+      setIsUpdatingStatus(false);
+    }
   };
 
-  const handleConfirmCancellation = () => {
-    onDeleteBooking(booking._id, cancellationReason);
-    setShowCancellationForm(false);
-    setCancellationReason("");
-    setPendingStatus("");
+  // Update handleConfirmCancellation
+  const handleConfirmCancellation = async () => {
+    if (isUpdatingStatus) return;
+
+    setIsUpdatingStatus(true);
+    try {
+      await onDeleteBooking(booking._id, cancellationReason);
+      setShowCancellationForm(false);
+      setCancellationReason("");
+      setPendingStatus("");
+    } catch (error) {
+      console.error("Error cancelling booking:", error);
+      toast.error("Failed to cancel booking");
+    } finally {
+      setIsUpdatingStatus(false);
+    }
   };
 
   const handlePaymentUpdate = async () => {
@@ -226,6 +268,30 @@ const BookingDetailsModal = ({
         return "bg-green-100 text-green-800 border-green-200";
       default:
         return "bg-gray-100 text-gray-800 border-gray-200";
+    }
+  };
+  const handleUpdateAdminNotes = async () => {
+    try {
+      setIsUpdatingNotes(true);
+      const result = await updateAdminNotes(booking._id, {
+        adminNotes: adminNotesText,
+      });
+
+      if (result.success) {
+        toast.success("Admin notes updated successfully");
+        booking.adminNotes = adminNotesText;
+        setShowAdminNotesForm(false);
+        if (onRefreshBooking) {
+          await onRefreshBooking(booking._id);
+        }
+      } else {
+        toast.error(result.error || "Failed to update admin notes");
+      }
+    } catch (error) {
+      console.error("Error updating admin notes:", error);
+      toast.error("Failed to update admin notes");
+    } finally {
+      setIsUpdatingNotes(false);
     }
   };
 
@@ -795,15 +861,53 @@ const BookingDetailsModal = ({
             </div>
           )}
 
-          {/* Admin Notes */}
-          {booking.adminNotes && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h3 className="text-lg font-semibold text-blue-800 mb-2">
-                Admin notes
+          {/* Admin Notes - Always Visible */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold text-blue-800">
+                Admin Notes
               </h3>
-              <p className="text-blue-900">{booking.adminNotes}</p>
+              <button
+                onClick={() => setShowAdminNotesForm(!showAdminNotesForm)}
+                className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
+              >
+                {showAdminNotesForm ? "Cancel" : "Update Notes"}
+              </button>
             </div>
-          )}
+
+            {showAdminNotesForm ? (
+              <div className="space-y-3">
+                <textarea
+                  value={adminNotesText}
+                  onChange={(e) => setAdminNotesText(e.target.value)}
+                  placeholder="Add or update admin notes..."
+                  className="w-full p-3 border border-gray-300 rounded-lg resize-none h-20"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleUpdateAdminNotes}
+                    disabled={isUpdatingNotes}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {isUpdatingNotes ? "Saving..." : "Save Notes"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowAdminNotesForm(false);
+                      setAdminNotesText(booking.adminNotes || "");
+                    }}
+                    className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-blue-900 min-h-[20px]">
+                {booking.adminNotes || "No admin notes added yet."}
+              </p>
+            )}
+          </div>
           {/* Cancellation Information */}
           {booking.status === "cancelled" && booking.cancellationReason && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -954,31 +1058,34 @@ const BookingDetailsModal = ({
               Admin actions
             </h3>
             <div className="flex flex-wrap gap-3">
-              {/* Status progression buttons */}
+              {/* In the admin actions section */}
               {booking.status === "pending" && (
                 <button
                   onClick={() => handleStatusUpdate("confirmed")}
-                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+                  disabled={isUpdatingStatus}
+                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Confirm booking
+                  {isUpdatingStatus ? "Updating..." : "Confirm booking"}
                 </button>
               )}
 
               {booking.status === "confirmed" && (
                 <button
                   onClick={() => handleStatusUpdate("preparing")}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                  disabled={isUpdatingStatus}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Start preparing
+                  {isUpdatingStatus ? "Updating..." : "Start preparing"}
                 </button>
               )}
 
               {booking.status === "preparing" && (
                 <button
                   onClick={() => handleStatusUpdate("ready")}
-                  className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700"
+                  disabled={isUpdatingStatus}
+                  className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Mark as ready
+                  {isUpdatingStatus ? "Updating..." : "Mark as ready"}
                 </button>
               )}
 
@@ -986,9 +1093,10 @@ const BookingDetailsModal = ({
                 booking.status === "confirmed") && (
                 <button
                   onClick={() => handleStatusUpdate("completed")}
-                  className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700"
+                  disabled={isUpdatingStatus}
+                  className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Mark as completed
+                  {isUpdatingStatus ? "Updating..." : "Mark as completed"}
                 </button>
               )}
 
@@ -1002,13 +1110,24 @@ const BookingDetailsModal = ({
                 </button>
               )}
 
-              {/* Cancellation */}
+              {/* Payment management */}
+              {booking.status !== "cancelled" && (
+                <button
+                  onClick={() => setShowPaymentForm(true)}
+                  className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"
+                >
+                  {financials.isFullyPaid ? "View payment" : "Manage payment"}
+                </button>
+              )}
+
+              {/* Cancellation button */}
               {financials.canBeCancelled && (
                 <button
                   onClick={() => handleStatusUpdate("cancelled")}
-                  className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
+                  disabled={isUpdatingStatus}
+                  className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Cancel booking
+                  {isUpdatingStatus ? "Updating..." : "Cancel booking"}
                 </button>
               )}
             </div>

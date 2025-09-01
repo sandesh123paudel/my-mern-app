@@ -1162,3 +1162,39 @@ export const removeAdminAddition = async (bookingId, additionId) => {
     };
   }
 };
+
+/**
+ * Update admin notes for booking (Admin only)
+ * @param {string} id - Booking ID
+ * @param {Object} notesData - Admin notes data
+ * @returns {Object} Response with updated booking
+ */
+export const updateAdminNotes = async (id, notesData) => {
+  try {
+    if (!id) {
+      throw new Error("Booking ID is required");
+    }
+
+    const response = await axios.put(
+      `${backendUrl}/api/bookings/${id}/admin-notes`,
+      notesData,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+        timeout: 10000,
+      }
+    );
+    return {
+      success: true,
+      data: response.data.data.booking,
+      message: response.data.message,
+    };
+  } catch (error) {
+    console.error("Error updating admin notes:", error);
+    return {
+      success: false,
+      error: error.response?.data?.message || "Failed to update admin notes",
+    };
+  }
+};

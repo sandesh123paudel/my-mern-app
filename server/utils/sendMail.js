@@ -62,22 +62,27 @@ const formatAddress = (address) => {
   return parts.join(", ");
 };
 
-// Helper: format coupon section for emails
-const formatCouponSection = (pricing) => {
-  if (!pricing?.couponCode) return "";
+// Add this new helper function
+const formatPriceSummary = (pricing, label = "Total") => {
+  const total = parseFloat(pricing?.total || 0);
+  const couponDiscount = parseFloat(pricing?.couponDiscount || 0);
 
-  return `
-    <div class="info-box">
-      <div class="box-header">Coupon Applied</div>
-      <div class="box-content">
-        <p>Code: <strong>${pricing.couponCode}</strong></p>
-        <p>Discount: -$${formatCurrency(pricing.couponDiscount || 0)}</p>
-        <p>New Total: <strong>$${formatCurrency(
-          pricing.total || 0
-        )}</strong></p>
+  // Check if a valid coupon was applied
+  if (pricing?.couponCode && couponDiscount > 0) {
+    const originalTotal = total + couponDiscount;
+    return `
+      <div style="font-size: 16px; color: #666; text-decoration: line-through; margin-bottom: 5px;">
+        Subtotal: $${formatCurrency(originalTotal)}
       </div>
-    </div>
-  `;
+      <div style="font-size: 16px; color: #e74c3c; margin-bottom: 8px; font-weight: bold;">
+        Discount (${pricing.couponCode}): -$${formatCurrency(couponDiscount)}
+      </div>
+      <div class="total">${label}: $${formatCurrency(total)}</div>
+    `;
+  }
+
+  // If no discount, return the simple total
+  return `<div class="total">${label}: $${formatCurrency(total)}</div>`;
 };
 
 // Helper function to check if event date is urgent (within 3 days)
@@ -386,8 +391,6 @@ const sendAdminBookingNotification = async (bookingData) => {
       `;
     }
 
-    const couponSection = formatCouponSection(bookingData.pricing);
-
     // Format function venue section
     const functionVenueSection = formatFunctionVenueSection(bookingData);
 
@@ -474,13 +477,7 @@ const sendAdminBookingNotification = async (bookingData) => {
       locationName: locationName,
       deliveryType: bookingData.deliveryType || "N/A",
 
-      // Pricing
-      totalAmount: formatCurrency(bookingData.pricing?.total || 0), // Just the number
-      totalAmountFormatted: `$${formatCurrency(
-        bookingData.pricing?.total || 0
-      )}`, // With dollar sign
-
-      couponSection: couponSection,
+      priceSummaryHtml: formatPriceSummary(bookingData.pricing, "Revenue"),
 
       // Timestamps
       submittedAt: submittedAt,
@@ -561,7 +558,6 @@ const sendCustomerBookingConfirmation = async (
     const totalAmount = parseFloat(bookingData.pricing?.total || 0);
     const advanceAmount = totalAmount * 0.3;
     const remainingAmount = totalAmount - advanceAmount;
-    const couponSection = formatCouponSection(bookingData.pricing);
 
     // Get order type and service info
     let orderType = "Catering Order";
@@ -706,13 +702,12 @@ const sendCustomerBookingConfirmation = async (
       serviceName: serviceName,
       locationName: locationName,
       deliveryType: bookingData.deliveryType || "N/A",
-      couponSection: couponSection,
+      
+      priceSummaryHtml: formatPriceSummary(bookingData.pricing, "Total"),
+      
 
-      // Pricing
-      totalAmount: formatCurrency(bookingData.pricing?.total || 0), // Just the number
-      totalAmountFormatted: `$${formatCurrency(
-        bookingData.pricing?.total || 0
-      )}`, // With dollar sign
+      advanceAmountFormatted: `$${formatCurrency(advanceAmount)}`,
+      remainingAmountFormatted: `$${formatCurrency(remainingAmount)}`, // With dollar sign
       advanceAmountFormatted: `$${formatCurrency(advanceAmount)}`, // With dollar sign
       remainingAmountFormatted: `$${formatCurrency(remainingAmount)}`, // With dollar sign
 

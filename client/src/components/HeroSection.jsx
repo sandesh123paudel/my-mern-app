@@ -190,25 +190,38 @@ const HeroSection = () => {
 
               {/* Location Selection Buttons - Responsive positioning */}
               <motion.div
-                className="absolute top-4 left-1/2 -translate-x-1/2 lg:top-4 lg:right-4 lg:left-auto lg:translate-x-0 z-30 flex flex-col md:flex-row gap-2"
+                className="absolute top-4 left-1/2 -translate-x-1/2 lg:top-4 lg:right-4 lg:left-auto lg:translate-x-0 z-30 flex flex-col gap-2"
                 initial={{ opacity: 0, y: -20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6, duration: 0.8 }}
                 viewport={{ once: true }}
               >
-                {!loading &&
-                  locations.map((location) => (
-                    <motion.button
-                      key={location._id}
-                      onClick={() => handleLocationSelect(location._id)}
-                      className="flex items-center justify-center gap-2 px-3 py-2 md:px-4 rounded-lg font-semibold text-xs md:text-sm transition-all duration-300 shadow-lg backdrop-blur-sm bg-[#FF6B35] text-white hover:bg-primary-green min-w-0 whitespace-nowrap"
-                      whileHover={{ scale: 1.05, y: -2 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      <MapPin className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
-                      <span className="truncate">{location.name}</span>
-                    </motion.button>
-                  ))}
+                {/* Explore Packages Text */}
+                <motion.p
+                  className="text-center text-white text-sm md:text-base font-medium backdrop-blur-sm bg-primary-brown rounded-lg px-3 py-1.5"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.8, duration: 0.6 }}
+                >
+                  Explore Packages
+                </motion.p>
+
+                {/* Individual Location Buttons */}
+                <div className="flex flex-col sm:flex-row gap-2">
+                  {!loading &&
+                    locations.map((location) => (
+                      <motion.button
+                        key={location._id}
+                        onClick={() => handleLocationSelect(location._id)}
+                        className="flex items-center justify-center gap-2 px-3 py-2 md:px-4 rounded-lg font-semibold text-xs md:text-sm transition-all duration-300 shadow-lg backdrop-blur-sm bg-[#FF6B35] text-white hover:bg-primary-green min-w-0 whitespace-nowrap"
+                        whileHover={{ scale: 1.05, y: -2 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <MapPin className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
+                        <span className="truncate">{location.name}</span>
+                      </motion.button>
+                    ))}
+                </div>
               </motion.div>
 
               {/* Slide Images Container */}

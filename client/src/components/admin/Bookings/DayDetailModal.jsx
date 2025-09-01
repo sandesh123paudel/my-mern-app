@@ -66,13 +66,19 @@ const DayDetailModal = ({
     cancelled: 6,
   };
 
-  // Format selected items with sophisticated grouping logic
+  // Format selected items with sophisticated grouping logic including admin additions
   const formatSelectedItemsAsParagraphs = (
     selectedItems,
-    isCustomOrder = false
+    isCustomOrder = false,
+    adminAdditions = [],
+    includeDetails = false
   ) => {
     if (!selectedItems || selectedItems.length === 0) {
-      return "No items";
+      return adminAdditions && adminAdditions.length > 0
+        ? `Admin Additions: ${adminAdditions
+            .map((item) => `${item.name} (+${formatPrice(item.price)})`)
+            .join(", ")}`
+        : "No items";
     }
 
     const formatCurrency = (amount) => {
@@ -110,7 +116,19 @@ const DayDetailModal = ({
         }
 
         if (isCustomOrder && item.totalPrice && item.totalPrice > 0) {
-          description += ` - $${formatCurrency(item.totalPrice)}`;
+          description += ` - ${formatCurrency(item.totalPrice)}`;
+        }
+
+        // Add admin additions for this item
+        if (
+          includeDetails &&
+          item.adminAdditions &&
+          item.adminAdditions.length > 0
+        ) {
+          const additions = item.adminAdditions
+            .map((add) => `+${add.name} (${add.price})`)
+            .join(", ");
+          description += ` [Admin: ${additions}]`;
         }
 
         processedItems.push(description);
@@ -132,7 +150,19 @@ const DayDetailModal = ({
         }
 
         if (isCustomOrder && item.totalPrice && item.totalPrice > 0) {
-          description += ` - $${formatCurrency(item.totalPrice)}`;
+          description += ` - ${formatCurrency(item.totalPrice)}`;
+        }
+
+        // Add admin additions for this item
+        if (
+          includeDetails &&
+          item.adminAdditions &&
+          item.adminAdditions.length > 0
+        ) {
+          const additions = item.adminAdditions
+            .map((add) => `+${add.name} (${add.price})`)
+            .join(", ");
+          description += ` [Admin: ${additions}]`;
         }
 
         processedItems.push(description);
@@ -140,6 +170,12 @@ const DayDetailModal = ({
       }
       // Skip items that are choices (contain " - ") and don't have a parent
     });
+
+    // Add global admin additions
+    if (includeDetails && adminAdditions && adminAdditions.length > 0) {
+      const globalAdditions = adminAdditions.map((item) => `${item.name} `);
+      processedItems.push(`${globalAdditions}`);
+    }
 
     return processedItems.join(", ");
   };
@@ -188,83 +224,327 @@ const DayDetailModal = ({
     }
   };
 
-  // Generate PDF export function
-  const exportDayToPDF = () => {
+  // Generate detailed PDF export for bookings table in tabular format
+  const exportBookingsTableToPDF = () => {
     if (!date) {
       console.error("Date is required for PDF export");
       return;
     }
 
-    const activeDayBookings = bookings.filter(
-      (booking) => booking.status !== "cancelled"
-    );
-    const doc = new jsPDF();
-
-    // PDF Configuration
+    const doc = new jsPDF("l", "mm", "a4"); // Landscape orientation for better table fit
     const pageHeight = doc.internal.pageSize.height;
     const pageWidth = doc.internal.pageSize.width;
-    const margin = 20;
+    const margin = 15;
     let yPosition = margin;
-    const lineHeight = 7;
-    const sectionSpacing = 10;
+    const lineHeight = 4;
+    const sectionSpacing = 6;
 
     // Helper function to add new page if needed
     const checkPageBreak = (requiredSpace = 20) => {
       if (yPosition + requiredSpace > pageHeight - margin) {
         doc.addPage();
         yPosition = margin;
+        // Re-add table header on new page
+        addTableHeader();
+        return true;
       }
+      return false;
     };
 
-    // Helper function to add text with word wrap
-    const addText = (text, fontSize = 10, isBold = false) => {
+    // Helper function to add text
+    const addText = (text, fontSize = 8, isBold = false, x = margin) => {
       doc.setFontSize(fontSize);
-      if (isBold) {
-        doc.setFont("helvetica", "bold");
-      } else {
-        doc.setFont("helvetica", "normal");
+      doc.setFont("helvetica", isBold ? "bold" : "normal");
+      doc.text(text, x, yPosition);
+      yPosition += lineHeight;
+    };
+
+    // Helper function to wrap text within column width
+    const wrapText = (text, maxWidth) => {
+      const lines = doc.splitTextToSize(text || "", maxWidth);
+      return lines;
+    };
+
+    // Column definitions with optimized widths for landscape - larger columns for more details
+    const columns = {
+      time: { x: margin, width: 20, title: "Time" },
+      customer: { x: margin + 20, width: 30, title: "Customer" },
+      contact: { x: margin + 50, width: 35, title: "Contact" },
+      guests: { x: margin + 85, width: 15, title: "Guests" },
+      items: { x: margin + 100, width: 80, title: "Items & Notes" },
+      service: { x: margin + 180, width: 25, title: "Service" },
+      amount: { x: margin + 205, width: 25, title: "Amount" },
+      status: { x: margin + 230, width: 20, title: "Status" },
+      type: { x: margin + 250, width: 18, title: "Type" },
+    };
+
+    // Function to add table header
+    const addTableHeader = () => {
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+
+      // Header background
+      doc.setFillColor(240, 240, 240);
+      doc.rect(margin, yPosition - 2, pageWidth - 2 * margin, 6, "F");
+
+      // Header text
+      Object.entries(columns).forEach(([key, col]) => {
+        doc.text(col.title, col.x + 1, yPosition + 2);
+      });
+
+      yPosition += 6;
+
+      // Header line
+      doc.setLineWidth(0.3);
+      doc.line(margin, yPosition, pageWidth - margin, yPosition);
+      yPosition += 2;
+    };
+
+    // Function to add table row
+    const addTableRow = (booking, isAlternate = false) => {
+      const rowHeight = 25; // Increased row height for more content
+      checkPageBreak(rowHeight + 5);
+
+      const startY = yPosition;
+
+      // Alternate row background
+      if (isAlternate) {
+        doc.setFillColor(250, 250, 250);
+        doc.rect(margin, yPosition - 1, pageWidth - 2 * margin, rowHeight, "F");
       }
 
-      const lines = doc.splitTextToSize(text, pageWidth - 2 * margin);
-      checkPageBreak(lines.length * lineHeight);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6); // Even smaller font for more content
 
-      lines.forEach((line) => {
-        doc.text(line, margin, yPosition);
-        yPosition += lineHeight;
+      // Time
+      const deliveryTime = new Date(booking.deliveryDate).toLocaleTimeString(
+        "en-AU",
+        {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        }
+      );
+      doc.text(deliveryTime, columns.time.x + 1, yPosition + 4);
+
+      // Customer
+      const customerText = `${booking.customerDetails?.name || "No name"}\n#${
+        booking.bookingReference
+      }`;
+      const customerLines = wrapText(customerText, columns.customer.width - 2);
+      customerLines.forEach((line, i) => {
+        doc.text(line, columns.customer.x + 1, yPosition + 4 + i * 3);
       });
+
+      // Contact
+      const contactText = `${booking.customerDetails?.phone || "No phone"}\n${
+        booking.customerDetails?.email?.substring(0, 25) +
+          (booking.customerDetails?.email?.length > 25 ? "..." : "") ||
+        "No email"
+      }`;
+      const contactLines = wrapText(contactText, columns.contact.width - 2);
+      contactLines.forEach((line, i) => {
+        doc.text(line, columns.contact.x + 1, yPosition + 4 + i * 3);
+      });
+
+      // Guests
+      doc.text(
+        `${booking.peopleCount || 0}`,
+        columns.guests.x + 1,
+        yPosition + 4
+      );
+
+      // Items & Notes - Enhanced section
+      let itemsY = yPosition + 4;
+
+      // Selected Items
+      const itemsText = formatSelectedItemsAsParagraphs(
+        booking.selectedItems,
+        booking.orderSource?.sourceType === "customOrder",
+        booking.adminAdditions,
+        true
+      );
+      const itemsLines = wrapText(
+        `Items: ${itemsText}`,
+        columns.items.width - 2
+      );
+      itemsLines.slice(0, 4).forEach((line, i) => {
+        doc.text(line, columns.items.x + 1, itemsY + i * 3);
+      });
+      itemsY += 12;
+
+      // Admin Notes
+      if (booking.adminNotes) {
+        doc.setFont("helvetica", "bold");
+        doc.text("Admin:", columns.items.x + 1, itemsY);
+        doc.setFont("helvetica", "normal");
+        const adminLines = wrapText(
+          booking.adminNotes,
+          columns.items.width - 15
+        );
+        adminLines.slice(0, 2).forEach((line, i) => {
+          doc.text(line, columns.items.x + 15, itemsY + i * 3);
+        });
+        itemsY += 6;
+      }
+
+      // Special Instructions
+      if (booking.specialInstructions) {
+        doc.setFont("helvetica", "bold");
+        doc.text("Special:", columns.items.x + 1, itemsY);
+        doc.setFont("helvetica", "normal");
+        const specialLines = wrapText(
+          booking.specialInstructions,
+          columns.items.width - 20
+        );
+        specialLines.slice(0, 1).forEach((line, i) => {
+          doc.text(line, columns.items.x + 20, itemsY + i * 3);
+        });
+      }
+
+      // Service
+      // Service
+      let serviceText = `${booking.deliveryType || "Not specified"}`;
+      if (booking.venueSelection) {
+        serviceText += `\n${booking.venueSelection.replace(/\b\w/g, (l) =>
+          l.toUpperCase()
+        )}`;
+      }
+      // Add delivery address for delivery orders
+      if (booking.deliveryType === "Delivery" && booking.address) {
+        const addressText = `${booking.address.street || ""} ${
+          booking.address.suburb || ""
+        } ${booking.address.state || ""} ${
+          booking.address.postcode || ""
+        }`.trim();
+        if (addressText) {
+          serviceText += `\nAddr: ${addressText}`;
+        }
+      }
+
+      const serviceLines = wrapText(serviceText, columns.service.width - 2);
+      serviceLines.forEach((line, i) => {
+        doc.text(line, columns.service.x + 1, yPosition + 4 + i * 3);
+      });
+
+      // Amount
+      if (booking.status !== "cancelled") {
+        const amountText = `Total: ${formatPrice(
+          booking.pricing?.total || 0
+        )}\nPaid: ${formatPrice(
+          booking.depositAmount || 0
+        )}\nDue: ${formatPrice(
+          (booking.pricing?.total || 0) - (booking.depositAmount || 0)
+        )}`;
+        const amountLines = wrapText(amountText, columns.amount.width - 2);
+        amountLines.forEach((line, i) => {
+          doc.text(line, columns.amount.x + 1, yPosition + 4 + i * 3);
+        });
+      } else {
+        doc.text("Cancelled", columns.amount.x + 1, yPosition + 4);
+      }
+
+      // Status
+      const status = (booking.status || "pending")
+        .replace("_", " ")
+        .replace(/\b\w/g, (l) => l.toUpperCase());
+      doc.text(status, columns.status.x + 1, yPosition + 4);
+
+      // Type
+      const orderType =
+        booking.orderSource?.sourceType === "customOrder" ? "Custom" : "Menu";
+      doc.text(orderType, columns.type.x + 1, yPosition + 4);
+
+      // Row border
+      doc.setLineWidth(0.1);
+      doc.setDrawColor(200, 200, 200);
+      doc.line(
+        margin,
+        yPosition + rowHeight,
+        pageWidth - margin,
+        yPosition + rowHeight
+      );
+
+      yPosition += rowHeight;
     };
 
     // Header
-    addText("MC Catering Services", 20, true);
-    yPosition += 3;
-    addText("DAY SUMMARY REPORT", 18, true);
-    yPosition += 5;
-    addText(
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.text("MC Catering Services", margin, yPosition);
+    yPosition += 6;
+
+    doc.setFontSize(14);
+    doc.text("EVENT SCHEDULE TABLE", margin, yPosition);
+    yPosition += 6;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text(
       `Date: ${
         date instanceof Date ? formatDate(date.toISOString()) : formatDate(date)
       }`,
-      12
+      margin,
+      yPosition
     );
-    addText(`Generated: ${new Date().toLocaleString()}`, 10);
+    yPosition += 4;
+
+    doc.setFontSize(8);
+    doc.text(`Generated: ${new Date().toLocaleString()}`, margin, yPosition);
     yPosition += sectionSpacing;
 
-    // Add separator line
+    // Summary
+    const summary = getDaySummary();
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text("SUMMARY:", margin, yPosition);
+    yPosition += 4;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.text(
+      `Events: ${summary.totalBookings} (${
+        summary.activeBookings
+      } active) | Guests: ${summary.totalPeople} | Revenue: ${formatPrice(
+        summary.totalRevenue
+      )} | Paid: ${formatPrice(summary.totalPaid)}`,
+      margin,
+      yPosition
+    );
+    yPosition += sectionSpacing;
+
+    // Separator line
+    doc.setLineWidth(0.5);
+    doc.setDrawColor(0, 0, 0);
+    doc.line(margin, yPosition, pageWidth - margin, yPosition);
+    yPosition += 4;
+
+    // Table header
+    addTableHeader();
+
+    // Table rows
+    sortedBookings.forEach((booking, index) => {
+      addTableRow(booking, index % 2 === 1);
+    });
+
+    // Footer
+    yPosition += sectionSpacing;
+    checkPageBreak(15);
     doc.setLineWidth(0.5);
     doc.line(margin, yPosition, pageWidth - margin, yPosition);
-    yPosition += sectionSpacing;
+    yPosition += 4;
 
-    // Summary Statistics
-    addText("SUMMARY STATISTICS", 14, true);
-    addText(
-      `Total Bookings: ${summary.totalBookings} (${summary.activeBookings} active)`
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text(
+      `TOTALS: Revenue: ${formatPrice(
+        summary.totalRevenue
+      )} | Paid: ${formatPrice(summary.totalPaid)} | Balance: ${formatPrice(
+        summary.totalRevenue - summary.totalPaid
+      )}`,
+      margin,
+      yPosition
     );
-    addText(`Total Guests: ${summary.totalPeople}`);
-    addText(`Total Revenue: ${formatPrice(summary.totalRevenue)}`);
-    addText(`Amount Paid: ${formatPrice(summary.totalPaid)}`);
-    addText(
-      `Balance Due: ${formatPrice(summary.totalRevenue - summary.totalPaid)}`
-    );
-    yPosition += sectionSpacing;
 
     // Save the PDF
     const safeDate = date
@@ -273,7 +553,7 @@ const DayDetailModal = ({
           : formatDate(date)
         ).replace(/\//g, "-")
       : "Unknown_Date";
-    doc.save(`Day_Report_${safeDate}.pdf`);
+    doc.save(`Event_Schedule_Table_${safeDate}.pdf`);
   };
 
   // Aggregated items by name across all active bookings
@@ -464,14 +744,6 @@ const DayDetailModal = ({
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <button
-              onClick={exportDayToPDF}
-              className="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors"
-              title="Export day details to PDF"
-            >
-              <FileDown className="w-4 h-4" />
-              Export PDF
-            </button>
             <button
               onClick={onClose}
               className="hover:bg-green-700 p-1 rounded"
@@ -713,15 +985,25 @@ const DayDetailModal = ({
               <h3 className="text-lg font-semibold text-gray-800">
                 Event schedule
               </h3>
-              <div className="flex items-center gap-2">
-                <Search className="w-4 h-4 text-gray-500" />
-                <input
-                  type="text"
-                  placeholder="Search bookings..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="px-3 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={exportBookingsTableToPDF}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors"
+                  title="Export event schedule to PDF"
+                >
+                  <FileDown className="w-4 h-4" />
+                  Export Schedule
+                </button>
+                <div className="flex items-center gap-2">
+                  <Search className="w-4 h-4 text-gray-500" />
+                  <input
+                    type="text"
+                    placeholder="Search bookings..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="px-3 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
               </div>
             </div>
 
@@ -750,8 +1032,8 @@ const DayDetailModal = ({
                         <Users className="w-4 h-4 inline mr-1" />
                         Guests
                       </th>
-                      <th className="px-3 py-3 text-left font-medium text-gray-700">
-                        Selected items
+                      <th className="px-3 py-3 text-left font-medium text-gray-700 w-80">
+                        Selected items & Notes
                       </th>
                       <th className="px-3 py-3 text-left font-medium text-gray-700">
                         Service
@@ -810,25 +1092,57 @@ const DayDetailModal = ({
                         <td className="px-3 py-3 font-medium text-center">
                           {booking.peopleCount || 0}
                         </td>
-                        <td className="px-3 py-3 max-w-xs">
-                          <div
-                            className="text-xs text-gray-600"
-                            style={{
-                              display: "-webkit-box",
-                              WebkitLineClamp: 3,
-                              WebkitBoxOrient: "vertical",
-                              overflow: "hidden",
-                              lineHeight: "1.2em",
-                              maxHeight: "3.6em",
-                            }}
-                            title={formatSelectedItemsAsParagraphs(
-                              booking.selectedItems,
-                              booking.orderSource?.sourceType === "customOrder"
+                        <td className="px-3 py-3 max-w-md">
+                          <div className="text-xs text-gray-600 max-h-24 overflow-y-auto">
+                            <div className="mb-2">
+                              <span className="font-medium text-gray-800">
+                                Items:
+                              </span>
+                              <div className="mt-1">
+                                {formatSelectedItemsAsParagraphs(
+                                  booking.selectedItems,
+                                  booking.orderSource?.sourceType ===
+                                    "customOrder",
+                                  booking.adminAdditions,
+                                  true
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Admin Notes */}
+                            {booking.adminNotes && (
+                              <div className="mb-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                                <span className="font-medium text-yellow-800">
+                                  Admin Notes:
+                                </span>
+                                <div className="text-yellow-700 mt-1">
+                                  {booking.adminNotes}
+                                </div>
+                              </div>
                             )}
-                          >
-                            {formatSelectedItemsAsParagraphs(
-                              booking.selectedItems,
-                              booking.orderSource?.sourceType === "customOrder"
+
+                            {/* Special Instructions */}
+                            {booking.specialInstructions && (
+                              <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded">
+                                <span className="font-medium text-blue-800">
+                                  Special Instructions:
+                                </span>
+                                <div className="text-blue-700 mt-1">
+                                  {booking.specialInstructions}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Customer Notes */}
+                            {booking.customerDetails?.notes && (
+                              <div className="p-2 bg-gray-50 border border-gray-200 rounded">
+                                <span className="font-medium text-gray-800">
+                                  Customer Notes:
+                                </span>
+                                <div className="text-gray-700 mt-1">
+                                  {booking.customerDetails.notes}
+                                </div>
+                              </div>
                             )}
                           </div>
                         </td>
@@ -849,6 +1163,19 @@ const DayDetailModal = ({
                                 ? "Custom"
                                 : "Menu"}
                             </div>
+                            {/* Add delivery address if delivery type is Delivery */}
+                            {booking.deliveryType === "Delivery" &&
+                              booking.address && (
+                                <div className="text-gray-500 text-xs mt-1">
+                                  (
+                                  {`${booking.address.street || ""} ${
+                                    booking.address.suburb || ""
+                                  } ${booking.address.state || ""} ${
+                                    booking.address.postcode || ""
+                                  }`.trim()}
+                                  )
+                                </div>
+                              )}
                           </div>
                         </td>
                         <td className="px-3 py-3">

@@ -2084,6 +2084,43 @@ const removeCouponFromBooking = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Update admin notes for booking
+// @route   PUT /api/bookings/:id/admin-notes
+// @access  Private (Admin only)
+const updateAdminNotes = asyncHandler(async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { adminNotes } = req.body;
+
+    if (!id) {
+      return sendResponse(res, 400, false, "Booking ID is required");
+    }
+
+    const booking = await Booking.findById(id);
+    if (!booking) {
+      return sendResponse(res, 404, false, "Booking not found");
+    }
+
+    // Update admin notes
+    booking.adminNotes = adminNotes || "";
+    await booking.save();
+
+    const updatedBooking = await Booking.findById(id)
+      .populate("orderSource.locationId", "name address phone email")
+      .populate("orderSource.serviceId", "name description");
+
+    sendResponse(res, 200, true, "Admin notes updated successfully", {
+      booking: updatedBooking,
+      updatedNotes: adminNotes || "",
+    });
+  } catch (error) {
+    console.error("Update admin notes error:", error);
+    sendResponse(res, 500, false, "Failed to update admin notes", {
+      error: error.message,
+    });
+  }
+});
+
 module.exports = {
   createBooking,
   getAllBookings,
@@ -2108,4 +2145,5 @@ module.exports = {
   // New coupon functions
   applyCouponToBooking,
   removeCouponFromBooking,
+  updateAdminNotes,
 };

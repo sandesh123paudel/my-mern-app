@@ -22,6 +22,7 @@ const {
   getAdminAdditions,
   applyCouponToBooking,
   removeCouponFromBooking,
+  updateAdminNotes,
 } = require("../controllers/bookingController.js");
 
 const {
@@ -151,5 +152,8 @@ bookingRouter.put("/:id/apply-coupon", userAuth, applyCouponToBooking);
 
 // Remove coupon from booking (admin only)
 bookingRouter.delete("/:id/remove-coupon", userAuth, removeCouponFromBooking);
+
+// Update admin notes for booking
+bookingRouter.put("/:id/admin-notes", userAuth, updateAdminNotes);
 
 module.exports = bookingRouter;

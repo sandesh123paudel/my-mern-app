@@ -44,7 +44,7 @@ const getPackageContentCount = (menu) => {
   }
 };
 
-// Helper function to get total items count
+// Helper function to get total items count (items that can be included in package)
 const getTotalItemsCount = (menu) => {
   if (menu.packageType === 'simple') {
     return menu.simpleItems?.length || 0;
@@ -54,22 +54,27 @@ const getTotalItemsCount = (menu) => {
       if (category.enabled) {
         // Count included items
         totalItems += category.includedItems?.length || 0;
-        // Count selection group items
-        category.selectionGroups?.forEach(group => {
-          totalItems += group.items?.length || 0;
-        });
+        // Count selection groups (each group represents one selectable item)
+        totalItems += category.selectionGroups?.length || 0;
       }
     });
     return totalItems;
   }
 };
 
-// Helper function to get enabled categories for display
+// Helper function to get enabled categories for display with item counts
 const getEnabledCategories = (menu) => {
   if (menu.packageType === 'simple') {
     return ['Simple Items'];
   } else {
-    return menu.categories?.filter(cat => cat.enabled).map(cat => cat.name) || [];
+    return menu.categories?.filter(cat => cat.enabled).map(cat => {
+      // Count items that can be included in the package for this category
+      const includedItemsCount = cat.includedItems?.length || 0;
+      const selectionGroupsCount = cat.selectionGroups?.length || 0;
+      const totalCategoryItems = includedItemsCount + selectionGroupsCount;
+      
+      return `${cat.name}(${totalCategoryItems})`;
+    }) || [];
   }
 };
 
@@ -325,7 +330,7 @@ const MenuCard = ({ menu, onClick }) => {
             </motion.div>
           </motion.div>
 
-          {/* Total Items */}
+          {/* Total Package Items */}
           <motion.div
             className="text-center"
             whileHover={{ scale: 1.05 }}
@@ -338,7 +343,7 @@ const MenuCard = ({ menu, onClick }) => {
             >
               <Star size={20} className="text-yellow-600" />
             </motion.div>
-            <div className="text-xs text-gray-500 mb-1">Total Items</div>
+            <div className="text-xs text-gray-500 mb-1">Package Items</div>
             <motion.div
               className="font-semibold text-sm"
               style={{ color: "var(--primary-brown)" }}
@@ -394,38 +399,6 @@ const MenuCard = ({ menu, onClick }) => {
             )}
           </AnimatePresence>
         </motion.div>
-
-        {/* Package Summary */}
-        {menu.packageType === 'simple' && menu.simpleItems?.length > 0 && (
-          <motion.div
-            className="mb-4 p-3 bg-purple-50 rounded-lg border border-purple-200"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7 }}
-          >
-            <div className="text-xs text-purple-700 font-medium mb-1">Sample Items:</div>
-            <div className="text-xs text-purple-600">
-              {menu.simpleItems.slice(0, 3).map(item => item.name).join(', ')}
-              {menu.simpleItems.length > 3 && ` +${menu.simpleItems.length - 3} more`}
-            </div>
-          </motion.div>
-        )}
-
-        {menu.packageType === 'categorized' && menu.categories?.length > 0 && (
-          <motion.div
-            className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7 }}
-          >
-            <div className="text-xs text-blue-700 font-medium mb-1">Categories:</div>
-            <div className="text-xs text-blue-600">
-              {menu.categories.filter(cat => cat.enabled).slice(0, 3).map(cat => cat.name).join(', ')}
-              {menu.categories.filter(cat => cat.enabled).length > 3 && 
-                ` +${menu.categories.filter(cat => cat.enabled).length - 3} more`}
-            </div>
-          </motion.div>
-        )}
 
         {/* Action Button */}
         <motion.button

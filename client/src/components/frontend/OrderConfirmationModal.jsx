@@ -36,7 +36,7 @@ const formatPrice = (price) => {
 
 const OrderConfirmationModal = ({ orderData, onClose }) => {
   // Get user data from context
-  const { userData, isLoggedIn, isAdmin } = useContext(AppContext);
+  const { userData, isLoggedIn, isSuperAdmin } = useContext(AppContext);
 
   // Update your initial formData state
   const [formData, setFormData] = useState({
@@ -82,7 +82,7 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
     const loadData = async () => {
       document.body.classList.add("no-scroll");
 
-      if (isAdmin) {
+      if (isSuperAdmin) {
         await loadInquiries();
       }
 
@@ -180,11 +180,11 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
     return () => {
       document.body.classList.remove("no-scroll");
     };
-  }, [orderData, isAdmin]);
+  }, [orderData, isSuperAdmin]);
 
   // Load inquiries for admin
   const loadInquiries = async () => {
-    if (!isAdmin) return;
+    if (!isSuperAdmin) return;
 
     setIsLoadingInquiries(true);
     try {
@@ -923,7 +923,6 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
         ? orderData?.menu?.serviceId || orderData?.serviceId
         : orderData?.menu?.serviceId?._id || orderData?.menu?.serviceId;
 
-      
       const result = await validateCoupon({
         code: couponCode,
         locationId,
@@ -1475,7 +1474,7 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
                   </h3>
                   <div className="flex items-center gap-2">
                     {/* Auto-fill from inquiry button - only for admin */}
-                    {isAdmin && (
+                    {isSuperAdmin && (
                       <div className="relative">
                         <button
                           type="button"
@@ -1571,7 +1570,7 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
                 )}
 
                 {/* Admin inquiry helper info */}
-                {isAdmin && (
+                {isSuperAdmin && (
                   <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
                     <p className="text-sm text-purple-800">
                       <strong>Admin Feature:</strong> You can auto-fill customer
