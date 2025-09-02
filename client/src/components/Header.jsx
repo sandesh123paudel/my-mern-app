@@ -181,7 +181,7 @@ const Header = () => {
                 <motion.img
                   src="/Logo-full.svg"
                   alt="Catering Logo"
-                  className="h-auto w-32 sm:w-40 lg:w-50"
+                  className="h-auto w-36 sm:w-46 lg:w-56"
                   whileHover={{ scale: 1.05 }}
                   transition={{ duration: 0.2 }}
                 />
@@ -237,7 +237,7 @@ const Header = () => {
                     onClick={toggleUserMenu}
                     className={`flex items-center space-x-2 px-4 py-2 border rounded-lg transition-all duration-300 font-medium ${
                       isAdmin
-                        ? "border-primary-green text-primary-green hover:bg-green-50 bg-green-50"
+                        ? "border-primary-green text-primary-green hover:bg-green-50 "
                         : "border-primary-brown text-primary-brown hover:text-primary-green hover:border-primary-green"
                     }`}
                     whileHover={{ scale: 1.05, y: -2 }}
@@ -246,7 +246,7 @@ const Header = () => {
                     <div
                       className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
                         isAdmin
-                          ? "bg-primary-green text-white"
+                          ? "border border-primary-green text-white"
                           : "bg-primary-green text-white"
                       }`}
                     >

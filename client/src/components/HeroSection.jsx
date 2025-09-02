@@ -203,7 +203,7 @@ const HeroSection = () => {
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.8, duration: 0.6 }}
                 >
-                  Explore Packages
+                  Explore Packages from
                 </motion.p>
 
                 {/* Individual Location Buttons */}
@@ -213,7 +213,7 @@ const HeroSection = () => {
                       <motion.button
                         key={location._id}
                         onClick={() => handleLocationSelect(location._id)}
-                        className="flex items-center justify-center gap-2 px-3 py-2 md:px-4 rounded-lg font-semibold text-xs md:text-sm transition-all duration-300 shadow-lg backdrop-blur-sm bg-[#FF6B35] text-white hover:bg-primary-green min-w-0 whitespace-nowrap"
+                        className="flex items-center justify-center gap-2 px-5 py-3 md:px-4 rounded-lg font-semibold text-xs md:text-sm transition-all duration-300 shadow-lg backdrop-blur-sm bg-[#FF6B35] text-white hover:bg-primary-green min-w-0 whitespace-nowrap"
                         whileHover={{ scale: 1.05, y: -2 }}
                         whileTap={{ scale: 0.95 }}
                       >
