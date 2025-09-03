@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useContext } from "react";
 import { motion } from "framer-motion";
+
 import {
   X,
   Check,
@@ -25,6 +26,12 @@ import { getServices, getServiceById } from "../../services/serviceServices";
 import { getInquiries } from "../../services/inquiryService";
 import { AppContext } from "../../context/AppContext";
 import { validateCoupon } from "../../services/couponService";
+import {
+  convertSydneyInputToUTC,
+  formatSydneyTime,
+  getMinimumBookingTime,
+  validateSydneyBusinessHours,
+} from "../../utils/dateHelpers";
 
 // Helper function to format currency
 const formatPrice = (price) => {
@@ -845,6 +852,7 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
 
   const validateForm = () => {
     const errors = [];
+    const sydneyTimeZone = "Australia/Sydney";
 
     if (!formData.name.trim()) {
       errors.push("Name is required");
@@ -864,16 +872,10 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
     if (!formData.deliveryDate) {
       errors.push("Please select a delivery/pickup date and time");
     } else {
-      const deliveryDate = new Date(formData.deliveryDate);
-      const now = new Date();
-
-      if (deliveryDate <= now) {
-        errors.push("Delivery date must be in the future");
-      }
-
-      const hours = deliveryDate.getHours();
-      if (hours < 11 || hours >= 20) {
-        errors.push("Please select a time between 11 AM and 8 PM");
+      // Use the new validation function
+      const validation = validateSydneyBusinessHours(formData.deliveryDate);
+      if (!validation.isValid) {
+        errors.push(validation.error);
       }
     }
 
@@ -975,6 +977,17 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
     setIsSubmitting(true);
 
     try {
+      // Convert Sydney input to UTC for backend
+      const utcDeliveryDate = convertSydneyInputToUTC(formData.deliveryDate);
+
+      if (!utcDeliveryDate) {
+        toast.error("Invalid delivery date format");
+        setIsSubmitting(false);
+        return;
+      }
+
+     
+
       // Prepare the booking data in the format expected by the backend
       const bookingData = {
         // Menu information
@@ -1017,7 +1030,7 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
         peopleCount: orderData?.peopleCount || 1,
         deliveryType: isFunction ? "Event" : formData.deliveryType,
 
-        deliveryDate: formData.deliveryDate,
+        deliveryDate: utcDeliveryDate,
         couponCode: appliedCoupon?.coupon?.code || null,
 
         // Address (conditional)
@@ -1696,22 +1709,24 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
                     {isFunction ? "Event" : formData.deliveryType} Date & Time *
                   </label>
                   <p className="text-xs text-gray-500 mb-2">
-                    Available times: 11 AM - 8 PM (7 days a week)
+                    Select time in Sydney timezone (AEDT/AEST). Available: 11:00
+                    AM - 8:00 PM daily.
                   </p>
                   <input
                     type="datetime-local"
                     name="deliveryDate"
                     value={formData.deliveryDate}
                     onChange={(e) => {
-                      if (validateDeliveryTime(e.target.value)) {
+                      const validation = validateSydneyBusinessHours(
+                        e.target.value
+                      );
+                      if (validation.isValid || e.target.value === "") {
                         handleInputChange(e);
                       } else {
-                        toast.error(
-                          "Please select a time between 11 AM and 8 PM"
-                        );
+                        toast.error(validation.error);
                       }
                     }}
-                    min={new Date().toISOString().slice(0, 16)}
+                    min={getMinimumBookingTime()}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                     required
                   />

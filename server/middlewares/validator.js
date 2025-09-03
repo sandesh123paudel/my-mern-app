@@ -292,13 +292,7 @@ exports.bookingFormValidation = () => {
           throw new Error("Delivery date must be in the future");
         }
 
-        // Check if time is within business hours (11 AM - 8 PM)
-        const hours = deliveryDate.getHours();
-        if (hours < 11 || hours >= 20) {
-          throw new Error(
-            "Delivery/pickup time must be between 11 AM and 8 PM"
-          );
-        }
+        
 
         return true;
       }),

@@ -4,6 +4,7 @@ const CustomOrder = require("../models/customOrderModel.js");
 const Booking = require("../models/bookingModel.js");
 const Location = require("../models/locationModel.js");
 const Coupon = require("../models/couponModel.js");
+
 const {
   sendAdminBookingNotification,
   sendCustomerBookingConfirmation,
@@ -13,6 +14,75 @@ const {
   sendAdminBookingSMS,
 } = require("../utils/sendBookingSMS.js");
 
+// Add these imports for timezone handling
+const { toZonedTime, fromZonedTime } = require("date-fns-tz");
+const { format, parseISO, addHours, isBefore } = require("date-fns");
+const SYDNEY_TIMEZONE = "Australia/Sydney";
+
+const validateSydneyTime = (utcDateTimeString) => {
+  try {
+    if (!utcDateTimeString) {
+      return {
+        isValid: false,
+        error: "Date and time are required"
+      };
+    }
+
+    // Parse the UTC datetime from frontend
+    const utcDate = parseISO(utcDateTimeString);
+    
+    if (isNaN(utcDate.getTime())) {
+      return {
+        isValid: false,
+        error: "Invalid date format"
+      };
+    }
+
+    // Convert back to Sydney time to validate
+    const sydneyTime = toZonedTime(utcDate, SYDNEY_TIMEZONE);
+    const sydneyHour = sydneyTime.getHours();
+    
+    // Check business hours (11 AM to 8 PM Sydney time)
+    if (sydneyHour < 11 || sydneyHour >= 20) {
+      return {
+        isValid: false,
+        error: `Please select a time between 11:00 AM and 8:00 PM Sydney time. Your time converts to ${format(sydneyTime, 'h:mm a')} Sydney time.`
+      };
+    }
+
+    // Check if it's at least 2 hours in the future (Sydney time)
+    const nowUTC = new Date();
+    const nowSydney = toZonedTime(nowUTC, SYDNEY_TIMEZONE);
+    const minimumTime = addHours(nowSydney, 2);
+    
+    if (isBefore(sydneyTime, minimumTime)) {
+      return {
+        isValid: false,
+        error: `Please select a time at least 2 hours from now. Current Sydney time: ${format(nowSydney, 'h:mm a')}`
+      };
+    }
+
+    // console.log("Validation passed:", {
+    //   utc: utcDateTimeString,
+    //   sydney: format(sydneyTime, 'yyyy-MM-dd HH:mm:ss'),
+    //   hour: sydneyHour
+    // });
+
+    return {
+      isValid: true,
+      utcDate: utcDate,
+      sydneyTime: sydneyTime,
+      sydneyHour: sydneyHour
+    };
+
+  } catch (error) {
+    console.error("Date validation error:", error);
+    return {
+      isValid: false,
+      error: "Invalid date format"
+    };
+  }
+};
 // Helper function to send response
 const sendResponse = (res, statusCode, success, message, data = null) => {
   return res.status(statusCode).json({
@@ -389,7 +459,7 @@ const createBooking = asyncHandler(async (req, res) => {
       isFunction,
       venueSelection,
       venueCharge = 0,
-      couponCode, // New field for coupon
+      couponCode,
     } = req.body;
 
     // Validate required fields
@@ -409,6 +479,22 @@ const createBooking = asyncHandler(async (req, res) => {
     if (!deliveryDate) {
       return sendResponse(res, 400, false, "Delivery date is required");
     }
+
+    // FIXED TIMEZONE VALIDATION
+    const timeValidation = validateSydneyTime(deliveryDate);
+    if (!timeValidation.isValid) {
+      return sendResponse(res, 400, false, timeValidation.error);
+    }
+
+    // Log the validation for debugging
+    // console.log("Time Validation Result:", {
+    //   originalInput: deliveryDate,
+    //   utcDate: timeValidation.utcDate,
+    //   sydneyTime: format(timeValidation.sydneyTime, "yyyy-MM-dd HH:mm:ss zzz", {
+    //     timeZone: "Australia/Sydney",
+    //   }),
+    //   sydneyHour: timeValidation.sydneyHour,
+    // });
 
     if (!menu || (!menu.menuId && !isCustomOrder)) {
       return sendResponse(res, 400, false, "Menu information is required");
@@ -574,7 +660,7 @@ const createBooking = asyncHandler(async (req, res) => {
 
     const bookingReference = await generateReference();
 
-    // Prepare booking data
+    // Prepare booking data - use the validated UTC date
     const bookingData = {
       bookingReference,
       orderSource: {
@@ -599,10 +685,10 @@ const createBooking = asyncHandler(async (req, res) => {
       },
       peopleCount,
       selectedItems: processedItems,
-      adminAdditions: [], // Initialize empty admin additions
+      adminAdditions: [],
       pricing: finalPricing,
       deliveryType: isFunction ? "Event" : deliveryType || "Pickup",
-      deliveryDate: new Date(deliveryDate),
+      deliveryDate: timeValidation.utcDate, // Use the validated UTC date
       address: !isFunction && deliveryType === "Delivery" ? address : undefined,
       status: "pending",
       paymentStatus: "pending",
@@ -616,8 +702,9 @@ const createBooking = asyncHandler(async (req, res) => {
       venueCharge: isFunction ? venueCharge : 0,
     };
 
+    // Venue availability check for functions
     if (isFunction) {
-      const targetDate = new Date(deliveryDate);
+      const targetDate = new Date(timeValidation.utcDate);
       const startOfDay = new Date(targetDate.setHours(0, 0, 0, 0));
       const endOfDay = new Date(targetDate.setHours(23, 59, 59, 999));
 
@@ -658,11 +745,19 @@ const createBooking = asyncHandler(async (req, res) => {
     const booking = new Booking(bookingData);
     const savedBooking = await booking.save();
 
+    console.log("Booking saved with delivery date:", {
+  utc: savedBooking.deliveryDate.toISOString(),
+  sydney: format(
+    toZonedTime(savedBooking.deliveryDate, SYDNEY_TIMEZONE),
+    "yyyy-MM-dd HH:mm:ss"
+  ),
+});
     // Increment coupon usage if coupon was applied
     if (appliedCoupon) {
       await appliedCoupon.incrementUsage();
     }
 
+    // Send notifications (rest of the code remains the same)
     let locationWithBankDetails = null;
     try {
       const fullLocation = await Location.findById(location._id);
