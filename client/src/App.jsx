@@ -8,6 +8,7 @@ import NotFound from "./components/404";
 import Footer from "./components/Footer";
 import { Toaster } from "react-hot-toast";
 import Login from "./pages/Login";
+import OfferModal from "./components/OfferModal";
 
 // Admin Components
 import AdminDashboard from "./pages/admin/Dashboard";
@@ -77,7 +78,8 @@ const App = () => {
           },
         }}
       />
-
+      {/* Offer Modal - Will show on first visit */}
+      <OfferModal />
       <Routes>
         {/* Public Routes */}
         <Route
