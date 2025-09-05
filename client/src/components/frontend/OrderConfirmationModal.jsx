@@ -116,7 +116,7 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
             setServices(activeServices);
           }
         } catch (error) {
-          console.error("Error loading locations and services:", error);
+          // console.error("Error loading locations and services:", error);
         }
       }
       // Check if this is a function service booking
@@ -177,7 +177,7 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
             setAvailableVenues(venues);
           }
         } catch (error) {
-          console.error("Error checking service details:", error);
+          // console.error("Error checking service details:", error);
         }
       }
     };
@@ -1091,13 +1091,13 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
 
         onClose();
       } else {
-        console.error("Booking creation failed:", result.error);
+        // console.error("Booking creation failed:", result.error);
         toast.error(
           result.error || "Failed to submit order. Please try again."
         );
       }
     } catch (error) {
-      console.error("Order submission error:", error);
+      // console.error("Order submission error:", error);
       toast.error("Failed to submit order. Please try again.");
     } finally {
       setIsSubmitting(false);

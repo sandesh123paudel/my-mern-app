@@ -556,27 +556,58 @@ const DayDetailModal = ({
     doc.save(`Event_Schedule_Table_${safeDate}.pdf`);
   };
 
-  // Aggregated items by name across all active bookings
+  // Aggregated items by name across all active bookings - UPDATED TO INCLUDE ADMIN ADDITIONS
   const getAggregatedItems = () => {
     const activeBookings = bookings.filter(
       (booking) => booking.status !== "cancelled"
     );
     const itemsMap = new Map();
 
-    activeBookings.forEach((booking) => {
-      if (booking.selectedItems && Array.isArray(booking.selectedItems)) {
-        booking.selectedItems.forEach((item) => {
-          const itemName = item.name?.toLowerCase().trim();
-          if (!itemName) return;
+    // Helper function to process items (both selected items and admin additions)
+    const processItem = (item, booking, isAdminAddition = false) => {
+      const itemName = item.name?.toLowerCase().trim();
+      if (!itemName) return;
 
-          const isAddon = item.category === "addons" || item.type === "addon";
-          const itemQuantity = item.quantity || 1;
+      const isAddon = item.category === "addons" || item.type === "addon";
+      const itemQuantity = item.quantity || 1;
 
-          if (itemsMap.has(itemName)) {
-            const existing = itemsMap.get(itemName);
-            existing.totalQuantity += itemQuantity;
-            existing.totalPeople += booking.peopleCount || 0;
-            existing.bookings.push({
+      if (itemsMap.has(itemName)) {
+        const existing = itemsMap.get(itemName);
+        existing.totalQuantity += itemQuantity;
+        existing.totalPeople += booking.peopleCount || 0;
+        existing.bookings.push({
+          bookingRef: booking.bookingReference,
+          customerName: booking.customerDetails?.name,
+          peopleCount: booking.peopleCount,
+          quantity: itemQuantity,
+          orderType:
+            booking.orderSource?.sourceType === "customOrder"
+              ? "Custom"
+              : "Menu",
+          isAddon: isAddon,
+          isAdminAddition: isAdminAddition,
+        });
+        if (
+          statusPriority[booking.status] <
+          statusPriority[existing.highestPriorityStatus]
+        ) {
+          existing.highestPriorityStatus = booking.status;
+        }
+      } else {
+        itemsMap.set(itemName, {
+          name: item.name,
+          category:
+            item.category || (isAdminAddition ? "admin-addition" : "other"),
+          totalQuantity: itemQuantity,
+          totalPeople: booking.peopleCount || 0,
+          isVegetarian: item.isVegetarian || false,
+          isVegan: item.isVegan || false,
+          allergens: item.allergens || [],
+          isAddon: isAddon,
+          isAdminAddition: isAdminAddition,
+          highestPriorityStatus: booking.status,
+          bookings: [
+            {
               bookingRef: booking.bookingReference,
               customerName: booking.customerDetails?.name,
               peopleCount: booking.peopleCount,
@@ -586,39 +617,32 @@ const DayDetailModal = ({
                   ? "Custom"
                   : "Menu",
               isAddon: isAddon,
-            });
-            if (
-              statusPriority[booking.status] <
-              statusPriority[existing.highestPriorityStatus]
-            ) {
-              existing.highestPriorityStatus = booking.status;
-            }
-          } else {
-            itemsMap.set(itemName, {
-              name: item.name,
-              category: item.category || "other",
-              totalQuantity: itemQuantity,
-              totalPeople: booking.peopleCount || 0,
-              isVegetarian: item.isVegetarian || false,
-              isVegan: item.isVegan || false,
-              allergens: item.allergens || [],
-              isAddon: isAddon,
-              highestPriorityStatus: booking.status,
-              bookings: [
-                {
-                  bookingRef: booking.bookingReference,
-                  customerName: booking.customerDetails?.name,
-                  peopleCount: booking.peopleCount,
-                  quantity: itemQuantity,
-                  orderType:
-                    booking.orderSource?.sourceType === "customOrder"
-                      ? "Custom"
-                      : "Menu",
-                  isAddon: isAddon,
-                },
-              ],
+              isAdminAddition: isAdminAddition,
+            },
+          ],
+        });
+      }
+    };
+
+    activeBookings.forEach((booking) => {
+      // Process regular selected items
+      if (booking.selectedItems && Array.isArray(booking.selectedItems)) {
+        booking.selectedItems.forEach((item) => {
+          processItem(item, booking, false);
+
+          // Process admin additions within selected items
+          if (item.adminAdditions && Array.isArray(item.adminAdditions)) {
+            item.adminAdditions.forEach((adminItem) => {
+              processItem(adminItem, booking, true);
             });
           }
+        });
+      }
+
+      // Process global admin additions
+      if (booking.adminAdditions && Array.isArray(booking.adminAdditions)) {
+        booking.adminAdditions.forEach((adminItem) => {
+          processItem(adminItem, booking, true);
         });
       }
     });
@@ -711,6 +735,8 @@ const DayDetailModal = ({
         return "bg-blue-100 text-blue-800";
       case "addons":
         return "bg-purple-100 text-purple-800";
+      case "admin-addition":
+        return "bg-red-100 text-red-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -866,21 +892,38 @@ const DayDetailModal = ({
                         kitchenDoc.setFontSize(10);
                         kitchenDoc.text(
                           `   ${
-                            item.isAddon
-                              ? `${item.totalQuantity} units`
+                            item.isAddon || item.isAdminAddition
+                              ? `${item.totalQuantity} units for ${item.totalPeople} people`
                               : `${item.totalQuantity} portions for ${item.totalPeople} people`
                           }`,
                           20,
                           yPos + 10
                         );
                         kitchenDoc.text(
-                          `   Category: ${item.category || "Other"}`,
+                          `   Category: ${
+                            item.isAdminAddition
+                              ? "Admin Addition"
+                              : item.category || "Other"
+                          }`,
                           20,
                           yPos + 20
                         );
                         if (item.allergens && item.allergens.length > 0) {
                           kitchenDoc.text(
                             `   ALLERGENS: ${item.allergens.join(", ")}`,
+                            20,
+                            yPos + 30
+                          );
+                          yPos += 10;
+                        }
+                        // Add booking breakdown for multiple events
+                        if (item.bookings && item.bookings.length > 1) {
+                          kitchenDoc.text(
+                            `   Events (${
+                              item.bookings.length
+                            }): ${item.bookings
+                              .map((b) => `#${b.bookingRef}(${b.quantity}x)`)
+                              .join(", ")}`,
                             20,
                             yPos + 30
                           );
@@ -939,7 +982,9 @@ const DayDetailModal = ({
                                 item.category
                               )}`}
                             >
-                              {item.category || "Other"}
+                              {item.isAdminAddition
+                                ? "Admin Addition"
+                                : item.category || "Other"}
                             </span>
                             {item.isVegetarian && (
                               <span className="px-2 py-1 rounded text-xs bg-green-100 text-green-700">
@@ -951,6 +996,12 @@ const DayDetailModal = ({
                                 Vegan
                               </span>
                             )}
+                            {/* Show booking count if item appears in multiple bookings */}
+                            {item.bookings && item.bookings.length > 1 && (
+                              <span className="px-2 py-1 rounded text-xs bg-blue-100 text-blue-700 font-medium">
+                                {item.bookings.length} events
+                              </span>
+                            )}
                           </div>
                           {item.allergens && item.allergens.length > 0 && (
                             <div className="mt-1 text-xs text-red-600">
@@ -958,16 +1009,47 @@ const DayDetailModal = ({
                               {item.allergens.join(", ")}
                             </div>
                           )}
+                          {/* Show breakdown by booking if multiple events */}
+                          {item.bookings && item.bookings.length > 1 && (
+                            <div className="mt-2 text-xs text-gray-600">
+                              <span className="font-medium">
+                                Event breakdown:
+                              </span>
+                              <div className="ml-2 space-y-1">
+                                {item.bookings.map((booking, bookingIndex) => (
+                                  <div
+                                    key={bookingIndex}
+                                    className="flex items-center gap-2"
+                                  >
+                                    <span className="text-blue-600">
+                                      #{booking.bookingRef}
+                                    </span>
+                                    <span>{booking.customerName}</span>
+                                    <span className="text-gray-500">
+                                      {booking.quantity}x ({booking.peopleCount}{" "}
+                                      guests)
+                                    </span>
+                                    {booking.isAdminAddition && (
+                                      <span className="px-1 py-0.5 rounded text-xs bg-red-100 text-red-700">
+                                        Admin
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
+
                         <div className="text-right">
                           <div className="text-lg font-bold text-orange-900">
-                            {item.isAddon
+                            {item.isAddon || item.isAdminAddition
                               ? `${item.totalQuantity} units`
                               : `${item.totalQuantity} portions`}
                           </div>
                           <div className="text-sm text-orange-600">
-                            {item.isAddon
-                              ? "Addon items"
+                            {item.isAddon || item.isAdminAddition
+                              ? `${item.totalPeople} people`
                               : `${item.totalPeople} people`}
                           </div>
                         </div>

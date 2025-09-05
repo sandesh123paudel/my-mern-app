@@ -112,9 +112,7 @@ export const createBooking = async (bookingData) => {
     };
     // ... rest of the function remains the same
   } catch (error) {
-    console.error("❌ Error creating booking:", error);
-    console.error("Error response:", error.response?.data);
-    console.error("Request data that failed:", error.config?.data);
+   
 
     return {
       success: false,

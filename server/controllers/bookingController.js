@@ -24,29 +24,32 @@ const validateSydneyTime = (utcDateTimeString) => {
     if (!utcDateTimeString) {
       return {
         isValid: false,
-        error: "Date and time are required"
+        error: "Date and time are required",
       };
     }
 
     // Parse the UTC datetime from frontend
     const utcDate = parseISO(utcDateTimeString);
-    
+
     if (isNaN(utcDate.getTime())) {
       return {
         isValid: false,
-        error: "Invalid date format"
+        error: "Invalid date format",
       };
     }
 
     // Convert back to Sydney time to validate
     const sydneyTime = toZonedTime(utcDate, SYDNEY_TIMEZONE);
     const sydneyHour = sydneyTime.getHours();
-    
+
     // Check business hours (11 AM to 8 PM Sydney time)
     if (sydneyHour < 11 || sydneyHour >= 20) {
       return {
         isValid: false,
-        error: `Please select a time between 11:00 AM and 8:00 PM Sydney time. Your time converts to ${format(sydneyTime, 'h:mm a')} Sydney time.`
+        error: `Please select a time between 11:00 AM and 8:00 PM Sydney time. Your time converts to ${format(
+          sydneyTime,
+          "h:mm a"
+        )} Sydney time.`,
       };
     }
 
@@ -54,11 +57,14 @@ const validateSydneyTime = (utcDateTimeString) => {
     const nowUTC = new Date();
     const nowSydney = toZonedTime(nowUTC, SYDNEY_TIMEZONE);
     const minimumTime = addHours(nowSydney, 2);
-    
+
     if (isBefore(sydneyTime, minimumTime)) {
       return {
         isValid: false,
-        error: `Please select a time at least 2 hours from now. Current Sydney time: ${format(nowSydney, 'h:mm a')}`
+        error: `Please select a time at least 2 hours from now. Current Sydney time: ${format(
+          nowSydney,
+          "h:mm a"
+        )}`,
       };
     }
 
@@ -72,14 +78,13 @@ const validateSydneyTime = (utcDateTimeString) => {
       isValid: true,
       utcDate: utcDate,
       sydneyTime: sydneyTime,
-      sydneyHour: sydneyHour
+      sydneyHour: sydneyHour,
     };
-
   } catch (error) {
     console.error("Date validation error:", error);
     return {
       isValid: false,
-      error: "Invalid date format"
+      error: "Invalid date format",
     };
   }
 };
@@ -745,13 +750,6 @@ const createBooking = asyncHandler(async (req, res) => {
     const booking = new Booking(bookingData);
     const savedBooking = await booking.save();
 
-    console.log("Booking saved with delivery date:", {
-  utc: savedBooking.deliveryDate.toISOString(),
-  sydney: format(
-    toZonedTime(savedBooking.deliveryDate, SYDNEY_TIMEZONE),
-    "yyyy-MM-dd HH:mm:ss"
-  ),
-});
     // Increment coupon usage if coupon was applied
     if (appliedCoupon) {
       await appliedCoupon.incrementUsage();
