@@ -20,6 +20,8 @@ import {
   updateAdminNotes,
 } from "../../../services/bookingService";
 
+
+
 const BookingDetailsModal = ({
   booking,
   onClose,
@@ -145,6 +147,7 @@ const BookingDetailsModal = ({
     return processedItems.join(", ");
   };
 
+  //Financial Calculations
   const calculateFinancials = () => {
     const discount = booking.couponCode ? booking.couponCode.discount : 0;
     const total = booking.pricing?.total || 0;
