@@ -832,7 +832,6 @@ const DayDetailModal = ({
               </div>
             </div>
           </div>
-
           {/* Status Overview */}
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
             <h3 className="font-semibold text-gray-800 mb-3">
@@ -854,7 +853,6 @@ const DayDetailModal = ({
               ))}
             </div>
           </div>
-
           {/* Kitchen Requirements */}
           {showKitchen && (
             <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
@@ -1060,7 +1058,6 @@ const DayDetailModal = ({
               )}
             </div>
           )}
-
           {/* Bookings Table */}
           <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
             <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 flex items-center justify-between">
@@ -1354,7 +1351,6 @@ const DayDetailModal = ({
               </div>
             )}
           </div>
-
           {/* Payment Update Form */}
           {showPaymentForm && selectedBooking && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
