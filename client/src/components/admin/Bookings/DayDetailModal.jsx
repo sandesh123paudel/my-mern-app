@@ -1269,8 +1269,7 @@ const DayDetailModal = ({
                               {/* Payment Update Option */}
                               {(booking.pricing?.total || 0) >
                                 (booking.depositAmount || 0) &&
-                                booking.status !== "cancelled" &&
-                                booking.status !== "completed" && (
+                                booking.status !== "cancelled" && (
                                   <button
                                     onClick={() => {
                                       setSelectedBooking(booking);
@@ -1366,12 +1365,35 @@ const DayDetailModal = ({
                     </label>
                     <select
                       value={paymentData.paymentStatus}
-                      onChange={(e) =>
-                        setPaymentData({
-                          ...paymentData,
-                          paymentStatus: e.target.value,
-                        })
-                      }
+                      onChange={(e) => {
+                        const newStatus = e.target.value;
+
+                        if (newStatus === "fully_paid") {
+                          // always fill with total when switching to fully paid
+                          const totalAmount =
+                            selectedBooking?.pricing?.total || 0;
+                          setPaymentData({
+                            ...paymentData,
+                            paymentStatus: newStatus,
+                            depositAmount: totalAmount.toString(),
+                          });
+                        } else if (newStatus === "deposit_paid") {
+                          // go back to whatever was already paid (or 0)
+                          setPaymentData({
+                            ...paymentData,
+                            paymentStatus: newStatus,
+                            depositAmount:
+                              selectedBooking?.depositAmount?.toString() || "0",
+                          });
+                        } else {
+                          // pending: zero amount
+                          setPaymentData({
+                            ...paymentData,
+                            paymentStatus: newStatus,
+                            depositAmount: "0",
+                          });
+                        }
+                      }}
                       className="w-full p-2 border border-gray-300 rounded-lg"
                     >
                       <option value="pending">Pending</option>

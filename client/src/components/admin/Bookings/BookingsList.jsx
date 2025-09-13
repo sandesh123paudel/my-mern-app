@@ -190,23 +190,24 @@ const BookingsList = ({
     if (diffHours < 0) {
       const hoursOverdue = Math.abs(diffHours);
       if (hoursOverdue < 24) {
-        return { 
-          text: `${hoursOverdue}h overdue!`, 
-          className: "text-red-700 bg-red-50 border border-red-200", 
-          icon: AlertCircle 
+        return {
+          text: `${hoursOverdue}h overdue!`,
+          className: "text-red-700 bg-red-50 border border-red-200",
+          icon: AlertCircle,
         };
       } else {
         const daysOverdue = Math.floor(hoursOverdue / 24);
-        return { 
-          text: `${daysOverdue}d overdue`, 
-          className: "text-red-600 bg-red-50 border border-red-200", 
-          icon: AlertCircle 
+        return {
+          text: `${daysOverdue}d overdue`,
+          className: "text-red-600 bg-red-50 border border-red-200",
+          icon: AlertCircle,
         };
       }
     } else if (diffMinutes <= 60) {
       return {
         text: `${Math.max(1, diffMinutes)}min left!`,
-        className: "text-red-700 bg-red-100 border border-red-300 animate-pulse",
+        className:
+          "text-red-700 bg-red-100 border border-red-300 animate-pulse",
         icon: AlertCircle,
       };
     } else if (diffHours <= 2) {
@@ -228,10 +229,10 @@ const BookingsList = ({
         icon: Clock,
       };
     } else if (diffHours <= 48) {
-      return { 
-        text: "Tomorrow", 
-        className: "text-blue-600 bg-blue-50 border border-blue-200", 
-        icon: CalendarDays 
+      return {
+        text: "Tomorrow",
+        className: "text-blue-600 bg-blue-50 border border-blue-200",
+        icon: CalendarDays,
       };
     }
     return null;
@@ -422,8 +423,7 @@ const BookingsList = ({
                         <h5 className="font-medium text-gray-700 mb-1">
                           Event Details
                         </h5>
-                       
-                        
+
                         <p className="text-gray-600 flex items-center gap-1">
                           <MapPin className="w-3 h-3" />
                           {booking.deliveryType || "Not specified"}
@@ -443,7 +443,9 @@ const BookingsList = ({
 
                         {bookingInfo.address.street && (
                           <p className="text-gray-600 text-xs mt-1">
-                            {bookingInfo.address.street}, {bookingInfo.address.suburb}, {bookingInfo.address.postcode}
+                            {bookingInfo.address.street},{" "}
+                            {bookingInfo.address.suburb},{" "}
+                            {bookingInfo.address.postcode}
                           </p>
                         )}
                       </div>
@@ -603,12 +605,35 @@ const BookingsList = ({
                           </label>
                           <select
                             value={paymentData.paymentStatus}
-                            onChange={(e) =>
-                              setPaymentData({
-                                ...paymentData,
-                                paymentStatus: e.target.value,
-                              })
-                            }
+                            onChange={(e) => {
+                              const newStatus = e.target.value;
+
+                              if (newStatus === "fully_paid") {
+                                // Always fill with total when switching to fully paid
+                                const totalAmount = booking.pricing?.total || 0;
+                                setPaymentData({
+                                  ...paymentData,
+                                  paymentStatus: newStatus,
+                                  depositAmount: totalAmount.toString(),
+                                });
+                              } else if (newStatus === "deposit_paid") {
+                                // Go back to whatever was already paid (or 0)
+                                setPaymentData({
+                                  ...paymentData,
+                                  paymentStatus: newStatus,
+                                  depositAmount: (
+                                    booking.depositAmount || 0
+                                  ).toString(),
+                                });
+                              } else {
+                                // Pending: zero amount
+                                setPaymentData({
+                                  ...paymentData,
+                                  paymentStatus: newStatus,
+                                  depositAmount: "0",
+                                });
+                              }
+                            }}
                             className="w-full p-2 border border-gray-300 rounded-lg text-sm"
                           >
                             <option value="pending">Pending</option>

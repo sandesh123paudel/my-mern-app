@@ -230,33 +230,33 @@ const AdminBookings = () => {
     setShowKitchenDocket(booking);
   };
 
-    const refreshBookingData = async (bookingId) => {
+  const refreshBookingData = async (bookingId) => {
     try {
       // Use your existing getBookingById function
       const result = await bookingService.getBookingById(bookingId);
-      
+
       if (result.success) {
         const updatedBooking = result.data;
-        
+
         // Update the booking in allBookings array
-        setAllBookings(prevBookings => 
-          prevBookings.map(booking => 
+        setAllBookings((prevBookings) =>
+          prevBookings.map((booking) =>
             booking._id === bookingId ? updatedBooking : booking
           )
         );
-        
+
         // Update the calendar bookings
         const dateKey = new Date(updatedBooking.deliveryDate).toDateString();
-        setCalendarBookings(prev => {
+        setCalendarBookings((prev) => {
           const updated = { ...prev };
           if (updated[dateKey]) {
-            updated[dateKey] = updated[dateKey].map(booking =>
+            updated[dateKey] = updated[dateKey].map((booking) =>
               booking._id === bookingId ? updatedBooking : booking
             );
           }
           return updated;
         });
-        
+
         // Update the selected booking if it's the one being viewed
         if (selectedBooking && selectedBooking._id === bookingId) {
           setSelectedBooking(updatedBooking);
@@ -270,7 +270,6 @@ const AdminBookings = () => {
       toast.error("Failed to refresh booking data");
     }
   };
-
 
   // Load data when location/service selection is ready or month changes
   useEffect(() => {
@@ -688,35 +687,35 @@ const AdminBookings = () => {
 
   // Update functions
   const updateBookingStatus = async (bookingId, status, notes = "") => {
-  try {
-    const statusData = { status };
-    if (notes) statusData.adminNotes = notes;
+    try {
+      const statusData = { status };
+      if (notes) statusData.adminNotes = notes;
 
-    const result = await bookingService.updateBookingStatus(
-      bookingId,
-      statusData
-    );
+      const result = await bookingService.updateBookingStatus(
+        bookingId,
+        statusData
+      );
 
-    if (result.success) {
-      toast.success(result.message || "Booking status updated successfully");
-      
-      // Refresh the specific booking data
-      await refreshBookingData(bookingId);
-      
-      // Also refresh the full data to ensure calendar is updated
-      await fetchBookingsData(currentDate);
-      
-      return result.data; // Return updated booking for modal
-    } else {
-      toast.error(result.error || "Failed to update booking status");
-      throw new Error(result.error);
+      if (result.success) {
+        toast.success(result.message || "Booking status updated successfully");
+
+        // Refresh the specific booking data
+        await refreshBookingData(bookingId);
+
+        // Also refresh the full data to ensure calendar is updated
+        await fetchBookingsData(currentDate);
+
+        return result.data; // Return updated booking for modal
+      } else {
+        toast.error(result.error || "Failed to update booking status");
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      console.error("Error updating booking status:", error);
+      toast.error("Failed to update booking status");
+      throw error;
     }
-  } catch (error) {
-    console.error("Error updating booking status:", error);
-    toast.error("Failed to update booking status");
-    throw error;
-  }
-};
+  };
 
   const updatePayment = async (bookingId, paymentData) => {
     try {
@@ -741,32 +740,32 @@ const AdminBookings = () => {
   };
 
   const deleteBooking = async (bookingId, reason = "") => {
-  try {
-    const result = await bookingService.cancelBooking(bookingId, { reason });
+    try {
+      const result = await bookingService.cancelBooking(bookingId, { reason });
 
-    if (result.success) {
-      toast.success(result.message || "Booking cancelled successfully");
-      
-      // Refresh the specific booking data first
-      await refreshBookingData(bookingId);
-      
-      // Then refresh all data
-      await fetchBookingsData(currentDate);
-      
-      // Don't close modal immediately - let it show updated status
-      // closeBookingDetails();
-      
-      return result.data;
-    } else {
-      toast.error(result.error || "Failed to cancel booking");
-      throw new Error(result.error);
+      if (result.success) {
+        toast.success(result.message || "Booking cancelled successfully");
+
+        // Refresh the specific booking data first
+        await refreshBookingData(bookingId);
+
+        // Then refresh all data
+        await fetchBookingsData(currentDate);
+
+        // Don't close modal immediately - let it show updated status
+        // closeBookingDetails();
+
+        return result.data;
+      } else {
+        toast.error(result.error || "Failed to cancel booking");
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      console.error("Error cancelling booking:", error);
+      toast.error("Failed to cancel booking");
+      throw error;
     }
-  } catch (error) {
-    console.error("Error cancelling booking:", error);
-    toast.error("Failed to cancel booking");
-    throw error;
-  }
-};
+  };
 
   const handleFilterChange = (newFilters) => {
     setFilters((prev) => ({ ...prev, ...newFilters }));
@@ -776,6 +775,7 @@ const AdminBookings = () => {
   // Calculate summary stats
   const getSummaryStats = () => {
     const total = allBookings.length;
+
     const custom = allBookings.filter(
       (booking) =>
         booking.isCustomOrder ||
@@ -783,15 +783,50 @@ const AdminBookings = () => {
     ).length;
     const regular = total - custom;
 
-    const activeBookings = allBookings.filter(
+    // Filter out cancelled bookings
+    const nonCancelledBookings = allBookings.filter(
       (booking) => booking.status !== "cancelled"
     );
-    const totalRevenue = activeBookings.reduce(
+
+    // Total expected revenue (non-cancelled)
+    const totalRevenue = nonCancelledBookings.reduce(
       (sum, booking) => sum + (booking.pricing?.total || 0),
       0
     );
 
-    return { total, custom, regular, totalRevenue };
+    // ✅ Generated revenue = cash actually received for all non-cancelled bookings
+    const generatedRevenue = nonCancelledBookings.reduce((sum, booking) => {
+      const total = booking.pricing?.total || 0;
+      const paid = booking.depositAmount || 0;
+
+      // If fully paid, count full total, otherwise count deposit
+      if (booking.paymentStatus === "fully_paid") {
+        return sum + total;
+      } else if (booking.paymentStatus === "deposit_paid") {
+        return sum + paid;
+      } else {
+        return sum; // pending → nothing received yet
+      }
+    }, 0);
+
+    // Outstanding (non-cancelled)
+    const getableAmount = nonCancelledBookings.reduce((sum, booking) => {
+      const total = booking.pricing?.total || 0;
+      const paid =
+        booking.paymentStatus === "fully_paid"
+          ? total
+          : booking.depositAmount || 0;
+      return sum + Math.max(0, total - paid);
+    }, 0);
+
+    return {
+      total,
+      custom,
+      regular,
+      totalRevenue, // total expected
+      generatedRevenue, // 💰 total collected (full + deposits)
+      getableAmount, // still to collect
+    };
   };
 
   const summaryStats = getSummaryStats();
@@ -998,7 +1033,7 @@ const AdminBookings = () => {
       ) : (
         <>
           {/* Enhanced Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-1">
             <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
               <h3 className="text-sm font-medium text-gray-600">
                 Total Bookings
@@ -1029,6 +1064,24 @@ const AdminBookings = () => {
               </h3>
               <p className="text-2xl font-bold text-green-900">
                 {formatPrice(summaryStats.totalRevenue)}
+              </p>
+            </div>
+
+            <div className="bg-blue-50 p-4 rounded-lg shadow-sm border border-blue-200">
+              <h3 className="text-sm font-medium text-blue-600">
+                Generated Revenue (Completed, Paid & Deposit Paid)
+              </h3>
+              <p className="text-2xl font-bold text-blue-900">
+                {formatPrice(summaryStats.generatedRevenue)}
+              </p>
+            </div>
+
+            <div className="bg-orange-50 p-4 rounded-lg shadow-sm border border-orange-200">
+              <h3 className="text-sm font-medium text-orange-600">
+                Getable Amount (Outstanding)
+              </h3>
+              <p className="text-2xl font-bold text-orange-900">
+                {formatPrice(summaryStats.getableAmount)}
               </p>
             </div>
           </div>
@@ -1105,7 +1158,7 @@ const AdminBookings = () => {
               onDeleteBooking={deleteBooking}
               onPrintBooking={handlePrintBooking}
               getStatusColor={getStatusColor}
-              onKitchenDocket={handleKitchenDocket} 
+              onKitchenDocket={handleKitchenDocket}
               onRefreshBooking={refreshBookingData}
               formatPrice={formatPrice}
               formatDate={formatDate}
