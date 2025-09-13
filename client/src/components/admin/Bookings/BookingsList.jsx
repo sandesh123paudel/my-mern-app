@@ -190,24 +190,23 @@ const BookingsList = ({
     if (diffHours < 0) {
       const hoursOverdue = Math.abs(diffHours);
       if (hoursOverdue < 24) {
-        return {
-          text: `${hoursOverdue}h overdue!`,
-          className: "text-red-700 bg-red-50 border border-red-200",
-          icon: AlertCircle,
+        return { 
+          text: `${hoursOverdue}h overdue!`, 
+          className: "text-red-700 bg-red-50 border border-red-200", 
+          icon: AlertCircle 
         };
       } else {
         const daysOverdue = Math.floor(hoursOverdue / 24);
-        return {
-          text: `${daysOverdue}d overdue`,
-          className: "text-red-600 bg-red-50 border border-red-200",
-          icon: AlertCircle,
+        return { 
+          text: `${daysOverdue}d overdue`, 
+          className: "text-red-600 bg-red-50 border border-red-200", 
+          icon: AlertCircle 
         };
       }
     } else if (diffMinutes <= 60) {
       return {
         text: `${Math.max(1, diffMinutes)}min left!`,
-        className:
-          "text-red-700 bg-red-100 border border-red-300 animate-pulse",
+        className: "text-red-700 bg-red-100 border border-red-300 animate-pulse",
         icon: AlertCircle,
       };
     } else if (diffHours <= 2) {
@@ -229,10 +228,10 @@ const BookingsList = ({
         icon: Clock,
       };
     } else if (diffHours <= 48) {
-      return {
-        text: "Tomorrow",
-        className: "text-blue-600 bg-blue-50 border border-blue-200",
-        icon: CalendarDays,
+      return { 
+        text: "Tomorrow", 
+        className: "text-blue-600 bg-blue-50 border border-blue-200", 
+        icon: CalendarDays 
       };
     }
     return null;
@@ -423,7 +422,8 @@ const BookingsList = ({
                         <h5 className="font-medium text-gray-700 mb-1">
                           Event Details
                         </h5>
-
+                       
+                        
                         <p className="text-gray-600 flex items-center gap-1">
                           <MapPin className="w-3 h-3" />
                           {booking.deliveryType || "Not specified"}
@@ -443,9 +443,7 @@ const BookingsList = ({
 
                         {bookingInfo.address.street && (
                           <p className="text-gray-600 text-xs mt-1">
-                            {bookingInfo.address.street},{" "}
-                            {bookingInfo.address.suburb},{" "}
-                            {bookingInfo.address.postcode}
+                            {bookingInfo.address.street}, {bookingInfo.address.suburb}, {bookingInfo.address.postcode}
                           </p>
                         )}
                       </div>
@@ -539,16 +537,22 @@ const BookingsList = ({
                   {/* Action Buttons */}
                   <div className="ml-4 flex flex-col gap-2">
                     <button
-                      onClick={() => onBookingClick && onBookingClick(booking)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onBookingClick && onBookingClick(booking);
+                      }}
                       className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
                     >
                       View Details
                     </button>
 
                     <button
-                      onClick={() =>
-                        onKitchenDocket && onKitchenDocket(booking)
-                      }
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onKitchenDocket && onKitchenDocket(booking);
+                      }}
                       className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors text-sm font-medium flex items-center gap-2"
                     >
                       <ChefHat className="w-4 h-4" />
@@ -556,7 +560,11 @@ const BookingsList = ({
                     </button>
 
                     <button
-                      onClick={() => onPrintBooking && onPrintBooking(booking)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onPrintBooking && onPrintBooking(booking);
+                      }}
                       className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm font-medium flex items-center gap-2"
                     >
                       <Printer className="w-4 h-4" />
@@ -567,9 +575,11 @@ const BookingsList = ({
                       booking.status !== "completed" && (
                         <select
                           value={booking.status || "pending"}
-                          onChange={(e) =>
-                            onStatusUpdate(booking._id, e.target.value)
-                          }
+                          onChange={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onStatusUpdate(booking._id, e.target.value);
+                          }}
                           className="px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-green-500"
                         >
                           <option value="pending">Pending</option>
@@ -582,7 +592,11 @@ const BookingsList = ({
 
                     {financials.showPaymentOption && (
                       <button
-                        onClick={() => openPaymentEdit(booking)}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          openPaymentEdit(booking);
+                        }}
                         className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm"
                       >
                         Payment
@@ -606,8 +620,11 @@ const BookingsList = ({
                           <select
                             value={paymentData.paymentStatus}
                             onChange={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              
                               const newStatus = e.target.value;
-
+                              
                               if (newStatus === "fully_paid") {
                                 // Always fill with total when switching to fully paid
                                 const totalAmount = booking.pricing?.total || 0;
@@ -621,9 +638,7 @@ const BookingsList = ({
                                 setPaymentData({
                                   ...paymentData,
                                   paymentStatus: newStatus,
-                                  depositAmount: (
-                                    booking.depositAmount || 0
-                                  ).toString(),
+                                  depositAmount: (booking.depositAmount || 0).toString(),
                                 });
                               } else {
                                 // Pending: zero amount
@@ -652,10 +667,19 @@ const BookingsList = ({
                             min="0"
                             max={booking.pricing?.total || 0}
                             value={paymentData.depositAmount}
-                            onChange={(e) =>
-                              handleAmountChange(e.target.value, booking)
-                            }
-                            onFocus={(e) => e.target.select()}
+                            onChange={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const value = e.target.value;
+                              setTimeout(() => {
+                                handleAmountChange(value, booking);
+                              }, 0);
+                            }}
+                            onFocus={(e) => {
+                              e.stopPropagation();
+                              e.target.select();
+                            }}
+                            onMouseDown={(e) => e.stopPropagation()}
                             className="w-full p-2 border border-gray-300 rounded-lg text-sm"
                             placeholder="Enter amount"
                           />
@@ -678,13 +702,21 @@ const BookingsList = ({
                             </p>
                             <div className="flex gap-2">
                               <button
-                                onClick={() => handlePaymentUpdate(booking._id)}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handlePaymentUpdate(booking._id);
+                                }}
                                 className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 text-sm"
                               >
                                 Update
                               </button>
                               <button
-                                onClick={() => setEditingPayment(null)}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setEditingPayment(null);
+                                }}
                                 className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 text-sm"
                               >
                                 Cancel
