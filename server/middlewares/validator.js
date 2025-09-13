@@ -623,9 +623,9 @@ exports.bookingUpdateValidation = () => {
 
           // Check business hours
           const hours = deliveryDate.getHours();
-          if (hours < 11 || hours >= 20) {
+          if (hours < 12 || hours >= 20) {
             throw new Error(
-              "Delivery/pickup time must be between 11 AM and 8 PM"
+              "Delivery/pickup time must be between 12 PM and 8 PM"
             );
           }
         }
