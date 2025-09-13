@@ -27,7 +27,7 @@ export const convertSydneyInputToUTC = (datetimeLocalValue) => {
 };
 
 /**
- * Validate that the input time is between 11 AM and 8 PM (Sydney time)
+ * Validate that the input time is between 12 AM and 8 PM (Sydney time)
  */
 export const validateSydneyBusinessHours = (datetimeLocalValue) => {
   if (!datetimeLocalValue) {
@@ -42,10 +42,10 @@ export const validateSydneyBusinessHours = (datetimeLocalValue) => {
     const hours = inputDate.getHours();
 
     // Direct validation - treat input as Sydney time
-    if (hours < 11 || hours >= 20) {
+    if (hours < 12 || hours >= 20) {
       return {
         isValid: false,
-        error: `Please select a time between 11:00 AM and 8:00 PM Sydney time. You selected ${format(
+        error: `Please select a time between 12:00 PM and 8:00 PM Sydney time. You selected ${format(
           inputDate,
           "h:mm a"
         )}.`,
@@ -78,11 +78,11 @@ export const getMinimumBookingTime = () => {
   const minTime = addHours(now, 2);
 
   // Adjust to business hours if needed
-  if (minTime.getHours() < 11) {
-    minTime.setHours(11, 0, 0, 0);
+  if (minTime.getHours() < 12) {
+    minTime.setHours(12, 0, 0, 0);
   } else if (minTime.getHours() >= 20) {
     minTime.setDate(minTime.getDate() + 1);
-    minTime.setHours(11, 0, 0, 0);
+    minTime.setHours(12, 0, 0, 0);
   }
 
   return format(minTime, "yyyy-MM-dd'T'HH:mm");

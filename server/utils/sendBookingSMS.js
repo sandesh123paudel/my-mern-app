@@ -51,13 +51,13 @@ const sendCustomerBookingSMS = async (bookingData) => {
 // Send SMS to admin for booking notification
 const sendAdminBookingSMS = async (bookingData) => {
   try {
-    const adminPhone = process.env.SMS_ADMIN_PHONE;
-    if (!adminPhone) {
-      console.warn(
-        "SMS_ADMIN_PHONE not configured, skipping admin booking SMS"
-      );
-      return { success: false, error: "Admin phone not configured" };
-    }
+    // const adminPhone = process.env.SMS_ADMIN_PHONE;
+    // if (!adminPhone) {
+    //   console.warn(
+    //     "SMS_ADMIN_PHONE not configured, skipping admin booking SMS"
+    //   );
+    //   return { success: false, error: "Admin phone not configured" };
+    // }
 
     // Format event date
     const eventDate = new Date(bookingData.deliveryDate);
@@ -76,13 +76,17 @@ const sendAdminBookingSMS = async (bookingData) => {
     const orderType = bookingData.isCustomOrder
       ? "Custom Order"
       : bookingData.menu?.serviceName || "Booking";
-    const message = `New ${orderType}! ${bookingData.customerDetails?.name} (${
-      bookingData.customerDetails?.phone
-    }). Ref: ${
+    const phoneNumber = bookingData.customerDetails?.phone;
+    const clickablePhone = `tel:${phoneNumber}`;
+    const message = `New ${orderType}! ${
+      bookingData.customerDetails?.name
+    } ${clickablePhone}. Ref: ${
       bookingData.bookingReference
     }. ${formattedDate} ${formattedTime}. $${formatCurrency(
       bookingData.pricing?.total
     )}. ${bookingData.peopleCount} guests.`;
+
+    console.log("Admin booking SMS message:", message);
 
     return await sendSMS(
       adminPhone,

@@ -42,11 +42,11 @@ const validateSydneyTime = (utcDateTimeString) => {
     const sydneyTime = toZonedTime(utcDate, SYDNEY_TIMEZONE);
     const sydneyHour = sydneyTime.getHours();
 
-    // Check business hours (11 AM to 8 PM Sydney time)
-    if (sydneyHour < 11 || sydneyHour >= 20) {
+    // Check business hours (12 PM to 8 PM Sydney time)
+    if (sydneyHour < 12 || sydneyHour >= 20) {
       return {
         isValid: false,
-        error: `Please select a time between 11:00 AM and 8:00 PM Sydney time. Your time converts to ${format(
+        error: `Please select a time between 12:00 PM and 8:00 PM Sydney time. Your time converts to ${format(
           sydneyTime,
           "h:mm a"
         )} Sydney time.`,

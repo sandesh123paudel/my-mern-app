@@ -847,7 +847,7 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
     if (selectedDate <= now) return false;
 
     const hours = selectedDate.getHours();
-    return hours >= 11 && hours < 20;
+    return hours >= 12 && hours < 20;
   };
 
   const validateForm = () => {
@@ -1663,7 +1663,7 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
                   <p className="text-sm text-blue-700">
                     <strong>Note:</strong>{" "}
                     {isFunction ? "Event" : "Pickup and Delivery"} times are
-                    between 11 AM and 8 PM.
+                    between 12 PM and 8 PM.
                   </p>
                 </div>
 
@@ -1709,7 +1709,7 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
                     {isFunction ? "Event" : formData.deliveryType} Date & Time *
                   </label>
                   <p className="text-xs text-gray-500 mb-2">
-                    Select time in Sydney timezone (AEDT/AEST). Available: 11:00
+                    Select time in Sydney timezone (AEDT/AEST). Available: 12:00
                     AM - 8:00 PM daily.
                   </p>
                   <input
