@@ -20,8 +20,6 @@ import {
   updateAdminNotes,
 } from "../../../services/bookingService";
 
-
-
 const BookingDetailsModal = ({
   booking,
   onClose,
@@ -165,8 +163,8 @@ const BookingDetailsModal = ({
       isCancelled,
       isCompleted,
       showRevenue: !isCancelled,
-      showPaymentOption: !isFullyPaid && !isCancelled && !isCompleted,
-      canBeCancelled: !isCancelled && !isCompleted,
+      showPaymentOption: !isCancelled && (!isFullyPaid || !isCompleted),
+      canBeCancelled: !isCancelled && !isCompleted && total > 0,
     };
   };
 
@@ -232,26 +230,49 @@ const BookingDetailsModal = ({
     }
   };
 
+  // inside BookingDetailsModal.jsx
   const handlePaymentUpdate = async () => {
     try {
       setIsUpdating(true);
-      const depositAmount = parseFloat(paymentData.depositAmount) || 0;
 
-      const result = await bookingService.updatePaymentStatus(booking._id, {
+      const depositAmount = parseFloat(paymentData.depositAmount) || 0;
+      const totalAmount = booking.pricing?.total || 0;
+
+      let finalPaymentStatus = paymentData.paymentStatus;
+      let shouldUpdateBookingStatus = false;
+      let newBookingStatus = booking.status;
+
+      // Auto-adjust like BookingsList
+      if (depositAmount >= totalAmount && totalAmount > 0) {
+        finalPaymentStatus = "fully_paid";
+      } else if (depositAmount > 0 && depositAmount < totalAmount) {
+        finalPaymentStatus = "deposit_paid";
+        if (newBookingStatus === "pending") {
+          shouldUpdateBookingStatus = true;
+          newBookingStatus = "confirmed";
+        }
+      } else if (depositAmount === 0) {
+        finalPaymentStatus = "pending";
+      }
+
+      // update payment first
+      await bookingService.updatePaymentStatus(booking._id, {
         ...paymentData,
         depositAmount,
+        paymentStatus: finalPaymentStatus,
       });
 
-      if (result.success) {
-        toast.success(result.message || "Payment Updated Successfully");
-        setShowPaymentForm(false);
-        booking.paymentStatus = paymentData.paymentStatus;
-        booking.depositAmount = depositAmount;
-        if (onRefreshBooking) {
-          await onRefreshBooking(booking._id);
-        }
-      } else {
-        toast.error(result.error || "Failed To Update Payment");
+      // auto-update booking status if needed
+      if (shouldUpdateBookingStatus && onUpdateStatus) {
+        await onUpdateStatus(booking._id, newBookingStatus);
+      }
+
+      toast.success("Payment updated successfully");
+      setShowPaymentForm(false);
+
+      // refresh booking data in modal
+      if (onRefreshBooking) {
+        await onRefreshBooking(booking._id);
       }
     } catch (error) {
       console.error("Error updating payment:", error);
@@ -1083,7 +1104,7 @@ const BookingDetailsModal = ({
               Admin actions
             </h3>
             <div className="flex flex-wrap gap-3">
-              {/* In the admin actions section */}
+              {/* Status buttons */}
               {booking.status === "pending" && (
                 <button
                   onClick={() => handleStatusUpdate("confirmed")}
@@ -1126,7 +1147,7 @@ const BookingDetailsModal = ({
               )}
 
               {/* Payment management */}
-              {financials.showPaymentOption && (
+              {financials.showPaymentOption && !financials.isFullyPaid && (
                 <button
                   onClick={() => setShowPaymentForm(true)}
                   className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"
@@ -1134,14 +1155,13 @@ const BookingDetailsModal = ({
                   Manage payment
                 </button>
               )}
-
-              {/* Payment management */}
-              {booking.status !== "cancelled" && (
+              {financials.isFullyPaid && (
                 <button
                   onClick={() => setShowPaymentForm(true)}
-                  className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"
+                  className="bg-gray-400 text-white px-4 py-2 rounded-lg cursor-not-allowed"
+                  disabled
                 >
-                  {financials.isFullyPaid ? "View payment" : "Manage payment"}
+                  Fully Paid
                 </button>
               )}
 

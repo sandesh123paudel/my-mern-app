@@ -182,28 +182,54 @@ const DayDetailModal = ({
 
   // Handle payment update with validation
   const handlePaymentUpdate = async (bookingId) => {
-    try {
-      const depositAmount = parseFloat(paymentData.depositAmount) || 0;
-      const totalAmount = selectedBooking?.pricing?.total || 0;
+  try {
+    const depositAmount = parseFloat(paymentData.depositAmount) || 0;
+    const totalAmount = selectedBooking?.pricing?.total || 0;
 
-      // Validate amount doesn't exceed total
-      if (depositAmount > totalAmount) {
-        alert(
-          `Amount cannot exceed total amount of ${formatPrice(totalAmount)}`
-        );
-        return;
-      }
-
-      await onPaymentUpdate(bookingId, {
-        ...paymentData,
-        depositAmount,
-      });
-      setShowPaymentForm(false);
-      setSelectedBooking(null);
-    } catch (error) {
-      console.error("Error updating payment:", error);
+    // Validate amount doesn't exceed total
+    if (depositAmount > totalAmount) {
+      alert(
+        `Amount cannot exceed total amount of ${formatPrice(totalAmount)}`
+      );
+      return;
     }
-  };
+
+    // Determine the correct payment status based on amount
+    let finalPaymentStatus = paymentData.paymentStatus;
+    let shouldUpdateBookingStatus = false;
+    let newBookingStatus = selectedBooking?.status;
+
+    if (depositAmount >= totalAmount && totalAmount > 0) {
+      finalPaymentStatus = "fully_paid";
+    } else if (depositAmount > 0 && depositAmount < totalAmount) {
+      finalPaymentStatus = "deposit_paid";
+      if (newBookingStatus === "pending") {
+        shouldUpdateBookingStatus = true;
+        newBookingStatus = "confirmed";
+      }
+    } else if (depositAmount === 0) {
+      finalPaymentStatus = "pending";
+    }
+
+    // Update payment first
+    await onPaymentUpdate(bookingId, {
+      ...paymentData,
+      depositAmount,
+      paymentStatus: finalPaymentStatus,
+    });
+
+    // Update booking status if needed
+    if (shouldUpdateBookingStatus && onStatusUpdate) {
+      await onStatusUpdate(bookingId, newBookingStatus);
+    }
+
+    setShowPaymentForm(false);
+    setSelectedBooking(null);
+  } catch (error) {
+    console.error("Error updating payment:", error);
+  }
+};
+
 
   // Handle amount change with validation
   const handleAmountChange = (value) => {
