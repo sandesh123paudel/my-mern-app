@@ -23,6 +23,7 @@ import AdminLayout from "./pages/admin/AdminLayout";
 import LocationServices from "./pages/admin/LocationServices";
 import CustomMenu from "./pages/admin/CustomOrderMenu";
 import CouponManagement from "./pages/admin/Coupon";
+import CalenderPage from "./pages/admin/CalenderPage";
 
 const App = () => {
   return (
@@ -144,6 +145,7 @@ const App = () => {
         >
           <Route index element={<AdminDashboard />} />
           <Route path="dashboard" element={<AdminDashboard />} />
+          <Route path="calender" element={<CalenderPage />} />
           <Route path="location-services" element={<LocationServices />} />
           <Route path="custom-menu" element={<CustomMenu />} />
           <Route path="bookings" element={<AdminBookings />} />

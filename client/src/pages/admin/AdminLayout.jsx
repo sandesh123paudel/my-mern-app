@@ -33,7 +33,8 @@ const AdminLayout = () => {
       name: "Location Services",
       icon: "📍",
     },
-    { path: "/admin/bookings", name: "Bookings", icon: "📅" },
+    { path: "/admin/calender", name: "Calendar Overview", icon: "📅" },
+    { path: "/admin/bookings", name: "Bookings", icon: "📲" },
     { path: "/admin/inquiries", name: "Inquiries", icon: "📧" },
     { path: "/admin/custom-menu", name: "Custom Menu", icon: "🍕" },
     { path: "/admin/menu", name: "Menu Management", icon: "🍽️" },
@@ -42,7 +43,7 @@ const AdminLayout = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-100 flex">
+    <div className="min-h-[120vh] bg-gray-100 flex">
       {/* Sidebar */}
       <div
         className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform ${
