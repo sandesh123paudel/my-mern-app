@@ -151,17 +151,13 @@ const LocationServiceCalendar = ({
             <div className="flex items-center gap-2 mb-2">
               <Briefcase className="w-3 h-3 text-orange-600 flex-shrink-0" />
               <span
-                className="text-xs text-gray-800 bg-orange-100 px-2 py-1 rounded-md font-medium"
+                className={`text-xs text-gray-800 ${
+                  service.name == "Function" ? "bg-orange-200" : "bg-orange-400"
+                } px-2 py-1 rounded-md font-medium`}
                 title={service.name}
               >
                 {service.name}
               </span>
-            </div>
-
-            {/* Location details */}
-            <div className="text-xs text-gray-500 truncate">
-              {location.city}
-              {location.state && `, ${location.state}`}
             </div>
           </div>
 
@@ -279,7 +275,7 @@ const LocationServiceCalendar = ({
                               : "text-gray-700 hover:bg-gray-100 rounded-sm"
                           }
                                     ${
-                                      isPastDate ? "opacity-50" : ""
+                                      isPastDate ? "opacity-20" : ""
                                     }  // <— dim past dates
 
                         `}
@@ -296,7 +292,7 @@ const LocationServiceCalendar = ({
                         {day}
 
                         {/* Count badge for multiple bookings */}
-                        {count > 1 && (
+                        {count > 0 && (
                           <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-bold border border-white shadow-sm">
                             {count}
                           </div>
