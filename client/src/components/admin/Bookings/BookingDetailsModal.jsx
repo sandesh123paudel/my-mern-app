@@ -976,12 +976,31 @@ const BookingDetailsModal = ({
                   </label>
                   <select
                     value={paymentData.paymentStatus}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const newStatus = e.target.value;
+                      let newDeposit = paymentData.depositAmount;
+
+                      // when admin chooses "fully_paid" auto-fill total
+                      if (newStatus === "fully_paid") {
+                        newDeposit = (booking.pricing?.total || 0).toString();
+                      }
+
+                      // when admin chooses "pending" reset to 0
+                      if (newStatus === "pending") {
+                        newDeposit = "0";
+                      }
+
+                      // when admin chooses "deposit_paid" keep what’s already paid
+                      if (newStatus === "deposit_paid") {
+                        newDeposit = (booking.depositAmount || 0).toString();
+                      }
+
                       setPaymentData({
                         ...paymentData,
-                        paymentStatus: e.target.value,
-                      })
-                    }
+                        paymentStatus: newStatus,
+                        depositAmount: newDeposit,
+                      });
+                    }}
                     className="w-full p-2 border border-gray-300 rounded-lg"
                     disabled={isUpdating}
                   >
