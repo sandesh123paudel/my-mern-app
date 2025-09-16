@@ -4,7 +4,7 @@ import Calender from "../../components/admin/Calender/Calender";
 const CalenderPage = () => {
   return (
     <div className="p-4">
-      <h2 className="text-xl font-bold mb-4">Booking Calendars</h2>
+      <h2 className="text-3xl font-bold mb-4">Booking Calendars</h2>
       <Calender />
     </div>
   );

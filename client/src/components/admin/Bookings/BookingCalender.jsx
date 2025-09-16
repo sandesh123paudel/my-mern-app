@@ -54,10 +54,8 @@ const BookingCalendar = ({
     "November",
     "December",
   ];
-
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-  // NEW: A map for status colors to keep the UI consistent.
   const statusColors = {
     pending: "text-amber-600",
     confirmed: "text-green-600",
@@ -67,17 +65,12 @@ const BookingCalendar = ({
     cancelled: "text-red-600",
   };
 
-  const getDayBookings = (date) => {
-    return calendarBookings[date.toDateString()] || [];
-  };
+  const getDayBookings = (date) =>
+    calendarBookings[date.toDateString()] || [];
 
   const getDaySummary = (bookings) => {
     if (bookings.length === 0) return null;
-
-    const activeBookings = bookings.filter(
-      (booking) => booking.status !== "cancelled"
-    );
-
+    const activeBookings = bookings.filter((b) => b.status !== "cancelled");
     const totalPeople = activeBookings.reduce(
       (sum, booking) => sum + (booking.peopleCount || 0),
       0
@@ -86,7 +79,6 @@ const BookingCalendar = ({
       (sum, booking) => sum + (booking.pricing?.total || 0),
       0
     );
-
     const statusCounts = {
       pending: bookings.filter((b) => b.status === "pending").length,
       confirmed: bookings.filter((b) => b.status === "confirmed").length,
@@ -95,62 +87,53 @@ const BookingCalendar = ({
       completed: bookings.filter((b) => b.status === "completed").length,
       cancelled: bookings.filter((b) => b.status === "cancelled").length,
     };
-
     return {
       totalPeople,
       totalRevenue,
-      totalBookings: bookings.length,
-      activeBookings: activeBookings.length,
       statusCounts,
     };
   };
 
-  // REMOVED: The getStatusIndicators function is no longer needed.
-
   const isPastDate = (date) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const compareDate = new Date(date);
-    compareDate.setHours(0, 0, 0, 0);
-    return compareDate < today;
+    const t = new Date();
+    t.setHours(0, 0, 0, 0);
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d < t;
   };
 
   const getMonthOverview = () => {
     const allBookings = Object.values(calendarBookings).flat();
     const activeBookings = allBookings.filter((b) => b.status !== "cancelled");
-
     const activeDays = Object.keys(calendarBookings).filter(
       (dateString) => calendarBookings[dateString].length > 0
     ).length;
-
     const totalEvents = allBookings.length;
-
     const totalGuests = activeBookings.reduce(
       (sum, booking) => sum + (booking.peopleCount || 0),
       0
     );
-
     return { activeDays, totalEvents, totalGuests };
   };
 
   const monthOverview = getMonthOverview();
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       {/* Calendar Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 gap-2">
+        <div className="flex items-center gap-2 sm:gap-4">
           <button
             onClick={() => onMonthNavigate(-1)}
-            className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
+            className="p-1 sm:p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors text-sm sm:text-base"
           >
             ←
           </button>
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
               {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
             </h2>
-            <div className="flex items-center gap-3 mt-1 text-sm text-gray-600">
+            <div className="flex flex-wrap items-center gap-2 mt-1 text-xs sm:text-sm text-gray-600">
               {selectedLocation && (
                 <div className="flex items-center gap-1">
                   <MapPin className="w-3 h-3" />
@@ -167,7 +150,7 @@ const BookingCalendar = ({
           </div>
           <button
             onClick={() => onMonthNavigate(1)}
-            className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
+            className="p-1 sm:p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors text-sm sm:text-base"
           >
             →
           </button>
@@ -175,12 +158,12 @@ const BookingCalendar = ({
       </div>
 
       {/* Calendar Grid */}
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-0.5 sm:gap-1 text-[10px] sm:text-xs">
         {/* Day Headers */}
         {dayNames.map((day) => (
           <div
             key={day}
-            className="p-3 text-center font-semibold text-gray-700 bg-gray-50 border border-gray-200"
+            className="p-1 sm:p-3 text-center font-semibold text-gray-700 bg-gray-50 border border-gray-200"
           >
             {day}
           </div>
@@ -201,44 +184,39 @@ const BookingCalendar = ({
                 key={`${weekIndex}-${dayIndex}`}
                 onClick={() => onDayClick(date)}
                 className={`
-                  min-h-[140px] p-2 border border-gray-200 transition-all duration-200
+                  min-h-[100px] sm:min-h-[140px] p-1 sm:p-2 border border-gray-200 transition-all duration-200
                   ${!isCurrentMonth ? "bg-gray-50 text-gray-400" : "bg-white"}
-                  ${isToday ? "ring-2 ring-blue-500 bg-blue-50" : ""}
+                  ${isToday ? "ring-1 sm:ring-2 ring-blue-500 bg-blue-50" : ""}
                   ${isPast && hasBookings ? "bg-green-50" : ""}
                   ${!isPast && hasBookings ? "bg-yellow-50" : ""}
-                  ${
-                    isCurrentMonth
-                      ? "cursor-pointer hover:bg-gray-50 hover:shadow-md"
-                      : ""
-                  }
+                  ${isCurrentMonth ? "cursor-pointer hover:bg-gray-50 hover:shadow-md" : ""}
                 `}
               >
-                {/* Date Number with Status Count */}
+                {/* Date Number */}
                 <div
                   className={`
-                  text-sm font-medium mb-2 flex justify-between items-start
-                  ${
-                    isToday
-                      ? "text-blue-700"
-                      : isCurrentMonth
-                      ? "text-gray-900"
-                      : "text-gray-400"
-                  }
-                `}
+                    text-[10px] sm:text-sm font-medium mb-1 sm:mb-2 flex justify-between items-start
+                    ${
+                      isToday
+                        ? "text-blue-700"
+                        : isCurrentMonth
+                        ? "text-gray-900"
+                        : "text-gray-400"
+                    }
+                  `}
                 >
                   <span>{date.getDate()}</span>
                   {hasBookings && (
-                    <span className="bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                    <span className="bg-blue-500 text-white text-[9px] sm:text-xs rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center">
                       {dayBookings.length}
                     </span>
                   )}
                 </div>
 
-                {/* Status Indicators and Summary */}
+                {/* Status Indicators */}
                 {daySummary && (
-                  <div className="space-y-2">
-                    {/* UPDATED: Display status text instead of emojis */}
-                    <div className="text-xs space-y-1">
+                  <div className="space-y-1 sm:space-y-2">
+                    <div className="text-[9px] sm:text-xs space-y-0.5 sm:space-y-1">
                       {Object.entries(daySummary.statusCounts).map(
                         ([status, count]) =>
                           count > 0 ? (
@@ -258,15 +236,15 @@ const BookingCalendar = ({
                       )}
                     </div>
 
-                    {/* People & Revenue Summary */}
-                    <div className="text-xs space-y-1 pt-1 border-t border-gray-200">
+                    {/* People & Revenue */}
+                    <div className="text-[9px] sm:text-xs space-y-0.5 pt-1 border-t border-gray-200">
                       <div className="flex justify-between items-center">
                         <div className="flex items-center gap-1 text-gray-700">
-                          <Users className="w-3 h-3" />
+                          <Users className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                           <span>{daySummary.totalPeople} Guests</span>
                         </div>
                         <div className="flex items-center gap-1 text-green-700 font-medium">
-                          <DollarSign className="w-3 h-3" />
+                          <DollarSign className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                           <span>{formatPrice(daySummary.totalRevenue)}</span>
                         </div>
                       </div>
@@ -274,10 +252,12 @@ const BookingCalendar = ({
                   </div>
                 )}
 
-                {/* No Bookings State */}
+                {/* No Bookings */}
                 {!hasBookings && isCurrentMonth && (
                   <div className="flex items-center justify-center h-full">
-                    <span className="text-gray-300 text-xs">No events</span>
+                    <span className="text-gray-300 text-[9px] sm:text-xs">
+                      No events
+                    </span>
                   </div>
                 )}
               </div>
@@ -287,26 +267,26 @@ const BookingCalendar = ({
       </div>
 
       {/* Month Summary */}
-      <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <h4 className="font-medium text-blue-800 mb-3">
+      <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <h4 className="font-medium text-blue-800 mb-2 sm:mb-3 text-sm sm:text-base">
           Month Overview - {monthNames[currentDate.getMonth()]}{" "}
           {currentDate.getFullYear()}
         </h4>
-        <div className="grid grid-cols-3 gap-4 text-sm">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4 text-[10px] sm:text-sm">
           <div className="text-center">
-            <div className="font-semibold text-gray-800 text-lg">
+            <div className="font-semibold text-gray-800 text-base sm:text-lg">
               {monthOverview.activeDays}
             </div>
             <div className="text-gray-600">Active Days</div>
           </div>
           <div className="text-center">
-            <div className="font-semibold text-gray-800 text-lg">
+            <div className="font-semibold text-gray-800 text-base sm:text-lg">
               {monthOverview.totalEvents}
             </div>
             <div className="text-gray-600">Total Events</div>
           </div>
           <div className="text-center">
-            <div className="font-semibold text-gray-800 text-lg">
+            <div className="font-semibold text-gray-800 text-base sm:text-lg">
               {monthOverview.totalGuests}
             </div>
             <div className="text-gray-600">Total Guests</div>

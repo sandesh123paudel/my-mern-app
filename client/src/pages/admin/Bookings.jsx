@@ -23,6 +23,7 @@ import {
   Calendar,
   Users,
 } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 
 const AdminBookings = () => {
   // Location and Service Selection State
@@ -51,6 +52,10 @@ const AdminBookings = () => {
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [showExportPanel, setShowExportPanel] = useState(false);
+
+  const [searchParams] = useSearchParams();
+  const urlLocationId = searchParams.get("locationId");
+  const urlServiceId = searchParams.get("serviceId");
 
   // Filter state
   const [filters, setFilters] = useState({
@@ -116,7 +121,7 @@ const AdminBookings = () => {
     }
   };
 
-  // Load locations and services on component mount
+  // Get bookings for a specific location-service pair
   useEffect(() => {
     const loadLocationsAndServices = async () => {
       try {
@@ -132,6 +137,14 @@ const AdminBookings = () => {
             (loc) => loc.isActive
           );
           setLocations(activeLocations);
+
+          // Auto-select location from URL if present
+          if (
+            urlLocationId &&
+            activeLocations.find((loc) => loc._id === urlLocationId)
+          ) {
+            setSelectedLocation(urlLocationId);
+          }
         } else {
           console.error("❌ Failed to load locations:", locationsResult.error);
           toast.error("Failed to load locations");
@@ -142,6 +155,16 @@ const AdminBookings = () => {
             (service) => service.isActive
           );
           setServices(activeServices);
+
+          // Auto-select service from URL if present and location is set
+          if (
+            urlServiceId &&
+            urlLocationId &&
+            activeServices.find((serv) => serv._id === urlServiceId)
+          ) {
+            setSelectedService(urlServiceId);
+            setDataReady(true); // Ready to load data immediately
+          }
         } else {
           console.error("❌ Failed to load services:", servicesResult.error);
           toast.error("Failed to load services");
@@ -155,7 +178,35 @@ const AdminBookings = () => {
     };
 
     loadLocationsAndServices();
-  }, []);
+  }, [urlLocationId, urlServiceId]);
+
+  useEffect(() => {
+    // If URL parameters are present and different from current selection, update them
+    if (urlLocationId && urlLocationId !== selectedLocation) {
+      const location = locations.find((loc) => loc._id === urlLocationId);
+      if (location) {
+        handleLocationChange(urlLocationId);
+      }
+    }
+
+    if (
+      urlServiceId &&
+      urlServiceId !== selectedService &&
+      selectedLocation === urlLocationId
+    ) {
+      const service = services.find((serv) => serv._id === urlServiceId);
+      if (service) {
+        handleServiceChange(urlServiceId);
+      }
+    }
+  }, [
+    urlLocationId,
+    urlServiceId,
+    locations,
+    services,
+    selectedLocation,
+    selectedService,
+  ]);
 
   // Get services filtered by selected location
   const getFilteredServices = () => {

@@ -185,12 +185,11 @@ const AdminDashboard = () => {
               recentInquiriesResult.data.length
             : 0,
           totalBookings: bookingStats.totalBookings || 0,
-          totalUsers: usersRes.data.count || 0,
           totalRevenue: bookingStats.totalRevenue || 0,
           totalPeople: bookingStats.totalPeople || 0,
           averageOrderValue: bookingStats.averageOrderValue || 0,
           customOrders: bookingStats.customOrders || 0,
-          regularOrders: bookingStats.regularOrders || 0,
+          regularOrders: bookingStats.menuOrders || 0,
           statusCounts: bookingStats.statusCounts || {},
           recentActivity,
           recentInquiries,
@@ -230,7 +229,7 @@ const AdminDashboard = () => {
             ? recentInquiriesResult.pagination?.total ||
               recentInquiriesResult.data.length
             : 0,
-          totalUsers: usersRes.data.count || 0,
+
           recentActivity: [],
           recentInquiries,
           popularItems: [],
@@ -241,7 +240,7 @@ const AdminDashboard = () => {
       setStats({
         totalInquiries: 0,
         totalBookings: 0,
-        totalUsers: 0,
+
         totalRevenue: 0,
         totalPeople: 0,
         averageOrderValue: 0,
@@ -442,26 +441,6 @@ const AdminDashboard = () => {
                 </dd>
                 <dd className="text-xs text-amber-500">
                   Regular: {stats.regularOrders}
-                </dd>
-              </dl>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-indigo-500">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <div className="w-10 h-10 bg-indigo-500 rounded-lg flex items-center justify-center">
-                <span className="text-white text-lg">👤</span>
-              </div>
-            </div>
-            <div className="ml-5 w-0 flex-1">
-              <dl>
-                <dt className="text-sm font-medium text-amber-600 truncate">
-                  Total Users
-                </dt>
-                <dd className="text-2xl font-bold text-amber-800">
-                  {stats.totalUsers}
                 </dd>
               </dl>
             </div>

@@ -30,7 +30,7 @@ const AdminLayout = () => {
     { path: "/admin/dashboard", name: "Dashboard", icon: "📊" },
     {
       path: "/admin/location-services",
-      name: "Location Services",
+      name: "Location / Services",
       icon: "📍",
     },
     { path: "/admin/calender", name: "Calendar Overview", icon: "📅" },
@@ -43,50 +43,52 @@ const AdminLayout = () => {
   ];
 
   return (
-    <div className="min-h-[120vh] bg-gray-100 flex">
+    <div className="min-h-screen bg-gray-100 flex">
       {/* Sidebar */}
+
       <div
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform ${
+        className={`fixed inset-y-0 left-0 z-50 w-60 bg-white shadow-lg transform ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         } transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}
       >
-        <div className="flex items-center justify-center h-16 bg-green-600">
-          <h1 className="text-white text-xl font-bold">MC Catering Admin</h1>
+        <div className="flex items-center justify-center h-14 bg-green-600">
+          <h1 className="text-white text-lg font-bold">MC Catering Admin</h1>
         </div>
 
-        <nav className="mt-8">
-          <ul className="space-y-2 px-4">
+        {/* Make it scrollable */}
+        <nav className="mt-4 overflow-y-auto max-h-[calc(100vh-180px)]">
+          <ul className="space-y-1 px-3">
             {menuItems.map((item) => (
               <li key={item.path}>
                 <Link
                   to={item.path}
-                  className={`flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-green-50 hover:text-green-600 transition-colors ${
+                  className={`flex items-center px-3 py-2 text-sm text-gray-700 rounded-lg hover:bg-green-50 hover:text-green-600 transition-colors ${
                     location.pathname === item.path
                       ? "bg-green-100 text-green-600 border-r-2 border-green-600"
                       : ""
                   }`}
                   onClick={() => setSidebarOpen(false)}
                 >
-                  <span className="mr-3 text-lg">{item.icon}</span>
-                  {item.name}
+                  <span className="mr-2 text-base">{item.icon}</span>
+                  <span className="truncate">{item.name}</span>
                 </Link>
               </li>
             ))}
           </ul>
         </nav>
 
-        <div className="absolute bottom-1 left-4 right-4">
-          <div className="bg-amber-50 rounded-lg p-4 mb-4 border border-amber-200">
-            <p className="text-xs text-amber-700">Logged in as:</p>
-            <p className="font-medium text-sm text-amber-800">
+        <div className="absolute bottom-1 left-3 right-3">
+          <div className="bg-amber-50 rounded-lg p-3 mb-3 border border-amber-200 text-xs">
+            <p className="text-amber-700">Logged in as:</p>
+            <p className="font-medium text-amber-800">
               {userData?.name || "Admin"}
             </p>
-            <p className="text-xs text-amber-600">{userData?.email}</p>
+            <p className="text-amber-600">{userData?.email}</p>
           </div>
 
           <button
             onClick={handleLogout}
-            className="w-full bg-amber-700 text-white py-2 px-4 rounded-lg hover:bg-amber-800 transition-colors"
+            className="w-full bg-amber-700 text-white py-2 px-3 rounded-lg hover:bg-amber-800 transition-colors text-sm"
           >
             Logout
           </button>
@@ -94,7 +96,7 @@ const AdminLayout = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
+      <div className="flex-1  text-sm flex flex-col overflow-hidden lg:ml-0">
         {/* Top Navigation */}
         <header className="bg-white shadow-sm border-b border-gray-200">
           <div className="flex items-center justify-between px-6 h-16">
