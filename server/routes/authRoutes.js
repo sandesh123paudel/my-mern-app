@@ -5,7 +5,6 @@ const {
   updateSuperAdminValidator 
 } = require("../middlewares/validator.js");
 const {
-  createSuperAdmin,
   createNewSuperAdmin,
   getAllSuperAdmins,
   updateSuperAdmin,
@@ -20,8 +19,7 @@ const userAuth = require("../middlewares/auth.js");
 
 const authRouter = express.Router();
 
-// Create initial Super Admin Route (for setup)
-authRouter.post("/create-superadmin", createSuperAdmin);
+
 
 // Login Route
 authRouter.post("/login", loginValidator(), handleValidationErrors, loginUser);

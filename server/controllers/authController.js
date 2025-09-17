@@ -19,40 +19,6 @@ const setTokenCookie = (res, token) => {
   });
 };
 
-// Create superadmin
-const createSuperAdmin = async (req, res) => {
-  try {
-    const existing = await UserModel.findOne({ email: "admin@mccatering.com" });
-    if (existing) {
-      return res.status(400).json({
-        success: false,
-        message: "Super Admin already exists",
-      });
-    }
-
-    const hashedPassword = await bcrypt.hash("Admin@123", 10);
-
-    const newAdmin = new UserModel({
-      name: "MC Catering Admin",
-      email: "admin@mccatering.com",
-      password: hashedPassword,
-      role: "superadmin",
-    });
-
-    await newAdmin.save();
-
-    return res.status(201).json({
-      success: true,
-      message: "Super Admin created successfully",
-    });
-  } catch (err) {
-    console.error("Error creating superadmin:", err);
-    return res.status(500).json({
-      success: false,
-      message: "Server error",
-    });
-  }
-};
 
 // Create new superadmin from component
 const createNewSuperAdmin = async (req, res) => {
@@ -326,7 +292,6 @@ const logout = async (req, res) => {
 };
 
 module.exports = {
-  createSuperAdmin,
   createNewSuperAdmin,
   getAllSuperAdmins,
   updateSuperAdmin,
