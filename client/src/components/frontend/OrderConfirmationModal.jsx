@@ -336,6 +336,8 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
                   category:
                     categoryName === "entree"
                       ? "entree"
+                      : categoryName === "on-tray"
+                      ? "on-tray"
                       : categoryName === "mains"
                       ? "mains"
                       : categoryName === "dessert" ||
@@ -1114,6 +1116,7 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
     "choices",
     "options",
     "entree",
+    "on-tray",
     "mains",
     "desserts",
     "addons",
@@ -1564,29 +1567,13 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
                   </div>
                 </div>
 
-                {/* Show user info if logged in */}
-                {isLoggedIn && userData && (
-                  <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <p className="text-sm text-green-800">
-                      <strong>Logged in as:</strong>{" "}
-                      {userData.name ||
-                        `${userData.firstName || ""} ${
-                          userData.lastName || ""
-                        }`.trim() ||
-                        userData.email}
-                    </p>
-                    <p className="text-xs text-green-600 mt-1">
-                      Your contact information can be auto-filled from your
-                      profile
-                    </p>
-                  </div>
-                )}
+              
 
                 {/* Admin inquiry helper info */}
                 {isSuperAdmin && (
                   <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
                     <p className="text-sm text-purple-800">
-                      <strong>Admin Feature:</strong> You can auto-fill customer
+                      <strong>Hi Admin,</strong> You can auto-fill customer
                       contact details from existing inquiries using the "Fill
                       from Inquiry" button above.
                     </p>

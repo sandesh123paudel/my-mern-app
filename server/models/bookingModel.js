@@ -38,6 +38,7 @@ const selectedItemSchema = new mongoose.Schema(
         "mains",
         "desserts",
         "sides",
+        "on-tray",
         "beverages",
         "addons",
         "package",
@@ -192,45 +193,48 @@ const pricingSchema = new mongoose.Schema(
       type: Number,
       default: 0,
       min: 0,
+      set: v => Number(v.toFixed(2)),
     },
     modifierPrice: {
       type: Number,
       default: 0,
+      set: v => Number(v.toFixed(2)),
     },
     itemsPrice: {
       type: Number,
       default: 0,
       min: 0,
+      set: v => Number(v.toFixed(2)),
     },
     addonsPrice: {
       type: Number,
       default: 0,
       min: 0,
+      set: v => Number(v.toFixed(2)),
     },
     adminAdditionsPrice: {
       type: Number,
       default: 0,
       min: 0,
+      set: v => Number(v.toFixed(2)),
     },
     subtotal: {
       type: Number,
       required: true,
       min: 0,
-    },
-    // Coupon information
-    couponCode: {
-      type: String,
-      default: null,
+      set: v => Number(v.toFixed(2)),
     },
     couponDiscount: {
       type: Number,
       default: 0,
       min: 0,
+      set: v => Number(v.toFixed(2)),
     },
     total: {
       type: Number,
       required: true,
       min: 0,
+      set: v => Number(v.toFixed(2)),
     },
   },
   { _id: false }
@@ -373,6 +377,7 @@ const bookingSchema = new mongoose.Schema(
       type: Number,
       min: 0,
       default: 0,
+      set: v => Number(v.toFixed(2)),
     },
 
     // Order date
@@ -412,6 +417,7 @@ const bookingSchema = new mongoose.Schema(
       type: Number,
       default: 0,
       min: 0,
+      set: v => Number(v.toFixed(2)),
     },
 
     // Helper field to identify if this booking is for a function

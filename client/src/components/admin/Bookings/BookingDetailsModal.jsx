@@ -594,7 +594,7 @@ const BookingDetailsModal = ({
                   <label className="text-sm font-medium text-gray-600">
                     Venue
                   </label>
-                  <p className="text-gray-900 bg-blue-100 text-blue-800 rounded-full px-3 py-1 text-center text-sm font-medium">
+                  <p className="text-gray-900 bg-blue-100 rounded-full px-3 py-1 text-center text-sm font-medium">
                     {booking.venueSelection.replace(/\b\w/g, (l) =>
                       l.toUpperCase()
                     )}
