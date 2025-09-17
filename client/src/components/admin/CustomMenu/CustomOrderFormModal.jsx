@@ -47,9 +47,11 @@ const CustomOrderFormModal = ({
   const categoryOptions = [
     { name: "entree", displayName: "Starters & Appetizers" },
     { name: "mains", displayName: "Main Courses" },
+    { name: "on-tray", displayName: "On-Tray Meals" },
+    { name: "kids", displayName: "Kids Menu" },
     { name: "desserts", displayName: "Desserts & Sweets" },
     { name: "sides", displayName: "Side Dishes" },
-    { name: "beverages", displayName: "Beverages" },
+    { name: "drinks", displayName: "Drinks" },
   ];
 
   // Load services for the selected location

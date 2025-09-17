@@ -338,8 +338,12 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
                       ? "entree"
                       : categoryName === "on-tray"
                       ? "on-tray"
-                      : categoryName === "mains"
+                      : categoryName === "mains" || categoryName === "main"
                       ? "mains"
+                      : categoryName === "kids"
+                      ? "kids"
+                      : categoryName === "drinks" || categoryName === "drink"
+                      ? "drinks"
                       : categoryName === "dessert" ||
                         categoryName === "desserts"
                       ? "desserts"
@@ -988,8 +992,6 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
         return;
       }
 
-     
-
       // Prepare the booking data in the format expected by the backend
       const bookingData = {
         // Menu information
@@ -1119,6 +1121,8 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
     "on-tray",
     "mains",
     "desserts",
+    "kids",
+    "drinks",
     "addons",
     "other",
   ];
@@ -1566,8 +1570,6 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
                     )}
                   </div>
                 </div>
-
-              
 
                 {/* Admin inquiry helper info */}
                 {isSuperAdmin && (
