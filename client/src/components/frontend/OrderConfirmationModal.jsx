@@ -1804,6 +1804,15 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
                         </select>
                       </div>
                     </div>
+                    <div className="mt-2 text-xs text-red-500">
+                      * Standard charges apply: $25 for the first 10 km, then
+                      $2.50/km. Special rates available for larger orders and
+                      longer distances.*
+                      <br />
+                      <span className="font-semibold text-green-500">
+                        Free delivery on orders above $799 within 10 km.
+                      </span>
+                    </div>
                   </motion.div>
                 )}
               </div>
