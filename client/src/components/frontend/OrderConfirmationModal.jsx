@@ -1804,12 +1804,11 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
                         </select>
                       </div>
                     </div>
-                    <div className="mt-2 text-xs text-red-500">
-                      * Standard charges apply: $25 for the first 10 km, then
-                      $2.50/km. Special rates available for larger orders and
-                      longer distances.*
+                    <div className="mt-2 text-xs font-semibold text-red-500">
+                      *Delivery charges starts from $25. For more info tel:
+                      0449557777. Delivery Partner Uber/ Doordash *
                       <br />
-                      <span className="font-semibold text-green-500">
+                      <span className="font-normal text-green-500">
                         Free delivery on orders above $799 within 10 km.
                       </span>
                     </div>
