@@ -37,6 +37,8 @@ const sendCustomerBookingSMS = async (bookingData) => {
       process.env.COMPANY_NAME || "Our Team"
     }`;
 
+    console.log("Customer booking SMS message:", message);
+
     return await sendSMS(
       bookingData.customerDetails.phone,
       message,

@@ -201,8 +201,7 @@ const BookingCalendar = ({
               <div
                 key={`${weekIndex}-${dayIndex}`}
                 onClick={() => onDayClick(date)}
-                className={`
-    min-h-[100px] sm:min-h-[140px] p-1 sm:p-2 border border-gray-200 transition-all duration-200 flex flex-col justify-between
+                className={`min-h-[100px] sm:min-h-[140px] p-1 sm:p-2 border border-gray-200 transition-all duration-200 flex flex-col justify-between
     ${!isCurrentMonth ? "bg-gray-50 text-gray-400" : "bg-white"}
     ${isToday ? "ring-1 sm:ring-2 ring-blue-500 bg-blue-50" : ""}
     ${isPast && hasBookings ? "bg-green-100" : ""}
@@ -262,7 +261,6 @@ const BookingCalendar = ({
                           <span>{daySummary.totalPeople} Guests</span>
                         </div>
                         <div className="flex items-center gap-1 text-green-700 font-medium">
-                          <DollarSign className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                           <span>{formatPrice(daySummary.totalRevenue)}</span>
                         </div>
                       </div>
@@ -277,7 +275,8 @@ const BookingCalendar = ({
                         </div>
                       ) : (
                         <div className="flex justify-end items-center text-green-600 font-medium">
-                          <Check className="w-3 h-3" /> {/* green tick */}
+                          <Check className="w-3 h-3 text-green-600" />{" "}
+                          {/* green tick */}
                         </div>
                       )}
                     </div>

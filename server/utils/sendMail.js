@@ -1,4 +1,4 @@
-// Complete utils/sendMail.js - All functions with simplified template support
+// Complete utils/sendMail.js - Fixed time display issue
 
 const {
   ADMIN_INQUIRY_NOTIFICATION_TEMPLATE,
@@ -8,19 +8,26 @@ const {
 } = require("../config/emailTemplate.js");
 const transporter = require("../config/nodemailer.js");
 
-// Helper function to format date
+// Add timezone support
+const { toZonedTime } = require("date-fns-tz");
+const SYDNEY_TIMEZONE = "Australia/Sydney";
+
+// Helper function to format date in Sydney timezone
 const formatDate = (date) => {
-  return new Date(date).toLocaleDateString("en-AU", {
+  const sydneyDate = toZonedTime(new Date(date), SYDNEY_TIMEZONE);
+  return sydneyDate.toLocaleDateString("en-AU", {
     weekday: "long",
     year: "numeric",
     month: "long",
     day: "numeric",
+    
   });
 };
 
-// Helper function to format date and time
+// Helper function to format date and time in Sydney timezone
 const formatDateTime = (date) => {
-  return new Date(date).toLocaleDateString("en-AU", {
+  const sydneyDate = toZonedTime(new Date(date), SYDNEY_TIMEZONE);
+  return sydneyDate.toLocaleDateString("en-AU", {
     weekday: "long",
     year: "numeric",
     month: "long",
@@ -28,12 +35,14 @@ const formatDateTime = (date) => {
     hour: "2-digit",
     minute: "2-digit",
     hour12: true,
+  
   });
 };
 
-// Helper function to format time only
+// Helper function to format time only in Sydney timezone
 const formatTime = (date) => {
-  return new Date(date).toLocaleTimeString("en-AU", {
+  const sydneyDate = toZonedTime(new Date(date), SYDNEY_TIMEZONE);
+  return sydneyDate.toLocaleTimeString("en-AU", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: true,
@@ -86,7 +95,6 @@ const formatPriceSummary = (pricing, label = "Total") => {
 };
 
 // Helper function to check if event date is urgent (within 3 days)
-
 const isEventUrgent = (eventDate) => {
   const today = new Date();
   const event = new Date(eventDate);
@@ -353,6 +361,7 @@ const sendCustomerInquiryConfirmation = async (inquiryData) => {
 // Updated sendAdminBookingNotification function
 const sendAdminBookingNotification = async (bookingData) => {
   try {
+    // Use Sydney timezone for all date formatting
     const formattedEventDate = formatDate(bookingData.deliveryDate);
     const formattedEventTime = formatTime(bookingData.deliveryDate);
     const submittedAt = formatDateTime(bookingData.createdAt || new Date());
@@ -468,7 +477,7 @@ const sendAdminBookingNotification = async (bookingData) => {
       customerEmail: bookingData.customerDetails?.email || "N/A",
       customerPhone: bookingData.customerDetails?.phone || "N/A",
 
-      // Event details
+      // Event details - using Sydney timezone
       eventDate: formattedEventDate,
       eventTime: formattedEventTime,
       eventDateClass: urgent ? "urgent-date" : "",
@@ -549,6 +558,7 @@ const sendCustomerBookingConfirmation = async (
   locationBankDetails = null
 ) => {
   try {
+    // Use Sydney timezone for all date formatting
     const formattedEventDate = formatDate(bookingData.deliveryDate);
     const formattedEventTime = formatTime(bookingData.deliveryDate);
     const submittedAt = formatDateTime(bookingData.createdAt || new Date());
@@ -669,12 +679,9 @@ const sendCustomerBookingConfirmation = async (
               <span class="bank-label">Account Number:</span>
               <span class="bank-value">${locationBankDetails.accountNumber}</span>
             </div>
-            <div class="bank-row">
-              <span class="bank-label">Payment Reference:</span>
-              <span class="bank-value"><strong>${bookingData.bookingReference}</strong></span>
-            </div>
-            <p style="text-align: center; margin-top: 15px; font-weight: bold;">
-              Important: Use booking reference ${bookingData.bookingReference} as payment description
+            
+            <p style="text-align: center; margin-top: 15px; font-weight: bold; color: #e74c3c;">
+              Important: Enter your Full Name used while ordering in reference while payment
             </p>
           </div>
         </div>
@@ -695,21 +702,18 @@ const sendCustomerBookingConfirmation = async (
       orderType: orderType,
       orderTypeBadge: orderTypeBadge,
 
-      // Event details
+      // Event details - using Sydney timezone
       eventDate: formattedEventDate,
       eventTime: formattedEventTime,
       numberOfPeople: bookingData.peopleCount || "N/A",
       serviceName: serviceName,
       locationName: locationName,
       deliveryType: bookingData.deliveryType || "N/A",
-      
+
       priceSummaryHtml: formatPriceSummary(bookingData.pricing, "Total"),
-      
 
       advanceAmountFormatted: `$${formatCurrency(advanceAmount)}`,
-      remainingAmountFormatted: `$${formatCurrency(remainingAmount)}`, // With dollar sign
-      advanceAmountFormatted: `$${formatCurrency(advanceAmount)}`, // With dollar sign
-      remainingAmountFormatted: `$${formatCurrency(remainingAmount)}`, // With dollar sign
+      remainingAmountFormatted: `$${formatCurrency(remainingAmount)}`,
 
       // Timestamps
       submittedAt: submittedAt,

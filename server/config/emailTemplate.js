@@ -197,6 +197,18 @@ const CUSTOMER_BOOKING_CONFIRMATION_TEMPLATE = `
     .payment-notice h3 { margin: 0 0 10px 0; color: #b7791f; }
     .payment-notice p { margin: 5px 0; font-size: 16px; }
     .items-paragraph { line-height: 1.6; }
+    .refund-notice {
+  font-size: 12px;
+  color: #dc2626;
+  background-color: #fef2f2;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid #fca5a5;
+  margin: 16px 0;
+  font-weight: 500;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(220, 38, 38, 0.1);
+}
     .category-title { font-weight: bold; color: #3F8720; margin: 15px 0 5px 0; padding-bottom: 5px; border-bottom: 1px solid #eee; }
     .footer { background-color: #f8f9fa; padding: 20px; text-align: center; border-top: 1px solid #ddd; color: #666; font-size: 12px; }
     .footer a { color: #3F8720; text-decoration: none; }
@@ -243,9 +255,25 @@ const CUSTOMER_BOOKING_CONFIRMATION_TEMPLATE = `
       </div>
 
       {{bankDetailsSection}}
-      <div className="text-xs text-red-600 bg-red-50 p-3 rounded border border-red-200">
-                  * Deposits made are non-refundable when orders are cancelled
-      </div>
+      <div class="refund-notice">
+  ** Deposits made are non-refundable when orders are cancelled **
+</div>
+      <div class="info-box" style="background-color: #fff3cd; border: 2px solid #ffc107; margin: 20px 0;">
+  <div class="box-header" style="background-color: #ffc107; color: #856404; font-weight: bold;">
+    📱 IMPORTANT NOTE
+  </div>
+  <div class="box-content" style="padding: 20px; text-align: center;">
+    <p style="margin: 10px 0; font-size: 16px; font-weight: bold; color: #856404;">
+      After making your advance payment, please send a screenshot of the payment confirmation to:
+    </p>
+    <p style="margin: 15px 0; font-size: 20px; font-weight: bold; color: #d9534f;">
+      📞 0449 557 777
+    </p>
+    <p style="margin: 10px 0; font-size: 14px; color: #6c757d;">
+      This helps us process your booking faster and ensures everything is ready for your event.
+    </p>
+  </div>
+</div>
 
       <p>If you have any questions or need to make changes, please contact us as soon as possible. We look forward to serving you!</p>
       <p><strong>Best regards,<br>The {{companyName}} Team</strong></p>
