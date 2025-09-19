@@ -1,5 +1,5 @@
 import React from "react";
-import { Users, DollarSign, MapPin, Briefcase } from "lucide-react";
+import { Users, DollarSign, MapPin, Briefcase, Check } from "lucide-react";
 
 const BookingCalendar = ({
   currentDate,
@@ -65,31 +65,49 @@ const BookingCalendar = ({
     cancelled: "text-red-600",
   };
 
-  const getDayBookings = (date) =>
-    calendarBookings[date.toDateString()] || [];
+  const getDayBookings = (date) => calendarBookings[date.toDateString()] || [];
 
   const getDaySummary = (bookings) => {
-    if (bookings.length === 0) return null;
-    const activeBookings = bookings.filter((b) => b.status !== "cancelled");
+    if (!bookings || bookings.length === 0) return null;
+
+    const activeBookings = bookings.filter(
+      (booking) => booking.status !== "cancelled"
+    );
+
     const totalPeople = activeBookings.reduce(
       (sum, booking) => sum + (booking.peopleCount || 0),
       0
     );
+
+    // total billed amount
     const totalRevenue = activeBookings.reduce(
       (sum, booking) => sum + (booking.pricing?.total || 0),
       0
     );
-    const statusCounts = {
-      pending: bookings.filter((b) => b.status === "pending").length,
-      confirmed: bookings.filter((b) => b.status === "confirmed").length,
-      preparing: bookings.filter((b) => b.status === "preparing").length,
-      ready: bookings.filter((b) => b.status === "ready").length,
-      completed: bookings.filter((b) => b.status === "completed").length,
-      cancelled: bookings.filter((b) => b.status === "cancelled").length,
-    };
+
+    // total actually paid / deposited
+    const totalPaid = activeBookings.reduce(
+      (sum, booking) => sum + (booking.depositAmount || 0),
+      0
+    );
+
+    // ✅ remaining due amount
+    const dueAmount = totalRevenue - totalPaid;
+
+    // status counts
+    const statusCounts = {};
+    bookings.forEach((booking) => {
+      const status = booking.status || "pending";
+      statusCounts[status] = (statusCounts[status] || 0) + 1;
+    });
+
     return {
       totalPeople,
       totalRevenue,
+      totalPaid,
+      dueAmount, // ✅ add this
+      totalBookings: bookings.length,
+      activeBookings: activeBookings.length,
       statusCounts,
     };
   };
@@ -184,13 +202,13 @@ const BookingCalendar = ({
                 key={`${weekIndex}-${dayIndex}`}
                 onClick={() => onDayClick(date)}
                 className={`
-                  min-h-[100px] sm:min-h-[140px] p-1 sm:p-2 border border-gray-200 transition-all duration-200
-                  ${!isCurrentMonth ? "bg-gray-50 text-gray-400" : "bg-white"}
-                  ${isToday ? "ring-1 sm:ring-2 ring-blue-500 bg-blue-50" : ""}
-                  ${isPast && hasBookings ? "bg-green-50" : ""}
-                  ${!isPast && hasBookings ? "bg-yellow-50" : ""}
-                  ${isCurrentMonth ? "cursor-pointer hover:bg-gray-50 hover:shadow-md" : ""}
-                `}
+    min-h-[100px] sm:min-h-[140px] p-1 sm:p-2 border border-gray-200 transition-all duration-200 flex flex-col justify-between
+    ${!isCurrentMonth ? "bg-gray-50 text-gray-400" : "bg-white"}
+    ${isToday ? "ring-1 sm:ring-2 ring-blue-500 bg-blue-50" : ""}
+    ${isPast && hasBookings ? "bg-green-100" : ""}
+    ${!isPast && hasBookings ? "bg-yellow-100" : ""}
+    ${isCurrentMonth ? "cursor-pointer hover:bg-gray-50 hover:shadow-md" : ""}
+  `}
               >
                 {/* Date Number */}
                 <div
@@ -248,6 +266,20 @@ const BookingCalendar = ({
                           <span>{formatPrice(daySummary.totalRevenue)}</span>
                         </div>
                       </div>
+                    </div>
+
+                    {/* ✅ Tick or Due at bottom */}
+                    <div className="mt-auto pt-1">
+                      {daySummary.dueAmount > 0 ? (
+                        <div className="flex justify-between items-center text-red-600 font-medium">
+                          <span>Due</span>
+                          <span>{formatPrice(daySummary.dueAmount)}</span>
+                        </div>
+                      ) : (
+                        <div className="flex justify-end items-center text-green-600 font-medium">
+                          <Check className="w-3 h-3" /> {/* green tick */}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

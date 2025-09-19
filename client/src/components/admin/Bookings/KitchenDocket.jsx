@@ -1,7 +1,7 @@
 import React, { useRef } from "react";
 import { X, Printer } from "lucide-react";
 
-const KitchenDocketModal = ({ booking, onClose, formatDateTime }) => {
+const KitchenDocketModal = ({ booking, onClose, formatDateTime , formatPrice }) => {
   const printRef = useRef();
 
   const handlePrint = () => {
@@ -134,6 +134,13 @@ const KitchenDocketModal = ({ booking, onClose, formatDateTime }) => {
     const delivery = new Date(booking.deliveryDate);
     const hoursDiff = (delivery - now) / (1000 * 60 * 60);
     return hoursDiff <= 24 && hoursDiff > 0;
+  };
+
+  const calculateTotals = () => {
+    const total = booking.pricing?.total || 0;
+    const paid = booking.depositAmount || 0;
+    const balance = total - paid;
+    return { total, paid, balance };
   };
 
   return (
@@ -311,6 +318,13 @@ const KitchenDocketModal = ({ booking, onClose, formatDateTime }) => {
                     <strong>KITCHEN NOTES:</strong>
                     <br />
                     {booking.adminNotes}
+                  </div>
+                )}
+
+                {calculateTotals().balance > 0 && (
+                  <div className="line-item">
+                    <span>Balance Due:</span>
+                    <span>{formatPrice(calculateTotals().balance)}</span>
                   </div>
                 )}
 

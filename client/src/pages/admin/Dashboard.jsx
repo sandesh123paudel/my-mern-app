@@ -486,7 +486,7 @@ const AdminDashboard = () => {
                 Recent Bookings
               </h2>
               <button
-                onClick={() => navigate("/admin/bookings")}
+                onClick={() => navigate("/admin/calender")}
                 className="text-sm text-green-600 hover:text-green-800 font-medium"
               >
                 View All →

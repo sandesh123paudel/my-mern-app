@@ -56,6 +56,7 @@ const AdminBookings = () => {
   const [searchParams] = useSearchParams();
   const urlLocationId = searchParams.get("locationId");
   const urlServiceId = searchParams.get("serviceId");
+  const [initializedFromUrl, setInitializedFromUrl] = useState(false);
 
   // Filter state
   const [filters, setFilters] = useState({
@@ -121,7 +122,8 @@ const AdminBookings = () => {
     }
   };
 
-  // Get bookings for a specific location-service pair
+  // add a flag so we only use URL params once
+
   useEffect(() => {
     const loadLocationsAndServices = async () => {
       try {
@@ -138,8 +140,9 @@ const AdminBookings = () => {
           );
           setLocations(activeLocations);
 
-          // Auto-select location from URL if present
+          // preselect location from URL if present
           if (
+            !initializedFromUrl &&
             urlLocationId &&
             activeLocations.find((loc) => loc._id === urlLocationId)
           ) {
@@ -156,18 +159,29 @@ const AdminBookings = () => {
           );
           setServices(activeServices);
 
-          // Auto-select service from URL if present and location is set
+          // preselect service from URL if present
           if (
+            !initializedFromUrl &&
             urlServiceId &&
             urlLocationId &&
             activeServices.find((serv) => serv._id === urlServiceId)
           ) {
             setSelectedService(urlServiceId);
-            setDataReady(true); // Ready to load data immediately
+            setDataReady(true);
           }
         } else {
           console.error("❌ Failed to load services:", servicesResult.error);
           toast.error("Failed to load services");
+        }
+
+        // mark as initialised and clear URL params so user can change freely
+        if (!initializedFromUrl) {
+          setInitializedFromUrl(true);
+          window.history.replaceState(
+            {},
+            document.title,
+            window.location.pathname
+          );
         }
       } catch (error) {
         console.error("Error loading locations and services:", error);
@@ -178,35 +192,7 @@ const AdminBookings = () => {
     };
 
     loadLocationsAndServices();
-  }, [urlLocationId, urlServiceId]);
-
-  useEffect(() => {
-    // If URL parameters are present and different from current selection, update them
-    if (urlLocationId && urlLocationId !== selectedLocation) {
-      const location = locations.find((loc) => loc._id === urlLocationId);
-      if (location) {
-        handleLocationChange(urlLocationId);
-      }
-    }
-
-    if (
-      urlServiceId &&
-      urlServiceId !== selectedService &&
-      selectedLocation === urlLocationId
-    ) {
-      const service = services.find((serv) => serv._id === urlServiceId);
-      if (service) {
-        handleServiceChange(urlServiceId);
-      }
-    }
-  }, [
-    urlLocationId,
-    urlServiceId,
-    locations,
-    services,
-    selectedLocation,
-    selectedService,
-  ]);
+  }, [urlLocationId, urlServiceId, initializedFromUrl]);
 
   // Get services filtered by selected location
   const getFilteredServices = () => {
@@ -218,20 +204,26 @@ const AdminBookings = () => {
   };
 
   // Handle location change
+  // Handle location change
   const handleLocationChange = (locationId) => {
     setSelectedLocation(locationId);
-    setSelectedService(""); // Reset service selection
+    setSelectedService(""); // reset service selection
     setDataReady(false);
 
     // Clear existing data
     setAllBookings([]);
     setCalendarBookings({});
+
+    setSearchParams({});
   };
 
   // Handle service change
   const handleServiceChange = (serviceId) => {
     setSelectedService(serviceId);
-    setDataReady(true); // Ready to load data
+    setDataReady(true);
+
+    // 🔥 clear URL params so effect will not run
+    setSearchParams({});
   };
 
   // Fetch booking stats
@@ -1232,6 +1224,7 @@ const AdminBookings = () => {
           {showKitchenDocket && (
             <KitchenDocketPrintModal
               booking={showKitchenDocket}
+              formatPrice={formatPrice}
               onClose={() => setShowKitchenDocket(null)}
               formatDateTime={formatDateTime}
             />
