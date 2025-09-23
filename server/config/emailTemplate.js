@@ -9,7 +9,7 @@ const ADMIN_INQUIRY_NOTIFICATION_TEMPLATE = `
   <style type="text/css">
     body { margin: 0; padding: 20px; font-family: Arial, sans-serif; background-color: #f4f4f4; color: #333; }
     .email-container { max-width: 800px; margin: 0 auto; background-color: #ffffff; border: 1px solid #ddd; }
-    .header { background-color: #a4cd3d; color: white; padding: 20px; text-align: center; }
+    .header { background-color: #a6ce39; color: white; padding: 20px; text-align: center; }
     .logo { max-width: 150px; height: auto; }
     .header h1 { margin: 10px 0 0 0; font-size: 24px; }
     .alert-badge { background-color: #e74c3c; color: white; padding: 5px 15px; border-radius: 3px; font-size: 12px; font-weight: bold; display: inline-block; margin-top: 10px; }
@@ -31,7 +31,7 @@ const ADMIN_INQUIRY_NOTIFICATION_TEMPLATE = `
 <body>
   <div class="email-container">
     <div class="header">
-      <img src="https://mulchowkkitchen.com.au/catering-logo-500-x-200-px/" alt="MC Logo" class="logo">
+      <img src="https://mulchowkkitchen.com.au/wp-content/uploads/2025/09/Catering-Logo-500-x-200-px.png" alt="MC Logo" class="logo">
       <h1>New Inquiry Received</h1>
       <span class="alert-badge">Action Required</span>
     </div>
@@ -106,7 +106,7 @@ const CUSTOMER_INQUIRY_CONFIRMATION_TEMPLATE = `
   <style type="text/css">
     body { margin: 0; padding: 20px; font-family: Arial, sans-serif; background-color: #f4f4f4; color: #333; }
     .email-container { max-width: 800px; margin: 0 auto; background-color: #ffffff; border: 1px solid #ddd; }
-    .header { background-color: #a4cd3d; color: white; padding: 20px; text-align: center; }
+    .header { background-color: #a6ce39; color: white; padding: 20px; text-align: center; }
     .logo { max-width: 150px; height: auto; }
     .header h1 { margin: 10px 0 0 0; font-size: 24px; }
     .content { padding: 30px; }
@@ -116,7 +116,7 @@ const CUSTOMER_INQUIRY_CONFIRMATION_TEMPLATE = `
     .detail-row { margin: 10px 0; padding: 8px 0; border-bottom: 1px solid #eee; }
     .detail-row:last-child { border-bottom: none; }
     .detail-label { font-weight: bold; color: #555; display: inline-block; min-width: 150px; }
-    .next-steps { background-color: #e8f5e8; border: 1px solid #a4cd3d; padding: 20px; margin-top: 30px; }
+    .next-steps { background-color: #e8f5e8; border: 1px solid #a6ce39; padding: 20px; margin-top: 30px; }
     .next-steps h3 { margin: 0 0 15px 0; color: #3F8720; }
     .footer { background-color: #f8f9fa; padding: 20px; text-align: center; border-top: 1px solid #ddd; color: #666; font-size: 12px; }
     .footer a { color: #3F8720; text-decoration: none; }
@@ -125,7 +125,7 @@ const CUSTOMER_INQUIRY_CONFIRMATION_TEMPLATE = `
 <body>
   <div class="email-container">
     <div class="header">
-      <img src="https://mulchowkkitchen.com.au/catering-logo-500-x-200-px/" alt="{{companyName}} Logo" class="logo">
+      <img src="https://mulchowkkitchen.com.au/wp-content/uploads/2025/09/Catering-Logo-500-x-200-px.png" alt="{{companyName}} Logo" class="logo">
       <h1>We've Received Your Inquiry!</h1>
     </div>
     <div class="content">
@@ -180,7 +180,7 @@ const CUSTOMER_BOOKING_CONFIRMATION_TEMPLATE = `
   <style type="text/css">
     body { margin: 0; padding: 20px; font-family: Arial, sans-serif; background-color: #f4f4f4; color: #333; }
     .email-container { max-width: 800px; margin: 0 auto; background-color: #ffffff; border: 1px solid #ddd; }
-    .header { background-color: #a4cd3d; color: white; padding: 20px; text-align: center; }
+    .header { background-color: #a6ce39; color: white; padding: 20px; text-align: center; }
     .logo { max-width: 150px; height: auto; }
     .header h1 { margin: 10px 0 0 0; font-size: 24px; }
     .content { padding: 30px; }
@@ -217,7 +217,7 @@ const CUSTOMER_BOOKING_CONFIRMATION_TEMPLATE = `
 <body>
   <div class="email-container">
     <div class="header">
-      <img src="https://mulchowkkitchen.com.au/catering-logo-500-x-200-px/" alt="{{companyName}} Logo" class="logo">
+      <img src="https://mulchowkkitchen.com.au/wp-content/uploads/2025/09/Catering-Logo-500-x-200-px.png" alt="{{companyName}} Logo" class="logo">
       <h1>Your Booking is Confirmed!</h1>
     </div>
     <div class="content">
@@ -313,7 +313,7 @@ const ADMIN_BOOKING_NOTIFICATION_TEMPLATE = `
     }
     
     .header {
-      background-color: #a4cd3d; /* Changed: Matched customer theme */
+      background-color: #a6ce39; /* Changed: Matched customer theme */
       color: white;
       padding: 20px;
       text-align: center;
@@ -429,7 +429,7 @@ const ADMIN_BOOKING_NOTIFICATION_TEMPLATE = `
     .items-paragraph {
       background-color: #f8f9fa;
       padding: 15px;
-      border-left: 4px solid #a4cd3d; /* Changed: Border color */
+      border-left: 4px solid #a6ce39; /* Changed: Border color */
       margin: 15px 0;
       line-height: 1.6;
     }
@@ -515,7 +515,7 @@ const ADMIN_BOOKING_NOTIFICATION_TEMPLATE = `
 <body>
   <div class="email-container">
     <div class="header">
-      <img src="https://mulchowkkitchen.com.au/catering-logo-500-x-200-px/" alt="MC Logo" class="logo">
+      <img src="https://mulchowkkitchen.com.au/wp-content/uploads/2025/09/Catering-Logo-500-x-200-px.png" alt="MC Logo" class="logo">
       <h1>New Booking Alert</h1>
       <span class="alert-badge {{urgentClass}}">{{urgentText}}</span>
     </div>

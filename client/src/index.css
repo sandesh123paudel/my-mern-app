@@ -5,8 +5,8 @@
 
 /* Define custom properties (CSS variables) */
 :root {
-  --primary-brown: #492a00;
-  --primary-green: #a4cd3d;
+  --primary-brown: #553312;
+  --primary-green: #a6ce39;
 }
 
 /* Global styles */
@@ -15,7 +15,7 @@
 
   color: #492a00;
   scrollbar-width: thin;
-  scrollbar-color: #a4cd3d #1F2937;
+  scrollbar-color: #a6ce39 #1F2937;
 }
 
 /* Custom Tailwind classes */
