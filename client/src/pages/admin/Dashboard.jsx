@@ -640,7 +640,7 @@ const AdminDashboard = () => {
             </button>
 
             <button
-              onClick={() => navigate("/admin/bookings")}
+              onClick={() => navigate("/admin/calender")}
               className="p-6 border-2 border-dashed border-amber-300 rounded-lg hover:border-amber-500 hover:bg-amber-50 transition-colors group"
             >
               <div className="text-center">
