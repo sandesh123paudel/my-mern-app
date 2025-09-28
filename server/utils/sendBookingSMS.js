@@ -53,7 +53,7 @@ const sendCustomerBookingSMS = async (bookingData) => {
 // Send SMS to admin for booking notification
 const sendAdminBookingSMS = async (bookingData) => {
   try {
-    // const adminPhone = process.env.SMS_ADMIN_PHONE;
+    const adminPhone = process.env.SMS_ADMIN_PHONE;
     // if (!adminPhone) {
     //   console.warn(
     //     "SMS_ADMIN_PHONE not configured, skipping admin booking SMS"
