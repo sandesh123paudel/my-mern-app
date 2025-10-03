@@ -80,7 +80,7 @@ const App = () => {
         }}
       />
       {/* Offer Modal - Will show on first visit */}
-      <OfferModal />
+      {/* <OfferModal /> */}
       <Routes>
         {/* Public Routes */}
         <Route
