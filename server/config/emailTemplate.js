@@ -269,6 +269,10 @@ const CUSTOMER_BOOKING_CONFIRMATION_TEMPLATE = `
     <p style="margin: 15px 0; font-size: 20px; font-weight: bold; color: #d9534f;">
       📞 0449 557 777
     </p>
+    <p style="margin: 10px 0; font-size: 12px; font-weight: bold; color: #FF0000FF;">
+      ** Please include your name used while booking in the payment reference and in the message. **
+    </p>
+    
     <p style="margin: 10px 0; font-size: 14px; color: #6c757d;">
       This helps us process your booking faster and ensures everything is ready for your event.
     </p>

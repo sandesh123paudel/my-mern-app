@@ -680,9 +680,7 @@ const sendCustomerBookingConfirmation = async (
               <span class="bank-value">${locationBankDetails.accountNumber}</span>
             </div>
             
-            <p style="text-align: center; margin-top: 15px; font-weight: bold; color: #e74c3c;">
-              Important: Enter your Full Name used while ordering in reference while payment
-            </p>
+           
           </div>
         </div>
       `;
