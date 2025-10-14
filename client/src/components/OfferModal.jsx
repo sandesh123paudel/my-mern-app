@@ -15,7 +15,7 @@ const OfferModal = () => {
       buttonText: "View Sydney Packages",
     },
     {
-      locationId: "68cd90a5f1ebd732cb335ecf",
+      locationId: "68913baa69565fd03474f60f",
       locationName: "Canberra",
       buttonText: "View Canberra Packages",
     },

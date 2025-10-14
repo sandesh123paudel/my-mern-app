@@ -18,7 +18,7 @@ const BookingPrintModal = ({
       return {
         name: "MC Catering Services Sydney",
         address: "66 Evaline St, Campsie NSW 2194, Australia",
-        phone: "+61297873769 / 0452453028 / 0449 557 777",
+        phone: " 0452453028 / 0449 557 777",
         email: "anu_np43@hotmail.com",
         city: "Sydney",
       };
@@ -492,21 +492,6 @@ const BookingPrintModal = ({
                               <span>{formatPrice(subtotalBeforeDiscount)}</span>
                             </div>
 
-                            {booking.pricing?.couponCode &&
-                              booking.pricing?.couponDiscount > 0 && (
-                                <div className="line-item">
-                                  <span>
-                                    Coupon ({booking.pricing.couponCode}):
-                                  </span>
-                                  <span>
-                                    -
-                                    {formatPrice(
-                                      booking.pricing.couponDiscount
-                                    )}
-                                  </span>
-                                </div>
-                              )}
-
                             <div className="line-item total-line">
                               <span>FINAL TOTAL:</span>
                               <span>
@@ -591,20 +576,17 @@ const BookingPrintModal = ({
                               <span>{formatPrice(subtotalBeforeDiscount)}</span>
                             </div>
 
-                            {booking.pricing?.couponCode &&
-                              booking.pricing?.couponDiscount > 0 && (
-                                <div className="line-item">
-                                  <span>
-                                    Coupon ({booking.pricing.couponCode}):
-                                  </span>
-                                  <span>
-                                    -
-                                    {formatPrice(
-                                      booking.pricing.couponDiscount
-                                    )}
-                                  </span>
-                                </div>
-                              )}
+                            {booking.pricing?.couponDiscount > 0 && (
+                              <div className="line-item">
+                                <span>
+                                  Discount (
+                                  {booking.pricing?.couponCode || "Coupon"}):
+                                </span>
+                                <span>
+                                  -{formatPrice(booking.pricing.couponDiscount)}
+                                </span>
+                              </div>
+                            )}
 
                             <div className="line-item total-line">
                               <span>FINAL TOTAL:</span>
@@ -645,8 +627,6 @@ const BookingPrintModal = ({
                     </div>
                   </div>
                 )}
-
-               
 
                 {/* Footer */}
                 <div className="footer">

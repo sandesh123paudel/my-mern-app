@@ -863,17 +863,18 @@ const BookingDetailsModal = ({
                 })()}
 
                 {/* Show coupon discount if applied */}
-                {booking.pricing?.couponCode &&
-                  booking.pricing?.couponDiscount > 0 && (
-                    <div className="bg-green-50 p-3 rounded border border-green-200">
-                      <label className="text-sm font-medium text-green-600">
-                        Coupon Applied ({booking.pricing.couponCode})
-                      </label>
-                      <p className="text-xl font-bold text-green-700">
-                        -{formatPrice(booking.pricing.couponDiscount)}
-                      </p>
-                    </div>
-                  )}
+                {booking.pricing?.couponDiscount > 0 && (
+                  <div className="bg-green-50 p-3 rounded border border-green-200">
+                    <label className="text-sm font-medium text-green-600">
+                      {booking.pricing?.couponCode
+                        ? `Coupon Applied (${booking.pricing.couponCode})`
+                        : "Discount Applied"}
+                    </label>
+                    <p className="text-xl font-bold text-green-700">
+                      -{formatPrice(booking.pricing.couponDiscount)}
+                    </p>
+                  </div>
+                )}
 
                 {/* Final Total */}
                 <div className="bg-gray-800 p-3 rounded border">
