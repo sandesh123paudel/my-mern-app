@@ -105,7 +105,7 @@ const BookingCalendar = ({
       totalPeople,
       totalRevenue,
       totalPaid,
-      dueAmount, // ✅ add this
+      dueAmount,
       totalBookings: bookings.length,
       activeBookings: activeBookings.length,
       statusCounts,
@@ -204,9 +204,23 @@ const BookingCalendar = ({
                 className={`min-h-[100px] sm:min-h-[140px] p-1 sm:p-2 border border-gray-200 transition-all duration-200 flex flex-col justify-between
     ${!isCurrentMonth ? "bg-gray-50 text-gray-400" : "bg-white"}
     ${isToday ? "ring-1 sm:ring-2 ring-blue-500 bg-blue-50" : ""}
-    ${isPast && hasBookings ? "bg-green-100" : ""}
+    ${
+      isPast && hasBookings && getDaySummary(dayBookings)?.dueAmount > 0
+        ? "bg-red-50"
+        : ""
+    }
+    ${
+      isPast && hasBookings && getDaySummary(dayBookings)?.dueAmount === 0
+        ? "bg-green-50"
+        : ""
+    }
     ${!isPast && hasBookings ? "bg-yellow-100" : ""}
     ${isCurrentMonth ? "cursor-pointer hover:bg-gray-50 hover:shadow-md" : ""}
+    ${
+      isPast && hasBookings && getDaySummary(dayBookings)?.dueAmount === 0
+        ? "opacity-50"
+        : "opacity-100"
+    }
   `}
               >
                 {/* Date Number */}
@@ -269,14 +283,20 @@ const BookingCalendar = ({
                     {/* ✅ Tick or Due at bottom */}
                     <div className="mt-auto pt-1">
                       {daySummary.dueAmount > 0 ? (
-                        <div className="flex justify-between items-center text-red-600 font-medium">
+                        <div className="flex justify-between items-center font-semibold text-red-600 text-[10px] sm:text-xs">
                           <span>Due</span>
-                          <span>{formatPrice(daySummary.dueAmount)}</span>
+                          {isPast ? ( <span className="bg-red-500 px-1 sm:px-2 py-0.5 rounded text-white">
+                            {formatPrice(daySummary.dueAmount)}
+                          </span>
+                          ) : ( <span className="bg-none sm:px-2 py-0.5 rounded ">
+                            {formatPrice(daySummary.dueAmount)}
+                          </span>
+                          )}
+                          
                         </div>
                       ) : (
                         <div className="flex justify-end items-center text-green-600 font-medium">
-                          <Check className="w-3 h-3 text-green-600" />{" "}
-                          {/* green tick */}
+                          <Check className="w-3 h-3 sm:w-4 sm:h-4 text-green-600" />
                         </div>
                       )}
                     </div>
