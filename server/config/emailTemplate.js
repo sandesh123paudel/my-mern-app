@@ -263,17 +263,17 @@ const CUSTOMER_BOOKING_CONFIRMATION_TEMPLATE = `
     📱 IMPORTANT NOTE
   </div>
   <div class="box-content" style="padding: 20px; text-align: center;">
-    <p style="margin: 10px 0; font-size: 16px; font-weight: bold; color: #856404;">
+    <p style="margin: 10px 0; font-size: 14px; font-weight: bold; color: #856404;">
       After making your advance payment, please send a screenshot of the payment confirmation to:
     </p>
     <p style="margin: 15px 0; font-size: 20px; font-weight: bold; color: #d9534f;">
-      📞 0449 557 777
+      📞 0452 453 028
     </p>
-    <p style="margin: 10px 0; font-size: 12px; font-weight: bold; color: #FF0000FF;">
+    <p style="margin: 10px 0; font-size: 16px; font-weight: bold; color: #FF0000FF;">
       ** Please include your name used while booking in the payment reference and in the message. **
     </p>
     
-    <p style="margin: 10px 0; font-size: 14px; color: #6c757d;">
+    <p style="margin: 10px 0; font-size: 12px; color: #6c757d;">
       This helps us process your booking faster and ensures everything is ready for your event.
     </p>
   </div>

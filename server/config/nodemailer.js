@@ -2,7 +2,7 @@ const nodemailer = require('nodemailer');
 
 // Working Hostinger email configuration using Titan Email SMTP
 const transporter = nodemailer.createTransport({
-  host: "s4045.sgp1.stableserver.net",
+  host: "s4045.sgp1.stableserver.net", // "mail.mccatering.com.au"
   port: 465,
   secure: true,
   auth: {
