@@ -39,7 +39,7 @@ const sendCustomerBookingSMS = async (bookingData) => {
       process.env.COMPANY_NAME || "Our Team"
     }`;
 
-    console.log("Customer booking SMS message:", message);
+    // console.log("Customer booking SMS message:", message);
 
     return await sendSMS(
       bookingData.customerDetails.phone,
@@ -81,7 +81,7 @@ const sendAdminBookingSMS = async (bookingData) => {
       bookingData.pricing?.total
     )}. ${bookingData.peopleCount} guests.`;
 
-    console.log("Admin booking SMS message:", message);
+    // console.log("Admin booking SMS message:", message);
 
     return await sendSMS(
       adminPhone,
