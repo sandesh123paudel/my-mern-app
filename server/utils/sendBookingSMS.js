@@ -1,10 +1,21 @@
 // utils/sendBookingSMS.js
 const { sendSMS } = require("./sendSMS.js");
+const { toZonedTime, format } = require("date-fns-tz");
+
+const SYDNEY_TIMEZONE = "Australia/Sydney";
 
 // Helper function to format currency with proper rounding
 const formatCurrency = (amount) => {
   const num = parseFloat(amount) || 0;
   return num.toFixed(2); // This ensures exactly 2 decimal places
+};
+
+// Helper function to format date/time in Sydney timezone
+const formatSydneyDateTime = (utcDate) => {
+  const sydneyTime = toZonedTime(utcDate, SYDNEY_TIMEZONE);
+  const formattedDate = format(sydneyTime, "d MMM", { timeZone: SYDNEY_TIMEZONE });
+  const formattedTime = format(sydneyTime, "h:mm a", { timeZone: SYDNEY_TIMEZONE });
+  return { formattedDate, formattedTime };
 };
 
 // Send SMS to customer for booking confirmation
@@ -15,23 +26,14 @@ const sendCustomerBookingSMS = async (bookingData) => {
       return { success: false, error: "No phone number provided" };
     }
 
-    // Format event date and time
+    // Format event date and time in Sydney timezone
     const eventDate = new Date(bookingData.deliveryDate);
-    const formattedDate = eventDate.toLocaleDateString("en-AU", {
-      day: "numeric",
-      month: "short",
-    });
-
-    const formattedTime = eventDate.toLocaleTimeString("en-AU", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
+    const { formattedDate, formattedTime } = formatSydneyDateTime(eventDate);
 
     // Create short SMS message with essential info
     const message = `Booking confirmed! Ref: ${
       bookingData.bookingReference
-    }. Date: ${formattedDate} ${formattedTime}. Amount: $${formatCurrency(
+    }. Date: ${formattedDate} ${formattedTime} . Amount: $${formatCurrency(
       bookingData.pricing?.total
     )}. Bank details sent via email. - ${
       process.env.COMPANY_NAME || "Our Team"
@@ -61,18 +63,9 @@ const sendAdminBookingSMS = async (bookingData) => {
     //   return { success: false, error: "Admin phone not configured" };
     // }
 
-    // Format event date
+    // Format event date in Sydney timezone
     const eventDate = new Date(bookingData.deliveryDate);
-    const formattedDate = eventDate.toLocaleDateString("en-AU", {
-      day: "numeric",
-      month: "short",
-    });
-
-    const formattedTime = eventDate.toLocaleTimeString("en-AU", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
+    const { formattedDate, formattedTime } = formatSydneyDateTime(eventDate);
 
     // Create admin notification SMS
     const orderType = bookingData.isCustomOrder
@@ -84,7 +77,7 @@ const sendAdminBookingSMS = async (bookingData) => {
       bookingData.customerDetails?.name
     } ${clickablePhone}. Ref: ${
       bookingData.bookingReference
-    }. ${formattedDate} ${formattedTime}. $${formatCurrency(
+    }. ${formattedDate} ${formattedTime} . $${formatCurrency(
       bookingData.pricing?.total
     )}. ${bookingData.peopleCount} guests.`;
 
