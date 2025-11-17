@@ -67,7 +67,7 @@ const textVariants = {
     opacity: 1,
     width: "auto",
     transition: {
-      duration: 0.8,
+      duration: 1.2,
       ease: "easeOut",
     },
   },
@@ -75,7 +75,7 @@ const textVariants = {
     opacity: 0,
     width: 0,
     transition: {
-      duration: 0.5,
+      duration: 1.2,
       ease: "easeIn",
     },
   },
@@ -203,9 +203,10 @@ const HeroSection = () => {
               A Joint Venture of Mul Chowk Kitchen
             </a>
           </motion.p>
-          <motion.h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-primary-brown mb-6 leading-tight">
-            <div className="flex flex-wrap items-center gap-2 lg:gap-4">
-              <div className="relative inline-block">
+          <motion.h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight">
+            <div className="flex flex-wrap items-baseline gap-2 lg:gap-4">
+              <span className="text-primary-brown">NEPALESE</span>
+              <div className="relative h-[1.3em] flex items-center text-primary-green">
                 <AnimatePresence mode="wait">
                   <motion.span
                     key={currentTextIndex}
@@ -215,16 +216,15 @@ const HeroSection = () => {
                     exit="exit"
                     className="inline-block overflow-hidden whitespace-nowrap"
                   >
-                    NEPALESE {cateringOptions[currentTextIndex]}
+                    {cateringOptions[currentTextIndex]}
                   </motion.span>
                 </AnimatePresence>
               </div>
             </div>
-            <div className="italic font-light text-primary-brown/80 mt-1">
+            <div className="italic font-light text-primary-brown/80">
               in <span>Sydney & Canberra</span>
             </div>
           </motion.h1>
-
           {/* Enhanced Slideshow with Location Buttons */}
           <motion.div variants={fadeUp} className="relative mb-16 z-10">
             {/* Slideshow Container - Enhanced styling */}
@@ -260,7 +260,7 @@ const HeroSection = () => {
                       <motion.button
                         key={location._id}
                         onClick={() => handleLocationSelect(location._id)}
-                        className="flex items-center justify-center gap-2 px-5 py-3 md:px-4 rounded-lg font-semibold text-xs md:text-sm transition-all duration-300 shadow-lg backdrop-blur-sm bg-[#FF6B35]  hover:bg-primary-green  text-white min-w-0 whitespace-nowrap"
+                        className="flex items-center justify-center gap-2 px-5 py-3 md:px-4 rounded-lg font-semibold text-xs md:text-sm transition-all duration-300 shadow-lg backdrop-blur-sm bg-[#FF6B35] text-white hover:bg-primary-green min-w-0 whitespace-nowrap"
                         whileHover={{ scale: 1.05, y: -2 }}
                         whileTap={{ scale: 0.95 }}
                       >
