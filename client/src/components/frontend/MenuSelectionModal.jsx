@@ -36,11 +36,10 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
       if (menu.serviceId) {
         try {
           // You'll need to import getServiceById from your service
-          const { getServiceById } = await import(
-            "../../services/serviceServices"
-          );
+          const { getServiceById } =
+            await import("../../services/serviceServices");
           const serviceResult = await getServiceById(
-            menu.serviceId._id || menu.serviceId
+            menu.serviceId._id || menu.serviceId,
           );
 
           if (serviceResult.success && serviceResult.data.service.isFunction) {
@@ -78,7 +77,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
   const handleSimpleItemChoiceSelection = (
     itemIndex,
     choiceIndex,
-    isSelected
+    isSelected,
   ) => {
     const item = menu.simpleItems[itemIndex];
     const key = `simple-${itemIndex}`;
@@ -102,7 +101,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
   const handleSimpleItemOptionSelection = (
     itemIndex,
     optionIndex,
-    isSelected
+    isSelected,
   ) => {
     const key = `simple-${itemIndex}`;
     const currentSelection = selections[key] || {};
@@ -124,7 +123,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
     groupIndex,
     itemIndex,
     isSelected,
-    group
+    group,
   ) => {
     const key = `category-${categoryIndex}-group-${groupIndex}`;
     const currentSelections = selections[key] || [];
@@ -139,7 +138,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
           currentSelections.length >= group.maxSelections
         ) {
           toast.error(
-            `You can only select up to ${group.maxSelections} options for "${group.name}".`
+            `You can only select up to ${group.maxSelections} options for "${group.name}".`,
           );
           return;
         }
@@ -217,7 +216,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
     ) {
       const newCharge = calculateVenueCharge(
         serviceVenueOptions[selectedVenue],
-        parseInt(value) || 0
+        parseInt(value) || 0,
       );
       setVenueCharge(newCharge);
     }
@@ -235,7 +234,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
       ) {
         const newCharge = calculateVenueCharge(
           serviceVenueOptions[selectedVenue],
-          newCount
+          newCount,
         );
         setVenueCharge(newCharge);
       }
@@ -254,7 +253,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
       ) {
         const newCharge = calculateVenueCharge(
           serviceVenueOptions[selectedVenue],
-          newCount
+          newCount,
         );
         setVenueCharge(newCharge);
       }
@@ -361,7 +360,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
                 totalPrice: itemTotal,
               });
             }
-          }
+          },
         );
       }
     }
@@ -400,12 +399,12 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
         if (venueOption) {
           if (numPeople < venueOption.minPeople) {
             errors.push(
-              `Selected venue requires minimum ${venueOption.minPeople} people`
+              `Selected venue requires minimum ${venueOption.minPeople} people`,
             );
           }
           if (numPeople > venueOption.maxPeople) {
             errors.push(
-              `Selected venue allows maximum ${venueOption.maxPeople} people`
+              `Selected venue allows maximum ${venueOption.maxPeople} people`,
             );
           }
         }
@@ -437,7 +436,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
               const selectedItems = selections[key] || [];
               if (selectedItems.length === 0) {
                 errors.push(
-                  `Please make a selection for "${group.name}" in ${category.name}`
+                  `Please make a selection for "${group.name}" in ${category.name}`,
                 );
               }
             }
@@ -511,7 +510,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
     if (serviceVenueOptions && serviceVenueOptions[venueKey]) {
       const charge = calculateVenueCharge(
         serviceVenueOptions[venueKey],
-        parseInt(peopleCount) || 0
+        parseInt(peopleCount) || 0,
       );
       setVenueCharge(charge);
     }
@@ -563,7 +562,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
                     {item.choices.map((choice, choiceIndex) => {
                       const isSelected = isSimpleItemChoiceSelected(
                         itemIndex,
-                        choiceIndex
+                        choiceIndex,
                       );
                       return (
                         <label
@@ -582,7 +581,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
                               handleSimpleItemChoiceSelection(
                                 itemIndex,
                                 choiceIndex,
-                                !isSelected
+                                !isSelected,
                               )
                             }
                             className="mr-3"
@@ -613,7 +612,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
                     {item.options.map((option, optionIndex) => {
                       const isSelected = isSimpleItemOptionSelected(
                         itemIndex,
-                        optionIndex
+                        optionIndex,
                       );
                       return (
                         <label
@@ -627,7 +626,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
                               handleSimpleItemOptionSelection(
                                 itemIndex,
                                 optionIndex,
-                                !isSelected
+                                !isSelected,
                               )
                             }
                             className="mr-3"
@@ -743,7 +742,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
                               const isSelected = isCategoryItemSelected(
                                 categoryIndex,
                                 groupIndex,
-                                itemIndex
+                                itemIndex,
                               );
                               return (
                                 <label
@@ -764,7 +763,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
                                         groupIndex,
                                         itemIndex,
                                         !isSelected,
-                                        group
+                                        group,
                                       )
                                     }
                                     className="mr-3"
@@ -839,7 +838,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
                     <div className="text-right">
                       <div className="font-semibold text-orange-600">
                         {formatPrice(
-                          addon.pricePerPerson * (parseInt(peopleCount) || 0)
+                          addon.pricePerPerson * (parseInt(peopleCount) || 0),
                         )}
                       </div>
                       <div className="text-xs text-gray-500">total</div>
@@ -888,7 +887,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
                             handleAddonSelection(
                               "variable",
                               addonIndex,
-                              Math.max(0, quantity - 1)
+                              Math.max(0, quantity - 1),
                             )
                           }
                           className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100"
@@ -905,7 +904,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
                             handleAddonSelection(
                               "variable",
                               addonIndex,
-                              parseInt(e.target.value) || 0
+                              parseInt(e.target.value) || 0,
                             )
                           }
                           className="w-16 px-2 py-1 text-center border border-gray-300 rounded"
@@ -915,7 +914,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
                             handleAddonSelection(
                               "variable",
                               addonIndex,
-                              Math.min(addon.maxQuantity || 20, quantity + 1)
+                              Math.min(addon.maxQuantity || 20, quantity + 1),
                             )
                           }
                           className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100"
@@ -985,10 +984,10 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
                     {addon.name}
                     {addon.type === "fixed"
                       ? ` (${peopleCount} × ${formatPrice(
-                          addon.pricePerPerson
+                          addon.pricePerPerson,
                         )})`
                       : ` (${addon.quantity} × ${formatPrice(
-                          addon.pricePerUnit
+                          addon.pricePerUnit,
                         )})`}
                     :
                   </span>
@@ -1025,7 +1024,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
     ) {
       const newCharge = calculateVenueCharge(
         serviceVenueOptions[selectedVenue],
-        parseInt(peopleCount) || 0
+        parseInt(peopleCount) || 0,
       );
       setVenueCharge(newCharge);
     }
@@ -1176,8 +1175,8 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
                               selectedVenue === venueKey
                                 ? "border-green-500 bg-green-50"
                                 : isValidForPeopleCount
-                                ? "border-gray-300 hover:border-gray-400"
-                                : "border-red-300 bg-red-50 cursor-not-allowed"
+                                  ? "border-gray-300 hover:border-gray-400"
+                                  : "border-red-300 bg-red-50 cursor-not-allowed"
                             }`}
                           >
                             <input
@@ -1228,7 +1227,7 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
                             </div>
                           </label>
                         );
-                      }
+                      },
                     )}
                   </div>
 
@@ -1236,15 +1235,15 @@ const MenuSelectionModal = ({ menu, onClose, onProceedToConfirmation }) => {
                     <div className="mt-2 text-xs text-gray-600 bg-blue-50 p-2 rounded">
                       {venueCharge > 0
                         ? `Venue charge of ${formatPrice(
-                            venueCharge
+                            venueCharge,
                           )} applies for groups under ${
                             getSelectedVenueOption()?.chargeThreshold
                           } people`
                         : getSelectedVenueOption()?.chargeThreshold
-                        ? `No venue charge for groups of ${
-                            getSelectedVenueOption()?.chargeThreshold
-                          }+ people`
-                        : "No additional venue charge"}
+                          ? `No venue charge for groups of ${
+                              getSelectedVenueOption()?.chargeThreshold
+                            }+ people`
+                          : "No additional venue charge"}
                     </div>
                   )}
                 </div>

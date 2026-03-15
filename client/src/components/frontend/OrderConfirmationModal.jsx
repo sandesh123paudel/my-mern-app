@@ -826,14 +826,14 @@ const OrderConfirmationModal = ({ orderData, onClose }) => {
                 <p>Group Size: {orderData?.peopleCount} people</p>
                 {selectedVenue === "outdoor" && venueCharge > 0 && (
                   <p className="text-orange-700 mt-1">
-                    Venue charge applies for groups under 35 people
+                    Venue charge applies for groups under 30 people
                   </p>
                 )}
                 {selectedVenue === "outdoor" &&
                   venueCharge === 0 &&
-                  orderData?.peopleCount >= 35 && (
+                  orderData?.peopleCount >= 30 && (
                     <p className="mt-1">
-                      No venue charge for groups of 35+ people
+                      No venue charge for groups of 30+ people
                     </p>
                   )}
               </div>

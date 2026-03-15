@@ -67,7 +67,7 @@ const LocationServices = () => {
         minPeople: 20,
         maxPeople: 90,
         venueCharge: 200,
-        chargeThreshold: 35,
+        chargeThreshold: 30,
       },
     },
   });
@@ -316,7 +316,7 @@ const LocationServices = () => {
           minPeople: 20,
           maxPeople: 90,
           venueCharge: 200,
-          chargeThreshold: 35,
+          chargeThreshold: 30,
         },
       },
     });
@@ -358,7 +358,7 @@ const LocationServices = () => {
           minPeople: 20,
           maxPeople: 90,
           venueCharge: 200,
-          chargeThreshold: 35,
+          chargeThreshold: 30,
         },
       },
     });

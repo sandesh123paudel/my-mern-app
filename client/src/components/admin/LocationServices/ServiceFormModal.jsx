@@ -179,7 +179,7 @@ const ServiceFormModal = ({
                             indoor: {
                               ...prev.venueOptions?.indoor,
                               available: e.target.checked,
-                              minPeople: 35,
+                              minPeople: 30,
                               maxPeople: 60,
                               venueCharge: 0,
                             },
@@ -194,7 +194,7 @@ const ServiceFormModal = ({
                   </div>
                   {serviceForm.venueOptions?.indoor?.available && (
                     <div className="ml-6 text-sm text-gray-600 bg-white p-3 rounded border">
-                      <p>Min: 35 people | Max: 60 people | No venue charge</p>
+                      <p>Min: 30 people | Max: 60 people | No venue charge</p>
                     </div>
                   )}
                 </div>
@@ -218,7 +218,7 @@ const ServiceFormModal = ({
                               minPeople: 20,
                               maxPeople: 90,
                               venueCharge: 200,
-                              chargeThreshold: 35,
+                              chargeThreshold: 30,
                             },
                           },
                         }))
@@ -233,7 +233,7 @@ const ServiceFormModal = ({
                     <div className="ml-6 text-sm text-gray-600 bg-white p-3 rounded border">
                       <p>Min: 20 people | Max: 90 people</p>
                       <p className="text-orange-600">
-                        $200 venue charge for bookings under 35 people
+                        $200 venue charge for bookings under 30 people
                       </p>
                     </div>
                   )}

@@ -87,7 +87,7 @@ const HeroSection = () => {
   // Slideshow data - you can replace these with your actual images
   const slides = [
     {
-      image: "/herosection.png",
+      image: "/herosection.jpg",
       title: "Authentic Nepalese Flavors",
       subtitle: "Traditional recipes passed down through generations",
     },
@@ -97,9 +97,14 @@ const HeroSection = () => {
       subtitle: "Professional service for every occasion",
     },
     {
-      image: "/herosection3.png", // Add your third image
+      image: "/herosection3.jpg", // Add your third image
       title: "Fresh & Quality Ingredients",
       subtitle: "Sourced locally for the best taste",
+    },
+    {
+      image: "/herosection4.jpg", // Add your third image
+      title: "Professional Event Management",
+      subtitle: "Making your events memorable and hassle-free",
     },
   ];
 
