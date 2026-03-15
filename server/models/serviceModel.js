@@ -78,7 +78,7 @@ const serviceSchema = new mongoose.Schema(
         },
         chargeThreshold: {
           type: Number,
-          default: 35, // Charge applies below this number
+          default: 30, // Charge applies below this number
         },
       },
     },
