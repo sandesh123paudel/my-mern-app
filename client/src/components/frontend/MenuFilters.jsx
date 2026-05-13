@@ -56,17 +56,20 @@ const MenuFilters = ({
 
   return (
     <motion.div
-      className="py-8 border-b"
+      className="py-4 md:py-8 border-b"
       style={{ backgroundColor: "var(--primary-green)" }}
       variants={containerVariants}
       initial="hidden"
       animate="visible"
     >
-      <div className="container mx-auto px-6">
+      <div className="container mx-auto px-4 md:px-6">
         {/* Header */}
-        <motion.div className="text-center mb-8" variants={itemVariants}>
+        <motion.div
+          className="text-center mb-6 md:mb-8"
+          variants={itemVariants}
+        >
           <motion.h2
-            className="text-2xl md:text-3xl font-bold text-white mb-2"
+            className="text-lg md:text-2xl lg:text-3xl font-bold text-white mb-2"
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
@@ -74,14 +77,14 @@ const MenuFilters = ({
             Available Menu Packages
           </motion.h2>
           <motion.div
-            className="flex items-center justify-center gap-4"
+            className="flex flex-col gap-2 sm:flex-row items-center justify-center"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2, duration: 0.6 }}
           >
             <motion.span
-              className="text-white/90"
-              key={menuCount} // Key change triggers animation
+              className="text-sm md:text-base text-white/90"
+              key={menuCount}
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ duration: 0.3 }}
@@ -92,7 +95,7 @@ const MenuFilters = ({
               {hasActiveFilters && (
                 <motion.button
                   onClick={clearAllFilters}
-                  className="text-white/80 hover:text-white text-sm underline flex items-center gap-1"
+                  className="text-white/80 hover:text-white text-xs md:text-sm underline flex items-center gap-1"
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.8 }}
@@ -109,30 +112,30 @@ const MenuFilters = ({
 
         {/* Filters */}
         <motion.div
-          className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 max-w-5xl mx-auto"
           variants={containerVariants}
         >
           {/* Location Filter */}
           <motion.div
-            className="bg-white rounded-lg p-4 shadow-sm"
+            className="bg-white rounded-lg p-3 md:p-4 shadow-sm"
             variants={filterCardVariants}
             whileHover={{ y: -2, boxShadow: "0 8px 25px rgba(0, 0, 0, 0.1)" }}
             transition={{ duration: 0.3 }}
           >
             <motion.label
-              className="block text-sm font-semibold mb-2"
+              className="block text-xs md:text-sm font-semibold mb-2"
               style={{ color: "var(--primary-brown)" }}
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.1 }}
             >
-              <MapPin size={16} className="inline mr-2" />
+              <MapPin size={14} className="inline mr-2" />
               Location
             </motion.label>
             <motion.select
               value={selectedLocation}
               onChange={(e) => setSelectedLocation(e.target.value)}
-              className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:border-transparent bg-white text-gray-700 transition-all duration-300"
+              className="w-full p-2 md:p-3 text-sm md:text-base border border-gray-200 rounded-lg focus:ring-2 focus:border-transparent bg-white text-gray-700 transition-all duration-300"
               style={{
                 focusRingColor: "var(--primary-green)",
                 ":focus": { borderColor: "var(--primary-green)" },
@@ -143,7 +146,7 @@ const MenuFilters = ({
               <option value="">All Locations</option>
               {locations.map((location) => (
                 <option key={location._id} value={location._id}>
-                  {location.name} - {location.city} 
+                  {location.name} - {location.city}
                 </option>
               ))}
             </motion.select>
@@ -151,7 +154,7 @@ const MenuFilters = ({
 
           {/* Service Filter */}
           <motion.div
-            className="bg-white rounded-lg p-4 shadow-sm"
+            className="bg-white rounded-lg p-3 md:p-4 shadow-sm sm:col-span-1 lg:col-span-1"
             variants={filterCardVariants}
             whileHover={{
               y: selectedLocation ? -2 : 0,
@@ -162,7 +165,7 @@ const MenuFilters = ({
             transition={{ duration: 0.3 }}
           >
             <motion.label
-              className={`block text-sm font-semibold mb-2 transition-colors duration-300 ${
+              className={`block text-xs md:text-sm font-semibold mb-2 transition-colors duration-300 ${
                 !selectedLocation ? "text-gray-400" : ""
               }`}
               style={{
@@ -172,14 +175,14 @@ const MenuFilters = ({
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
             >
-              <Settings size={16} className="inline mr-2" />
+              <Settings size={14} className="inline mr-2" />
               Service Type
             </motion.label>
             <motion.select
               value={selectedService}
               onChange={(e) => setSelectedService(e.target.value)}
               disabled={!selectedLocation}
-              className={`w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:border-transparent bg-white transition-all duration-300 ${
+              className={`w-full p-2 md:p-3 text-sm md:text-base border border-gray-200 rounded-lg focus:ring-2 focus:border-transparent bg-white transition-all duration-300 ${
                 !selectedLocation
                   ? "text-gray-400 cursor-not-allowed"
                   : "text-gray-700"
@@ -204,25 +207,25 @@ const MenuFilters = ({
 
           {/* Sort Filter */}
           <motion.div
-            className="bg-white rounded-lg p-4 shadow-sm"
+            className="bg-white rounded-lg p-3 md:p-4 shadow-sm sm:col-span-2 lg:col-span-1"
             variants={filterCardVariants}
             whileHover={{ y: -2, boxShadow: "0 8px 25px rgba(0, 0, 0, 0.1)" }}
             transition={{ duration: 0.3 }}
           >
             <motion.label
-              className="block text-sm font-semibold mb-2"
+              className="block text-xs md:text-sm font-semibold mb-2"
               style={{ color: "var(--primary-brown)" }}
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3 }}
             >
-              <DollarSign size={16} className="inline mr-2" />
+              <DollarSign size={14} className="inline mr-2" />
               Sort By
             </motion.label>
             <motion.select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:border-transparent bg-white text-gray-700 transition-all duration-300"
+              className="w-full p-2 md:p-3 text-sm md:text-base border border-gray-200 rounded-lg focus:ring-2 focus:border-transparent bg-white text-gray-700 transition-all duration-300"
               style={{
                 focusRingColor: "var(--primary-green)",
                 ":focus": { borderColor: "var(--primary-green)" },
@@ -241,36 +244,41 @@ const MenuFilters = ({
         <AnimatePresence>
           {hasActiveFilters && (
             <motion.div
-              className="mt-6 text-center"
+              className="mt-4 md:mt-6 text-center"
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.4 }}
             >
               <motion.div
-                className="inline-flex flex-wrap items-center gap-2 bg-white/10 rounded-lg px-4 py-2"
+                className="inline-flex flex-wrap items-center justify-center gap-2 bg-white/10 rounded-lg px-3 md:px-4 py-2"
                 initial={{ scale: 0.9 }}
                 animate={{ scale: 1 }}
                 transition={{ duration: 0.3 }}
               >
-                <span className="text-white/90 text-sm font-medium">
+                <span className="text-white/90 text-xs md:text-sm font-medium">
                   Active filters:
                 </span>
 
                 <AnimatePresence>
                   {selectedLocation && (
                     <motion.span
-                      className="inline-flex items-center gap-1 bg-white/20 text-white px-2 py-1 rounded text-sm"
+                      className="inline-flex items-center gap-1 bg-white/20 text-white px-2 py-1 rounded text-xs md:text-sm"
                       initial={{ opacity: 0, scale: 0.8, x: -10 }}
                       animate={{ opacity: 1, scale: 1, x: 0 }}
                       exit={{ opacity: 0, scale: 0.8, x: -10 }}
                       transition={{ duration: 0.3 }}
                       layout
                     >
-                      {locations.find((l) => l._id === selectedLocation)?.name}
+                      <span className="truncate">
+                        {
+                          locations.find((l) => l._id === selectedLocation)
+                            ?.name
+                        }
+                      </span>
                       <motion.button
                         onClick={() => setSelectedLocation("")}
-                        className="hover:bg-white/20 rounded p-0.5 transition-colors"
+                        className="hover:bg-white/20 rounded p-0.5 transition-colors flex-shrink-0"
                         whileHover={{ scale: 1.2 }}
                         whileTap={{ scale: 0.9 }}
                       >
@@ -283,17 +291,19 @@ const MenuFilters = ({
                 <AnimatePresence>
                   {selectedService && (
                     <motion.span
-                      className="inline-flex items-center gap-1 bg-white/20 text-white px-2 py-1 rounded text-sm"
+                      className="inline-flex items-center gap-1 bg-white/20 text-white px-2 py-1 rounded text-xs md:text-sm"
                       initial={{ opacity: 0, scale: 0.8, x: -10 }}
                       animate={{ opacity: 1, scale: 1, x: 0 }}
                       exit={{ opacity: 0, scale: 0.8, x: -10 }}
                       transition={{ duration: 0.3 }}
                       layout
                     >
-                      {services.find((s) => s._id === selectedService)?.name}
+                      <span className="truncate">
+                        {services.find((s) => s._id === selectedService)?.name}
+                      </span>
                       <motion.button
                         onClick={() => setSelectedService("")}
-                        className="hover:bg-white/20 rounded p-0.5 transition-colors"
+                        className="hover:bg-white/20 rounded p-0.5 transition-colors flex-shrink-0"
                         whileHover={{ scale: 1.2 }}
                         whileTap={{ scale: 0.9 }}
                       >
@@ -306,19 +316,21 @@ const MenuFilters = ({
                 <AnimatePresence>
                   {sortBy !== "default" && (
                     <motion.span
-                      className="inline-flex items-center gap-1 bg-white/20 text-white px-2 py-1 rounded text-sm"
+                      className="inline-flex items-center gap-1 bg-white/20 text-white px-2 py-1 rounded text-xs md:text-sm"
                       initial={{ opacity: 0, scale: 0.8, x: -10 }}
                       animate={{ opacity: 1, scale: 1, x: 0 }}
                       exit={{ opacity: 0, scale: 0.8, x: -10 }}
                       transition={{ duration: 0.3 }}
                       layout
                     >
-                      {sortBy === "price-low"
-                        ? "Price: Low-High"
-                        : "Price: High-Low"}
+                      <span className="truncate">
+                        {sortBy === "price-low"
+                          ? "Price: Low-High"
+                          : "Price: High-Low"}
+                      </span>
                       <motion.button
                         onClick={() => setSortBy("default")}
-                        className="hover:bg-white/20 rounded p-0.5 transition-colors"
+                        className="hover:bg-white/20 rounded p-0.5 transition-colors flex-shrink-0"
                         whileHover={{ scale: 1.2 }}
                         whileTap={{ scale: 0.9 }}
                       >

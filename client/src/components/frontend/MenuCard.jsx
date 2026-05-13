@@ -1,6 +1,14 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MapPin, Users, ChefHat, Star, ArrowRight, Package, List } from "lucide-react";
+import {
+  MapPin,
+  Users,
+  ChefHat,
+  Star,
+  ArrowRight,
+  Package,
+  List,
+} from "lucide-react";
 
 // Helper function to format the price
 const formatPrice = (price) => {
@@ -12,45 +20,46 @@ const formatPrice = (price) => {
 
 // Helper function to get package type info
 const getPackageTypeInfo = (menu) => {
-  if (menu.packageType === 'simple') {
+  if (menu.packageType === "simple") {
     return {
-      type: 'Simple Package',
+      type: "Simple Package",
       icon: <List size={14} className="text-purple-500" />,
-      color: 'purple'
+      color: "purple",
     };
   } else {
     return {
-      type: 'Categorized Package',
+      type: "Categorized Package",
       icon: <Package size={14} className="text-blue-500" />,
-      color: 'blue'
+      color: "blue",
     };
   }
 };
 
 // Helper function to count enabled categories or simple items
 const getPackageContentCount = (menu) => {
-  if (menu.packageType === 'simple') {
+  if (menu.packageType === "simple") {
     return {
-      type: 'items',
-      count: menu.simpleItems?.length || 0
+      type: "items",
+      count: menu.simpleItems?.length || 0,
     };
   } else {
     // Count enabled categories
-    const enabledCategories = menu.categories?.filter(cat => cat.enabled) || [];
+    const enabledCategories =
+      menu.categories?.filter((cat) => cat.enabled) || [];
     return {
-      type: 'categories',
-      count: enabledCategories.length
+      type: "categories",
+      count: enabledCategories.length,
     };
   }
 };
 
 // Helper function to get total items count (items that can be included in package)
 const getTotalItemsCount = (menu) => {
-  if (menu.packageType === 'simple') {
+  if (menu.packageType === "simple") {
     return menu.simpleItems?.length || 0;
   } else {
     let totalItems = 0;
-    menu.categories?.forEach(category => {
+    menu.categories?.forEach((category) => {
       if (category.enabled) {
         // Count included items
         totalItems += category.includedItems?.length || 0;
@@ -64,24 +73,31 @@ const getTotalItemsCount = (menu) => {
 
 // Helper function to get enabled categories for display with item counts
 const getEnabledCategories = (menu) => {
-  if (menu.packageType === 'simple') {
-    return ['Simple Items'];
+  if (menu.packageType === "simple") {
+    return ["Mixed Items"];
   } else {
-    return menu.categories?.filter(cat => cat.enabled).map(cat => {
-      // Count items that can be included in the package for this category
-      const includedItemsCount = cat.includedItems?.length || 0;
-      const selectionGroupsCount = cat.selectionGroups?.length || 0;
-      const totalCategoryItems = includedItemsCount + selectionGroupsCount;
-      
-      return `${cat.name}(${totalCategoryItems})`;
-    }) || [];
+    return (
+      menu.categories
+        ?.filter((cat) => cat.enabled)
+        .map((cat) => {
+          // Count items that can be included in the package for this category
+          const includedItemsCount = cat.includedItems?.length || 0;
+          const selectionGroupsCount = cat.selectionGroups?.length || 0;
+          const totalCategoryItems = includedItemsCount + selectionGroupsCount;
+
+          return `${cat.name}(${totalCategoryItems})`;
+        }) || []
+    );
   }
 };
 
 // Helper function to check if addons are available
 const hasAddons = (menu) => {
-  return menu.addons?.enabled && 
-    ((menu.addons.fixedAddons?.length > 0) || (menu.addons.variableAddons?.length > 0));
+  return (
+    menu.addons?.enabled &&
+    (menu.addons.fixedAddons?.length > 0 ||
+      menu.addons.variableAddons?.length > 0)
+  );
 };
 
 const MenuCard = ({ menu, onClick }) => {
@@ -193,7 +209,7 @@ const MenuCard = ({ menu, onClick }) => {
             >
               {menu.name}
             </motion.h3>
-            
+
             {/* Package Type Badge */}
             <motion.div
               className="flex items-center gap-2 mb-2"
@@ -202,7 +218,9 @@ const MenuCard = ({ menu, onClick }) => {
               transition={{ delay: 0.2 }}
             >
               {packageTypeInfo.icon}
-              <span className={`text-sm font-medium text-${packageTypeInfo.color}-600`}>
+              <span
+                className={`text-sm font-medium text-${packageTypeInfo.color}-600`}
+              >
                 {packageTypeInfo.type}
               </span>
             </motion.div>
@@ -298,7 +316,10 @@ const MenuCard = ({ menu, onClick }) => {
               transition={{ delay: 0.6 }}
             >
               {menu.minPeople || 1}
-              {menu.maxPeople && menu.maxPeople !== 1000 ? `-${menu.maxPeople}` : "+"} people
+              {menu.maxPeople && menu.maxPeople !== 1000
+                ? `-${menu.maxPeople}`
+                : "+"}{" "}
+              people
             </motion.div>
           </motion.div>
 
@@ -317,7 +338,7 @@ const MenuCard = ({ menu, onClick }) => {
               <ChefHat size={20} style={{ color: "var(--primary-brown)" }} />
             </motion.div>
             <div className="text-xs text-gray-500 mb-1">
-              {packageContent.type === 'categories' ? 'Categories' : 'Items'}
+              {packageContent.type === "categories" ? "Categories" : "Items"}
             </div>
             <motion.div
               className="font-semibold text-sm"
@@ -369,12 +390,14 @@ const MenuCard = ({ menu, onClick }) => {
                 key={categoryName}
                 className="px-2 py-1 text-xs font-medium rounded"
                 style={{
-                  backgroundColor: index % 2 === 0 
-                    ? "rgba(164, 205, 61, 0.1)" 
-                    : "rgba(73, 42, 0, 0.1)",
-                  color: index % 2 === 0 
-                    ? "var(--primary-green)" 
-                    : "var(--primary-brown)",
+                  backgroundColor:
+                    index % 2 === 0
+                      ? "rgba(164, 205, 61, 0.1)"
+                      : "rgba(73, 42, 0, 0.1)",
+                  color:
+                    index % 2 === 0
+                      ? "var(--primary-green)"
+                      : "var(--primary-brown)",
                 }}
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -418,7 +441,7 @@ const MenuCard = ({ menu, onClick }) => {
           />
 
           {/* Button Content */}
-          <span className="relative z-10">Order Package</span>
+          <span className="relative z-10">View Menu</span>
           <motion.div
             className="relative z-10"
             animate={{ x: [0, 3, 0] }}

@@ -14,11 +14,11 @@ const OfferModal = () => {
       locationName: "Sydney",
       buttonText: "View Sydney Packages",
     },
-    // {
-    //   locationId: "68913baa69565fd03474f60f",
-    //   locationName: "Canberra",
-    //   buttonText: "View Canberra Packages",
-    // },
+    {
+      locationId: "68913baa69565fd03474f60f",
+      locationName: "Canberra",
+      buttonText: "View Canberra Packages",
+    },
   ];
 
   useEffect(() => {
@@ -101,7 +101,7 @@ const OfferModal = () => {
               {/* Poster Image */}
               <div className="aspect-square w-full relative overflow-hidden bg-gradient-to-br from-[#112e12] to-[#2d5a2f]">
                 <img
-                  src="/deliveryoffer.jpg"
+                  src="/offer.png"
                   alt="Special Offer"
                   className="w-full h-full object-cover"
                   onError={(e) => (e.target.style.display = "none")}

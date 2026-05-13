@@ -1,7 +1,12 @@
 import React, { useRef } from "react";
 import { X, Printer } from "lucide-react";
 
-const KitchenDocketModal = ({ booking, onClose, formatDateTime , formatPrice }) => {
+const KitchenDocketModal = ({
+  booking,
+  onClose,
+  formatDateTime,
+  formatPrice,
+}) => {
   const printRef = useRef();
 
   const handlePrint = () => {
@@ -17,18 +22,20 @@ const KitchenDocketModal = ({ booking, onClose, formatDateTime , formatPrice }) 
             body {
               font-family: 'Courier New', monospace;
               margin: 0;
-              padding: 15px;
+              padding: 0;
               background: white;
               color: black;
               line-height: 1.2;
             }
             .docket {
               width: 80mm;
-              max-width: 220px;
-              margin: 0 auto;
-              padding: 8px;
-              border: 2px solid #000;
+              margin: 0;
+              padding: 5mm;
               background: white;
+            }
+            @page {
+              size: 80mm 250mm;
+              margin: 0;
             }
             .docket-title {
               text-align: center;
@@ -122,10 +129,9 @@ const KitchenDocketModal = ({ booking, onClose, formatDateTime , formatPrice }) 
     `);
 
     printWindow.document.close();
-    printWindow.onload = () => {
+    setTimeout(() => {
       printWindow.print();
-      printWindow.close();
-    };
+    }, 250);
   };
 
   // Check if delivery is urgent (within 24 hours)
@@ -253,13 +259,13 @@ const KitchenDocketModal = ({ booking, onClose, formatDateTime , formatPrice }) 
                         (otherItem, otherIndex) =>
                           otherIndex !== index &&
                           otherItem.name.startsWith(item.name + " - ") &&
-                          !usedItems.has(otherIndex)
+                          !usedItems.has(otherIndex),
                       );
 
                       if (relatedChoices.length > 0) {
                         // Group choices with base item
                         const choiceNames = relatedChoices.map((choice) =>
-                          choice.name.replace(item.name + " - ", "")
+                          choice.name.replace(item.name + " - ", ""),
                         );
 
                         processedItems.push({
@@ -271,7 +277,7 @@ const KitchenDocketModal = ({ booking, onClose, formatDateTime , formatPrice }) 
                         relatedChoices.forEach((_, choiceIndex) => {
                           const originalIndex = booking.selectedItems.findIndex(
                             (original) =>
-                              original === relatedChoices[choiceIndex]
+                              original === relatedChoices[choiceIndex],
                           );
                           usedItems.add(originalIndex);
                         });

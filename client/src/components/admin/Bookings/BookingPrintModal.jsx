@@ -60,17 +60,15 @@ const BookingPrintModal = ({
           body {
             font-family: 'Courier New', monospace;
             margin: 0;
-            padding: 15px;
+            padding: 0;
             background: white;
             color: black;
             line-height: 1.2;
           }
           .receipt {
             width: 80mm;
-            max-width: 220px;
-            margin: 0 auto;
-            padding: 8px;
-            border: 1px solid #ddd;
+            margin: 0;
+            padding: 5mm;
             background: white;
           }
           .header {
@@ -163,6 +161,10 @@ const BookingPrintModal = ({
             background: #DDD6FE;
             color: #6B21A8;
           }
+          @page {
+            size: 80mm 250mm;
+            margin: 0;
+          }
           @media print {
             body { margin: 0; padding: 0; }
             .receipt { border: none; box-shadow: none; }
@@ -176,10 +178,9 @@ const BookingPrintModal = ({
   `);
 
     printWindow.document.close();
-    printWindow.onload = () => {
+    setTimeout(() => {
       printWindow.print();
-      printWindow.close();
-    };
+    }, 250);
   };
 
   const getStatusClass = (status) => {
@@ -376,12 +377,12 @@ const BookingPrintModal = ({
                           (otherItem, otherIndex) =>
                             otherIndex !== index &&
                             otherItem.name.startsWith(item.name + " - ") &&
-                            !usedItems.has(otherIndex)
+                            !usedItems.has(otherIndex),
                         );
 
                         if (relatedChoices.length > 0) {
                           const choiceNames = relatedChoices.map((choice) =>
-                            choice.name.replace(item.name + " - ", "")
+                            choice.name.replace(item.name + " - ", ""),
                           );
                           processedItems.push({
                             name: `${item.name} (${choiceNames.join(", ")})`,
@@ -391,7 +392,7 @@ const BookingPrintModal = ({
                             const originalIndex =
                               booking.selectedItems.findIndex(
                                 (original) =>
-                                  original === relatedChoices[choiceIndex]
+                                  original === relatedChoices[choiceIndex],
                               );
                             usedItems.add(originalIndex);
                           });
@@ -471,13 +472,13 @@ const BookingPrintModal = ({
                             ?.filter((item) => item.totalPrice)
                             .reduce(
                               (sum, item) => sum + (item.totalPrice || 0),
-                              0
+                              0,
                             ) || 0;
 
                         const adminAdditionsTotal =
                           booking.adminAdditions?.reduce(
                             (sum, add) => sum + (add.price || 0),
-                            0
+                            0,
                           ) || 0;
 
                         const subtotalBeforeDiscount =
@@ -497,7 +498,7 @@ const BookingPrintModal = ({
                               <span>
                                 {formatPrice(
                                   booking.pricing?.total ||
-                                    subtotalBeforeDiscount
+                                    subtotalBeforeDiscount,
                                 )}
                               </span>
                             </div>
@@ -593,7 +594,7 @@ const BookingPrintModal = ({
                               <span>
                                 {formatPrice(
                                   booking.pricing?.total ||
-                                    subtotalBeforeDiscount
+                                    subtotalBeforeDiscount,
                                 )}
                               </span>
                             </div>
