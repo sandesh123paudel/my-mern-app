@@ -365,12 +365,17 @@ const MenuCard = ({ menu, onClick }) => {
         {/* Service Badge */}
         <motion.span
           className="inline-block px-3 py-1 rounded-full text-xs font-semibold text-white"
-          style={{ backgroundColor: "var(--primary-green)" }}
+          style={{
+            backgroundColor:
+              menu.serviceId?.name === "Function"
+                ? "#2B0F00" // Purple for Function
+                : "var(--primary-green)", // Green for Catering
+          }}
           variants={badgeVariants}
           whileHover={{ scale: 1.05 }}
           transition={{ duration: 0.2 }}
         >
-          {menu.serviceId?.name}
+          {menu.serviceId?.name === "Function" ? "Function & Events" : "Catering Services"}
         </motion.span>
       </motion.div>
 
