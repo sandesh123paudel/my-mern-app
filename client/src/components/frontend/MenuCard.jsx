@@ -91,6 +91,101 @@ const getEnabledCategories = (menu) => {
   }
 };
 
+// Returns structured data for rendering menu items
+// For categorized: array of { categoryName, items: [{ name, suboptions }] }
+// For simple/mixed: array of { name, suboptions } (flat)
+const getMenuStructuredData = (menu) => {
+  if (menu.packageType === "simple") {
+    // Flat list — will render as inline paragraph
+    const items =
+      menu.simpleItems?.map((item) => ({
+        name: item.name,
+        suboptions: [
+          ...(item.hasChoices && item.choices
+            ? item.choices.map((c) => c.name).filter(Boolean)
+            : []),
+          ...(item.options
+            ? item.options.map((o) => o.name).filter(Boolean)
+            : []),
+        ],
+      })) || [];
+    return { type: "simple", items };
+  }
+
+  // Categorized — group by category
+  const categories = [];
+  menu.categories
+    ?.filter((cat) => cat.enabled)
+    .forEach((category) => {
+      const items = [];
+      category.includedItems?.forEach((item) => {
+        if (item.name) items.push({ name: item.name, suboptions: [] });
+      });
+      category.selectionGroups?.forEach((group) => {
+        if (group.name) {
+          items.push({
+            name: group.name,
+            suboptions: group.items?.map((i) => i.name).filter(Boolean) || [],
+          });
+        }
+      });
+      if (items.length > 0) {
+        categories.push({ categoryName: category.name, items });
+      }
+    });
+  return { type: "categorized", categories };
+};
+
+// Format a single item with optional suboptions in brackets
+const formatItemLabel = (item) => {
+  if (item.suboptions.length === 0) return item.name;
+  return `${item.suboptions.join(" / ")}`;
+};
+
+// Returns grouped sections for display:
+// - categorized menus: [{ label: "Entrée (3)", items: ["Samosa", "Rice (Plain / Jeera)"] }, ...]
+// - simple/mixed menus: [{ label: null, items: [...] }] — no section header
+const getMenuSections = (menu) => {
+  const formatItem = (name, subs) =>
+    subs.length > 0 ? `${subs.join(" / ")}` : name;
+
+  if (menu.packageType === "simple") {
+    const items =
+      menu.simpleItems?.map((item) => {
+        const subs = [
+          ...(item.hasChoices && item.choices
+            ? item.choices.map((c) => c.name).filter(Boolean)
+            : []),
+          ...(item.options
+            ? item.options.map((o) => o.name).filter(Boolean)
+            : []),
+        ];
+        return formatItem(item.name, subs);
+      }) || [];
+    return [{ label: null, items }];
+  }
+
+  // Categorized — one section per enabled category
+  const sections = [];
+  menu.categories
+    ?.filter((cat) => cat.enabled)
+    .forEach((category) => {
+      const items = [];
+      category.includedItems?.forEach((item) => {
+        if (item.name) items.push(item.name);
+      });
+      category.selectionGroups?.forEach((group) => {
+        if (!group.name) return;
+        const subs = group.items?.map((i) => i.name).filter(Boolean) || [];
+        items.push(formatItem(group.name, subs));
+      });
+      if (items.length > 0) {
+        sections.push({ label: `${category.name} (${items.length})`, items });
+      }
+    });
+  return sections;
+};
+
 // Helper function to check if addons are available
 const hasAddons = (menu) => {
   return (
@@ -137,23 +232,6 @@ const MenuCard = ({ menu, onClick }) => {
     },
   };
 
-  const iconVariants = {
-    hidden: { scale: 0, opacity: 0 },
-    visible: {
-      scale: 1,
-      opacity: 1,
-      transition: {
-        type: "spring",
-        stiffness: 200,
-        damping: 15,
-      },
-    },
-    hover: {
-      scale: 1.1,
-      transition: { duration: 0.2 },
-    },
-  };
-
   const badgeVariants = {
     hidden: { scale: 0, opacity: 0, x: -20 },
     visible: {
@@ -182,6 +260,10 @@ const MenuCard = ({ menu, onClick }) => {
   const packageContent = getPackageContentCount(menu);
   const totalItems = getTotalItemsCount(menu);
   const enabledCategories = getEnabledCategories(menu);
+  // Structured menu data
+  const menuData = getMenuStructuredData(menu);
+  // Grouped sections: categorized per category, simple as single group
+  const menuSections = getMenuSections(menu);
   const hasAddonsAvailable = hasAddons(menu);
 
   return (
@@ -211,7 +293,7 @@ const MenuCard = ({ menu, onClick }) => {
             </motion.h3>
 
             {/* Package Type Badge */}
-            <motion.div
+            {/* <motion.div
               className="flex items-center gap-2 mb-2"
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
@@ -223,10 +305,11 @@ const MenuCard = ({ menu, onClick }) => {
               >
                 {packageTypeInfo.type}
               </span>
-            </motion.div>
+            </motion.div> */}
 
+            {/* Location */}
             <motion.div
-              className="flex items-center text-gray-600 text-sm"
+              className="flex items-center text-gray-600 text-sm mb-2"
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3 }}
@@ -241,7 +324,26 @@ const MenuCard = ({ menu, onClick }) => {
                 {menu.locationId?.name} - {menu.locationId?.city}
               </span>
             </motion.div>
+
+            {/* People count — shown in header */}
+            <motion.div
+              className="flex items-center gap-1 text-sm font-medium"
+              style={{ color: "var(--primary-green)" }}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.35 }}
+            >
+              <Users size={14} />
+              <span>
+                {menu.minPeople || 1}
+                {menu.maxPeople && menu.maxPeople !== 1000
+                  ? `–${menu.maxPeople}`
+                  : "+"}{" "}
+                people
+              </span>
+            </motion.div>
           </div>
+
           <motion.div
             className="text-right"
             initial={{ opacity: 0, scale: 0.8 }}
@@ -286,142 +388,103 @@ const MenuCard = ({ menu, onClick }) => {
           </motion.p>
         )}
 
-        {/* Stats Grid */}
+        {/* ── Stats Grid commented out ──
         <motion.div
           className="grid grid-cols-3 gap-4 mb-6"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5, staggerChildren: 0.1 }}
         >
-          {/* People Count */}
-          <motion.div
-            className="text-center"
-            whileHover={{ scale: 1.05 }}
-            transition={{ duration: 0.2 }}
-          >
-            <motion.div
-              className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2"
-              style={{ backgroundColor: "rgba(164, 205, 61, 0.1)" }}
-              variants={iconVariants}
-              whileHover="hover"
-            >
+          <motion.div className="text-center" whileHover={{ scale: 1.05 }} transition={{ duration: 0.2 }}>
+            <motion.div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2" style={{ backgroundColor: "rgba(164, 205, 61, 0.1)" }} variants={iconVariants} whileHover="hover">
               <Users size={20} style={{ color: "var(--primary-green)" }} />
             </motion.div>
             <div className="text-xs text-gray-500 mb-1">Serves</div>
-            <motion.div
-              className="font-semibold text-sm"
-              style={{ color: "var(--primary-brown)" }}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.6 }}
-            >
-              {menu.minPeople || 1}
-              {menu.maxPeople && menu.maxPeople !== 1000
-                ? `-${menu.maxPeople}`
-                : "+"}{" "}
-              people
+            <motion.div className="font-semibold text-sm" style={{ color: "var(--primary-brown)" }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}>
+              {menu.minPeople || 1}{menu.maxPeople && menu.maxPeople !== 1000 ? `-${menu.maxPeople}` : "+"} people
             </motion.div>
           </motion.div>
-
-          {/* Package Content */}
-          <motion.div
-            className="text-center"
-            whileHover={{ scale: 1.05 }}
-            transition={{ duration: 0.2 }}
-          >
-            <motion.div
-              className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2"
-              style={{ backgroundColor: "rgba(73, 42, 0, 0.1)" }}
-              variants={iconVariants}
-              whileHover="hover"
-            >
+          <motion.div className="text-center" whileHover={{ scale: 1.05 }} transition={{ duration: 0.2 }}>
+            <motion.div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2" style={{ backgroundColor: "rgba(73, 42, 0, 0.1)" }} variants={iconVariants} whileHover="hover">
               <ChefHat size={20} style={{ color: "var(--primary-brown)" }} />
             </motion.div>
-            <div className="text-xs text-gray-500 mb-1">
-              {packageContent.type === "categories" ? "Categories" : "Items"}
-            </div>
-            <motion.div
-              className="font-semibold text-sm"
-              style={{ color: "var(--primary-brown)" }}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.7 }}
-            >
+            <div className="text-xs text-gray-500 mb-1">{packageContent.type === "categories" ? "Categories" : "Items"}</div>
+            <motion.div className="font-semibold text-sm" style={{ color: "var(--primary-brown)" }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}>
               {packageContent.count} {packageContent.type}
             </motion.div>
           </motion.div>
-
-          {/* Total Package Items */}
-          <motion.div
-            className="text-center"
-            whileHover={{ scale: 1.05 }}
-            transition={{ duration: 0.2 }}
-          >
-            <motion.div
-              className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2 bg-yellow-100"
-              variants={iconVariants}
-              whileHover="hover"
-            >
+          <motion.div className="text-center" whileHover={{ scale: 1.05 }} transition={{ duration: 0.2 }}>
+            <motion.div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2 bg-yellow-100" variants={iconVariants} whileHover="hover">
               <Star size={20} className="text-yellow-600" />
             </motion.div>
             <div className="text-xs text-gray-500 mb-1">Package Items</div>
-            <motion.div
-              className="font-semibold text-sm"
-              style={{ color: "var(--primary-brown)" }}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.8 }}
-            >
+            <motion.div className="font-semibold text-sm" style={{ color: "var(--primary-brown)" }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }}>
               {totalItems} items
             </motion.div>
           </motion.div>
         </motion.div>
+        ── End Stats Grid ── */}
 
-        {/* Package Content Tags */}
-        <motion.div
-          className="flex flex-wrap gap-2 mb-4"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6, staggerChildren: 0.05 }}
-        >
-          <AnimatePresence>
-            {enabledCategories.map((categoryName, index) => (
-              <motion.span
-                key={categoryName}
-                className="px-2 py-1 text-xs font-medium rounded"
-                style={{
-                  backgroundColor:
-                    index % 2 === 0
-                      ? "rgba(164, 205, 61, 0.1)"
-                      : "rgba(73, 42, 0, 0.1)",
-                  color:
-                    index % 2 === 0
-                      ? "var(--primary-green)"
-                      : "var(--primary-brown)",
-                }}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                whileHover={{ scale: 1.05 }}
-                layout
+        {/* Package Content Tags — commented out: replaced by menu items list with counts */}
+        {/* <motion.div ... /> */}
+
+        {/* Menu items — sectioned by category or flat mixed */}
+        {menuSections.length > 0 &&
+          menuSections.some((s) => s.items.length > 0) && (
+            <motion.div
+              className="mb-4"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.7 }}
+            >
+              <span
+                className="inline-block text-xs font-semibold text-white mb-2 px-2 py-0.5 rounded"
+                style={{ backgroundColor: "var(--primary-brown)" }}
               >
-                {categoryName}
-              </motion.span>
-            ))}
-            {hasAddonsAvailable && (
-              <motion.span
-                className="px-2 py-1 text-xs font-medium rounded bg-orange-100 text-orange-700"
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                whileHover={{ scale: 1.05 }}
-                layout
-              >
-                Add-ons Available
-              </motion.span>
-            )}
-          </AnimatePresence>
-        </motion.div>
+                Menu items
+              </span>{" "}
+              <div className="space-y-2">
+                {menuSections.map((section, si) => (
+                  <div key={si}>
+                    {/* Category label for categorized, nothing for mixed */}
+                    {section.label && (
+                      <p
+                        className="font-semibold capitalize mb-1"
+                        style={{
+                          fontSize: "10px",
+                          color: "var(--primary-brown)",
+                        }}
+                      >
+                        {section.label}
+                      </p>
+                    )}
+                    <ul className="grid grid-cols-1 gap-x-3 gap-y-1">
+                      {section.items.map((name, index) => (
+                        <motion.li
+                          key={index}
+                          className="flex items-start gap-1.5 min-w-0"
+                          initial={{ opacity: 0, x: -8 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.7 + index * 0.04 }}
+                        >
+                          <span
+                            className="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1"
+                            style={{ backgroundColor: "var(--primary-green)" }}
+                          />
+                          <span
+                            className="leading-tight text-gray-600"
+                            style={{ fontSize: "11px" }}
+                          >
+                            {name}
+                          </span>
+                        </motion.li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
 
         {/* Action Button */}
         <motion.button
@@ -441,7 +504,7 @@ const MenuCard = ({ menu, onClick }) => {
           />
 
           {/* Button Content */}
-          <span className="relative z-10">View Menu</span>
+          <span className="relative z-10">Place Order</span>
           <motion.div
             className="relative z-10"
             animate={{ x: [0, 3, 0] }}
