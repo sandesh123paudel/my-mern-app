@@ -3,6 +3,20 @@ import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { AppContext } from "../../context/AppContext";
 import axios from "axios";
 import toast from "react-hot-toast";
+import {
+  LayoutDashboard,
+  MapPin,
+  Calendar,
+  ClipboardList,
+  Mail,
+  ChefHat,
+  Utensils,
+  Tag,
+  Users,
+  LogOut,
+  Menu as MenuIcon,
+  ExternalLink,
+} from "lucide-react";
 
 const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -27,19 +41,19 @@ const AdminLayout = () => {
   };
 
   const menuItems = [
-    { path: "/admin/dashboard", name: "Dashboard", icon: "📊" },
+    { path: "/admin/dashboard", name: "Dashboard", icon: LayoutDashboard },
     {
       path: "/admin/location-services",
       name: "Location / Services",
-      icon: "📍",
+      icon: MapPin,
     },
-    { path: "/admin/calender", name: "Calendar Overview", icon: "📅" },
-    { path: "/admin/bookings", name: "Bookings", icon: "📲" },
-    { path: "/admin/inquiries", name: "Inquiries", icon: "📧" },
-    { path: "/admin/custom-menu", name: "Custom Menu", icon: "🍕" },
-    { path: "/admin/menu", name: "Menu Management", icon: "🍽️" },
-    { path: "/admin/coupons", name: "Coupons", icon: "💸" },
-    { path: "/admin/users", name: "Users", icon: "👥" },
+    { path: "/admin/calender", name: "Calendar Overview", icon: Calendar },
+    { path: "/admin/bookings", name: "Bookings", icon: ClipboardList },
+    { path: "/admin/inquiries", name: "Inquiries", icon: Mail },
+    { path: "/admin/custom-menu", name: "Custom Menu", icon: ChefHat },
+    { path: "/admin/menu", name: "Menu Management", icon: Utensils },
+    { path: "/admin/coupons", name: "Coupons", icon: Tag },
+    { path: "/admin/users", name: "Users", icon: Users },
   ];
 
   return (
@@ -58,22 +72,26 @@ const AdminLayout = () => {
         {/* Make it scrollable */}
         <nav className="mt-4 overflow-y-auto max-h-[calc(100vh-180px)]">
           <ul className="space-y-1 px-3">
-            {menuItems.map((item) => (
-              <li key={item.path}>
-                <Link
-                  to={item.path}
-                  className={`flex items-center px-3 py-2 text-sm text-gray-700 rounded-lg hover:bg-green-50 hover:text-green-600 transition-colors ${
-                    location.pathname === item.path
-                      ? "bg-green-100 text-green-600 border-r-2 border-green-600"
-                      : ""
-                  }`}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <span className="mr-2 text-base">{item.icon}</span>
-                  <span className="truncate">{item.name}</span>
-                </Link>
-              </li>
-            ))}
+            {menuItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = location.pathname === item.path;
+              return (
+                <li key={item.path}>
+                  <Link
+                    to={item.path}
+                    className={`flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors ${
+                      isActive
+                        ? "bg-green-100 text-green-700 border-r-2 border-green-600 font-semibold"
+                        : "text-gray-700 hover:bg-green-50 hover:text-green-600"
+                    }`}
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <Icon className={`w-4 h-4 mr-3 flex-shrink-0 ${isActive ? "text-green-600" : "text-gray-500"}`} />
+                    <span className="truncate">{item.name}</span>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </nav>
 
@@ -88,9 +106,10 @@ const AdminLayout = () => {
 
           <button
             onClick={handleLogout}
-            className="w-full bg-amber-700 text-white py-2 px-3 rounded-lg hover:bg-amber-800 transition-colors text-sm"
+            className="w-full flex items-center justify-center gap-2 bg-amber-700 text-white py-2 px-3 rounded-lg hover:bg-amber-800 transition-colors text-sm font-medium"
           >
-            Logout
+            <LogOut className="w-4 h-4" />
+            <span>Logout</span>
           </button>
         </div>
       </div>
@@ -102,31 +121,21 @@ const AdminLayout = () => {
           <div className="flex items-center justify-between px-6 h-16">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="text-gray-600 hover:text-gray-800 lg:hidden"
+              className="text-gray-600 hover:text-gray-800 lg:hidden p-1 rounded-md"
+              aria-label="Toggle Sidebar"
             >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
-              </svg>
+              <MenuIcon className="w-6 h-6" />
             </button>
 
             <div className="flex items-center space-x-4">
               <Link
                 to="/"
-                className="text-green-600 hover:text-green-700 font-medium"
+                className="flex items-center gap-1.5 text-green-600 hover:text-green-700 font-medium"
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                View Site
+                <span>View Site</span>
+                <ExternalLink className="w-4 h-4" />
               </Link>
             </div>
           </div>

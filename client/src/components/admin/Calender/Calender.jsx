@@ -113,8 +113,30 @@ const Calender = () => {
     navigate(url);
   };
 
+const CalendarSkeleton = () => (
+  <div className="space-y-6 animate-pulse p-1">
+    <div className="bg-white rounded-xl p-6 border border-gray-200 space-y-4">
+      <div className="flex justify-between items-center">
+        <div className="h-7 w-48 bg-gray-200 rounded"></div>
+        <div className="flex gap-2">
+          <div className="h-9 w-20 bg-gray-200 rounded-lg"></div>
+          <div className="h-9 w-20 bg-gray-200 rounded-lg"></div>
+        </div>
+      </div>
+      <div className="grid grid-cols-7 gap-2 pt-2">
+        {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+          <div key={i} className="h-8 bg-gray-200 rounded"></div>
+        ))}
+        {Array.from({ length: 28 }).map((_, i) => (
+          <div key={i} className="h-20 bg-gray-100 rounded-lg border border-gray-100"></div>
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
   if (loading) {
-    return <InlineLoading message="Loading calendar data..." size="large" />;
+    return <CalendarSkeleton />;
   }
 
   if (error) {

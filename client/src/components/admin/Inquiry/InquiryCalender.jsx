@@ -107,41 +107,34 @@ const InquiryCalendar = ({ inquiries, onDateSelect, selectedDate }) => {
     return "bg-red-100 text-red-800 border border-red-200";
   };
 
-  const getStatusCounts = (inquiries) => {
-    const counts = { pending: 0, responded: 0, archived: 0 };
-    inquiries.forEach((inquiry) => {
-      const status = inquiry.status || "pending";
-      counts[status] = (counts[status] || 0) + 1;
-    });
-    return counts;
-  };
-
   return (
-    <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+    <div className="bg-white rounded-lg shadow-md border border-gray-200 p-3 sm:p-4 h-full">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold text-green-800">Event Calendar</h3>
-        <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <h3 className="text-sm sm:text-base font-semibold text-green-800">
+          Event Calendar
+        </h3>
+        <div className="flex items-center gap-1.5">
           <button
             onClick={() => navigateMonth(-1)}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-1 hover:bg-gray-100 rounded-lg transition-colors text-sm"
             title="Previous month"
           >
             ←
           </button>
           <button
             onClick={goToToday}
-            className="px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 transition-colors"
+            className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 transition-colors"
             title="Go to current month"
           >
             Today
           </button>
-          <h4 className="text-lg font-medium min-w-[200px] text-center">
+          <h4 className="text-xs sm:text-sm font-medium min-w-[90px] sm:min-w-[110px] text-center">
             {months[currentMonth.getMonth()]} {currentMonth.getFullYear()}
           </h4>
           <button
             onClick={() => navigateMonth(1)}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-1 hover:bg-gray-100 rounded-lg transition-colors text-sm"
             title="Next month"
           >
             →
@@ -150,11 +143,11 @@ const InquiryCalendar = ({ inquiries, onDateSelect, selectedDate }) => {
       </div>
 
       {/* Days of week header */}
-      <div className="grid grid-cols-7 gap-1 mb-4">
+      <div className="grid grid-cols-7 gap-1 mb-2">
         {daysOfWeek.map((day) => (
           <div
             key={day}
-            className="p-2 text-center text-sm font-medium text-gray-600 bg-gray-50 rounded"
+            className="p-1 text-center text-[10px] sm:text-xs font-medium text-gray-600 bg-gray-50 rounded"
           >
             {day}
           </div>
@@ -167,7 +160,7 @@ const InquiryCalendar = ({ inquiries, onDateSelect, selectedDate }) => {
           <div
             key={index}
             className={`
-              min-h-[80px] p-1 border border-gray-200 rounded cursor-pointer transition-all duration-200
+              min-h-[42px] sm:min-h-[52px] p-1 border border-gray-200 rounded cursor-pointer transition-all duration-200
               ${dayInfo ? "hover:bg-gray-50 hover:shadow-sm" : ""}
               ${
                 dayInfo && isToday(dayInfo.date)
@@ -191,61 +184,17 @@ const InquiryCalendar = ({ inquiries, onDateSelect, selectedDate }) => {
           >
             {dayInfo && (
               <div className="h-full flex flex-col">
-                <div className="text-sm font-medium text-gray-900 mb-1">
+                <div className="text-[11px] sm:text-xs font-medium text-gray-900">
                   {dayInfo.day}
                 </div>
                 {dayInfo.inquiryCount > 0 && (
-                  <div className="flex-1 space-y-1">
-                    <div
-                      className={`
-                      text-xs px-1 py-0.5 rounded text-center font-medium
+                  <div
+                    className={`
+                      mt-auto text-[9px] sm:text-[10px] px-1 py-0.5 rounded text-center font-medium leading-tight
                       ${getInquiryCountColor(dayInfo.inquiryCount)}
                     `}
-                    >
-                      {dayInfo.inquiryCount} event
-                      {dayInfo.inquiryCount !== 1 ? "s" : ""}
-                    </div>
-
-                    {/* Status indicators */}
-                    {dayInfo.inquiryCount <= 3 && (
-                      <div className="space-y-0.5">
-                        {(() => {
-                          const statusCounts = getStatusCounts(
-                            dayInfo.inquiries
-                          );
-                          return Object.entries(statusCounts)
-                            .filter(([_, count]) => count > 0)
-                            .map(([status, count]) => (
-                              <div
-                                key={status}
-                                className={`
-                                  text-xs px-1 rounded text-center
-                                  ${
-                                    status === "pending"
-                                      ? "bg-amber-200 text-amber-800"
-                                      : ""
-                                  }
-                                  ${
-                                    status === "responded"
-                                      ? "bg-green-200 text-green-800"
-                                      : ""
-                                  }
-                                  ${
-                                    status === "archived"
-                                      ? "bg-gray-200 text-gray-800"
-                                      : ""
-                                  }
-                                `}
-                                title={`${count} ${status} inquiry${
-                                  count !== 1 ? "s" : ""
-                                }`}
-                              >
-                                {count} {status.charAt(0).toUpperCase()}
-                              </div>
-                            ));
-                        })()}
-                      </div>
-                    )}
+                  >
+                    {dayInfo.inquiryCount}
                   </div>
                 )}
               </div>
@@ -255,43 +204,26 @@ const InquiryCalendar = ({ inquiries, onDateSelect, selectedDate }) => {
       </div>
 
       {/* Legend */}
-      <div className="mt-4 space-y-2">
-        <div className="text-xs font-medium text-gray-600 mb-2">Legend:</div>
-        <div className="flex flex-wrap items-center gap-4 text-xs">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-blue-50 border border-blue-300 rounded"></div>
-            <span>Today</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-green-50 border border-green-400 rounded"></div>
-            <span>Selected</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-green-100 border border-green-200 rounded"></div>
-            <span>1-2 events</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-amber-100 border border-amber-200 rounded"></div>
-            <span>3-5 events</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-red-100 border border-red-200 rounded"></div>
-            <span>5+ events</span>
-          </div>
+      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] sm:text-xs text-gray-600">
+        <div className="flex items-center gap-1">
+          <div className="w-2.5 h-2.5 bg-blue-50 border border-blue-300 rounded"></div>
+          <span>Today</span>
         </div>
-        <div className="flex flex-wrap items-center gap-4 text-xs">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-amber-200 rounded"></div>
-            <span>P = Pending</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-green-200 rounded"></div>
-            <span>R = Responded</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-gray-200 rounded"></div>
-            <span>A = Archived</span>
-          </div>
+        <div className="flex items-center gap-1">
+          <div className="w-2.5 h-2.5 bg-green-50 border border-green-400 rounded"></div>
+          <span>Selected</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-2.5 h-2.5 bg-green-100 border border-green-200 rounded"></div>
+          <span>1-2</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-2.5 h-2.5 bg-amber-100 border border-amber-200 rounded"></div>
+          <span>3-5</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-2.5 h-2.5 bg-red-100 border border-red-200 rounded"></div>
+          <span>5+</span>
         </div>
       </div>
     </div>

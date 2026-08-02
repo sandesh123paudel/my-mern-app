@@ -150,11 +150,11 @@ const InquiryCard = ({ inquiry, onViewDetails }) => {
   };
 
   return (
-    <div className="p-6 hover:bg-gray-50 transition-colors border-b border-gray-200 last:border-b-0">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <div className="flex items-center gap-3 mb-2">
-            <h3 className="font-semibold text-amber-800">
+    <div className="p-4 sm:p-6 hover:bg-gray-50 transition-colors border-b border-gray-200 last:border-b-0">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
+            <h3 className="font-semibold text-amber-800 break-words">
               {inquiry.name || "Unknown"}
             </h3>
             <span
@@ -228,10 +228,10 @@ const InquiryCard = ({ inquiry, onViewDetails }) => {
           </div>
         </div>
 
-        <div className="ml-4">
+        <div className="sm:ml-4 flex-shrink-0">
           <button
             onClick={() => onViewDetails(inquiry)}
-            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+            className="w-full sm:w-auto bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
           >
             View Details
           </button>

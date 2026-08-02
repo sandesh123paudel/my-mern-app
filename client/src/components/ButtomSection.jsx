@@ -79,21 +79,41 @@ const BottomSection = () => {
           </motion.p>
         </motion.div>
 
-        {/* Call-to-action button */}
-        <motion.button
+        {/* Buttons container */}
+        <motion.div 
+          className="flex flex-row items-center gap-4"
           variants={fadeUp}
-          onClick={handleInquiryClick}
-          className="px-8 py-4 text-white border-2 border-white rounded-lg font-bold text-lg transition-all duration-300 hover:shadow-lg"
-          whileHover={{ 
-            scale: 1.05,
-            backgroundColor: 'white',
-            color: 'var(--primary-green)',
-            boxShadow: "0 10px 25px rgba(0, 0, 0, 0.1)"
-          }}
-          whileTap={{ scale: 0.95 }}
         >
-          Inquiry
-        </motion.button>
+          <motion.button
+            onClick={handleInquiryClick}
+            className="px-6 py-3 text-white border-2 border-white rounded-lg font-bold text-base transition-all duration-300 hover:shadow-lg"
+            whileHover={{ 
+              scale: 1.05,
+              backgroundColor: 'white',
+              color: 'var(--primary-green)',
+              boxShadow: "0 10px 25px rgba(0, 0, 0, 0.1)"
+            }}
+            whileTap={{ scale: 0.95 }}
+          >
+            Inquiry
+          </motion.button>
+
+          <motion.button
+            onClick={() => {
+              navigate("/menu");
+              window.scrollTo(0, 0);
+            }}
+            className="px-6 py-3 bg-white font-bold text-base rounded-lg shadow-lg transition-all duration-300"
+            style={{ color: "var(--primary-green)" }}
+            whileHover={{
+              scale: 1.05,
+              boxShadow: "0 15px 30px rgba(0, 0, 0, 0.2)",
+            }}
+            whileTap={{ scale: 0.95 }}
+          >
+            Menu
+          </motion.button>
+        </motion.div>
       </motion.div>
     </div>
   );

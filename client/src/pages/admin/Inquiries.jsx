@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { InlineLoading } from "../../components/Loading";
 import toast from "react-hot-toast";
 import { getInquiries } from "../../services/inquiryService";
 import InquiryCard from "../../components/admin/Inquiry/InquiryCard";
@@ -189,17 +188,46 @@ const AdminInquiries = () => {
     fetchAllInquiries();
   };
 
+const InquiriesSkeleton = () => (
+  <div className="space-y-6 animate-pulse p-1">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="h-8 w-56 bg-gray-200 rounded-lg"></div>
+      <div className="h-10 w-full sm:w-28 bg-gray-200 rounded-lg"></div>
+    </div>
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {[1, 2, 3, 4].map((i) => (
+        <div key={i} className="bg-white p-4 rounded-xl border border-gray-200 space-y-2">
+          <div className="h-3.5 w-20 bg-gray-200 rounded"></div>
+          <div className="h-7 w-12 bg-gray-200 rounded"></div>
+        </div>
+      ))}
+    </div>
+    <div className="bg-white rounded-xl p-6 border border-gray-200 space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="h-10 bg-gray-200 rounded-lg"></div>
+        ))}
+      </div>
+      <div className="space-y-3">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="h-20 bg-gray-50 rounded-xl border border-gray-100"></div>
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
   if (loading && inquiries.length === 0) {
-    return <InlineLoading message="Loading inquiries..." size="large" />;
+    return <InquiriesSkeleton />;
   }
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Inquiries Management</h1>
-        <div className="flex items-center gap-4">
-          <div className="text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl sm:text-3xl font-bold">Inquiries Management</h1>
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+          <div className="text-sm order-3 sm:order-none w-full sm:w-auto">
             {filters.status !== "all" ||
             filters.venue !== "all" ||
             filters.service !== "all" ||
@@ -217,7 +245,7 @@ const AdminInquiries = () => {
           <button
             onClick={handleRefresh}
             disabled={loading}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 flex-1 sm:flex-none ${
               loading
                 ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                 : "bg-blue-600 text-white hover:bg-blue-700"
@@ -241,7 +269,7 @@ const AdminInquiries = () => {
           </button>
           <button
             onClick={() => setShowAddModal(true)}
-            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center gap-2"
+            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center gap-2 flex-1 sm:flex-none"
           >
             <svg
               className="w-4 h-4"
@@ -269,71 +297,76 @@ const AdminInquiries = () => {
         loading={loading}
       />
 
-      {/* Calendar */}
-      <InquiryCalendar
-        inquiries={allInquiries}
-        onDateSelect={handleDateSelect}
-        selectedDate={filters.selectedDate}
-      />
-
-      {/* Inquiries List */}
-      <div className="bg-white rounded-lg shadow-md border border-gray-200">
-        <div className="px-6 py-4 border-b border-gray-200 bg-green-50">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-green-800">
-              {filters.selectedDate
-                ? `Inquiries for ${filters.selectedDate.toLocaleDateString()}`
-                : filters.status === "all"
-                ? "All Inquiries"
-                : `${
-                    filters.status.charAt(0).toUpperCase() +
-                    filters.status.slice(1)
-                  } Inquiries`}{" "}
-              ({displayedTotal})
-            </h2>
-            {loading && (
-              <div className="text-sm text-green-600">Loading...</div>
-            )}
-          </div>
+      {/* Calendar + Inquiries List - equal halves, matched height on large screens */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:items-stretch">
+        <div className="lg:h-[560px]">
+          <InquiryCalendar
+            inquiries={allInquiries}
+            onDateSelect={handleDateSelect}
+            selectedDate={filters.selectedDate}
+          />
         </div>
 
-        {displayedInquiries.length === 0 && !loading ? (
-          <div className="p-8 text-center text-amber-600">
-            <p className="text-lg">No inquiries found</p>
-            <p className="text-sm mt-2">
-              {filters.selectedDate
-                ? "No inquiries found for the selected date"
-                : filters.search.trim() ||
-                  filters.status !== "all" ||
-                  filters.venue !== "all" ||
-                  filters.service !== "all"
-                ? "Try adjusting your search terms or filters"
-                : "Inquiries will appear here when customers contact you"}
-            </p>
+        <div className="lg:h-[560px] bg-white rounded-lg shadow-md border border-gray-200 flex flex-col overflow-hidden">
+          <div className="px-4 sm:px-6 py-4 border-b border-gray-200 bg-green-50 rounded-t-lg flex-shrink-0">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-base font-semibold text-green-800">
+                {filters.selectedDate
+                  ? `Inquiries for ${filters.selectedDate.toLocaleDateString()}`
+                  : filters.status === "all"
+                  ? "All Inquiries"
+                  : `${
+                      filters.status.charAt(0).toUpperCase() +
+                      filters.status.slice(1)
+                    } Inquiries`}{" "}
+                ({displayedTotal})
+              </h2>
+              {loading && (
+                <div className="text-xs text-green-600">Loading...</div>
+              )}
+            </div>
           </div>
-        ) : (
-          <div>
-            {displayedInquiries.map((inquiry) => (
-              <InquiryCard
-                key={inquiry._id}
-                inquiry={inquiry}
-                onViewDetails={handleViewDetails}
-              />
-            ))}
-          </div>
-        )}
 
-        {/* Pagination - only show if not filtering by date */}
-        {!filters.selectedDate && totalPages > 1 && (
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={totalItems}
-            itemsPerPage={itemsPerPage}
-            onPageChange={handlePageChange}
-            onItemsPerPageChange={handleItemsPerPageChange}
-          />
-        )}
+          {displayedInquiries.length === 0 && !loading ? (
+            <div className="p-6 text-center text-amber-600">
+              <p className="text-base font-medium">No inquiries found</p>
+              <p className="text-sm mt-2">
+                {filters.selectedDate
+                  ? "No inquiries found for the selected date"
+                  : filters.search.trim() ||
+                    filters.status !== "all" ||
+                    filters.venue !== "all" ||
+                    filters.service !== "all"
+                  ? "Try adjusting your search terms or filters"
+                  : "Inquiries will appear here when customers contact you"}
+              </p>
+            </div>
+          ) : (
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              {displayedInquiries.map((inquiry) => (
+                <InquiryCard
+                  key={inquiry._id}
+                  inquiry={inquiry}
+                  onViewDetails={handleViewDetails}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Pagination - only show if not filtering by date; latest 5 show first, page for more */}
+          {!filters.selectedDate && totalPages > 1 && (
+            <div className="flex-shrink-0">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                itemsPerPage={itemsPerPage}
+                onPageChange={handlePageChange}
+                onItemsPerPageChange={handleItemsPerPageChange}
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Add Inquiry Modal */}
