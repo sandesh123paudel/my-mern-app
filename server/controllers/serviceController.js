@@ -105,7 +105,7 @@ const getServiceById = async (req, res) => {
         .json({ success: false, message: "Service not found" });
     }
 
-    const menus = await Menu.find({ serviceId: id, isActive: true });
+    const menus = await Menu.find({ serviceId: id, isActive: true }).sort({ sequenceOrder: 1, basePrice: 1 });
 
     return res.json({
       success: true,

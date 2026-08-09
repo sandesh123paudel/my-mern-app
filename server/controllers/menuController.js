@@ -20,7 +20,7 @@ const getMenus = async (req, res) => {
     const menus = await Menu.find(query)
       .populate("locationId", "name city address")
       .populate("serviceId", "name description")
-      .sort({ createdAt: -1 });
+      .sort({ sequenceOrder: 1, basePrice: 1 });
 
     res.json({
       success: true,
@@ -432,7 +432,7 @@ const getMenusByService = async (req, res) => {
     const menus = await Menu.find({ serviceId, isActive: true })
       .populate("locationId", "name city")
       .populate("serviceId", "name description")
-      .sort({ createdAt: -1 });
+      .sort({ sequenceOrder: 1, basePrice: 1 });
 
     res.json({
       success: true,
@@ -466,7 +466,7 @@ const getMenusByLocation = async (req, res) => {
     const menus = await Menu.find({ locationId, isActive: true })
       .populate("locationId", "name city")
       .populate("serviceId", "name description")
-      .sort({ createdAt: -1 });
+      .sort({ sequenceOrder: 1, basePrice: 1 });
 
     res.json({
       success: true,

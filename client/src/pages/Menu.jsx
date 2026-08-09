@@ -28,7 +28,7 @@ const Menu = () => {
 
   const [selectedLocation, setSelectedLocation] = useState("");
   const [selectedService, setSelectedService] = useState("");
-  const [sortBy, setSortBy] = useState("price-low");
+  const [sortBy, setSortBy] = useState("default");
   const [loading, setLoading] = useState(true);
   const [loadingMenus, setLoadingMenus] = useState(false);
   const navigate = useNavigate();

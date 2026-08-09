@@ -30,6 +30,10 @@ const menuSchema = new mongoose.Schema(
       type: Number,
       default: 1000,
     },
+    sequenceOrder: {
+      type: Number,
+      default: 99999,
+    },
     // Package type determines structure
     packageType: {
       type: String,

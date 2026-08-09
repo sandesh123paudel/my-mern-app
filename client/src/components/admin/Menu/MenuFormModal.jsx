@@ -43,6 +43,7 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
     basePrice: "",
     minPeople: 1,
     maxPeople: 1000,
+    sequenceOrder: "",
     packageType: "categorized",
     // Dynamic categories
     categories: [],
@@ -103,6 +104,7 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
         basePrice: (menu.basePrice || menu.price)?.toString() || "",
         minPeople: menu.minPeople || 10,
         maxPeople: menu.maxPeople?.toString() || 1000,
+        sequenceOrder: menu.sequenceOrder !== undefined && menu.sequenceOrder !== null && menu.sequenceOrder !== 99999 ? menu.sequenceOrder.toString() : "",
         packageType: menu.packageType || "categorized",
         categories: menu.categories || [],
         simpleItems: menu.simpleItems || [],
@@ -141,6 +143,7 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
       basePrice: "",
       minPeople: 10,
       maxPeople: 1000,
+      sequenceOrder: "",
       packageType: "categorized",
       categories: [],
       simpleItems: [],
@@ -845,6 +848,10 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
           formData.basePrice === "" ? 0 : Number(formData.basePrice) || 0,
         price: formData.basePrice === "" ? 0 : Number(formData.basePrice) || 0, // For backward compatibility
 
+        // Handle sequence order
+        sequenceOrder:
+          formData.sequenceOrder === "" ? 99999 : Number(formData.sequenceOrder) || 99999,
+
         // Handle people counts
         minPeople:
           formData.minPeople === "" ? 1 : Number(formData.minPeople) || 1,
@@ -1114,6 +1121,21 @@ const MenuFormModal = ({ isOpen, onClose, menu, onSuccess }) => {
                   value={formData.maxPeople}
                   onChange={handleChange}
                   placeholder="Leave empty for unlimited"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Sequence Order
+                </label>
+                <input
+                  type="number"
+                  name="sequenceOrder"
+                  min="1"
+                  className="w-full border border-gray-300 px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-green"
+                  value={formData.sequenceOrder}
+                  onChange={handleChange}
+                  placeholder="e.g. 1"
                 />
               </div>
             </div>
